@@ -1,4 +1,4 @@
-.PHONY: run logs down lint type hooks commit migrate upgrade downgrade
+.PHONY: run logs down lint type test hooks commit migrate upgrade downgrade
 
 run:
 	docker compose up --build -d
@@ -15,6 +15,9 @@ lint:
 
 type:
 	uv run mypy src
+
+test:
+	uv run pytest tests -q
 
 hooks:
 	uv run pre-commit install

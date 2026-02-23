@@ -1,0 +1,34 @@
+services:
+  backend:
+    build: .
+    container_name: time_tracking_backend
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/time_tracking
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: time_tracking_postgres
+    environment:
+      POSTGRES_DB: time_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d time_tracking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

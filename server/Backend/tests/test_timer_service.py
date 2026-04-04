@@ -78,7 +78,10 @@ async def test_start_timer_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_stop_timer_updates_total_time(monkeypatch: pytest.MonkeyPatch) -> None:
     session = DummySession()
     task = SimpleNamespace(id=1, total_time_seconds=5)
-    active_interval = SimpleNamespace(started_at=datetime(2026, 2, 23, 12, 0, tzinfo=UTC), finished_at=None)
+    active_interval = SimpleNamespace(
+        started_at=datetime(2026, 2, 23, 12, 0, tzinfo=UTC),
+        finished_at=None,
+    )
 
     async def fake_get_task_for_update(_session, _task_id):
         return task
@@ -88,7 +91,11 @@ async def test_stop_timer_updates_total_time(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(timer_service, "_get_task_for_update", fake_get_task_for_update)
     monkeypatch.setattr(timer_service, "_get_active_interval", fake_get_active_interval)
-    monkeypatch.setattr(timer_service, "utc_now", lambda: datetime(2026, 2, 23, 12, 1, 30, tzinfo=UTC))
+    monkeypatch.setattr(
+        timer_service,
+        "utc_now",
+        lambda: datetime(2026, 2, 23, 12, 1, 30, tzinfo=UTC),
+    )
 
     await timer_service.stop_timer(session, 1)
 

@@ -1,0 +1,99 @@
+services:
+  backend:
+    build: .
+    container_name: time_tracking_backend
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: ${APP_PORT:-8080}
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/time_tracking
+      LOG_LEVEL: INFO
+    ports:
+      - "${BACKEND_HOST_PORT:-8080}:${APP_PORT:-8080}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, urllib.request; port = os.environ.get('APP_PORT', '8080'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health').read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    labels:
+      logging: promtail
+      service: backend
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: time_tracking_postgres
+    environment:
+      POSTGRES_DB: time_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d time_tracking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: time_tracking_prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: time_tracking_loki
+    command: ["-config.file=/etc/loki/loki-config.yml"]
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: time_tracking_promtail
+    command: ["-config.file=/etc/promtail/promtail-config.yml"]
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: time_tracking_grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning/datasources/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  postgres_data:
+  loki_data:
+  grafana_data:

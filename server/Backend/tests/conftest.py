@@ -18,10 +18,10 @@ class DummyResult:
     def scalar_one_or_none(self) -> Any:
         return self._scalar_one_or_none
 
-    def scalars(self) -> "DummyResult":
+    def scalars(self) -> DummyResult:
         return self
 
-    def unique(self) -> "DummyResult":
+    def unique(self) -> DummyResult:
         return self
 
     def all(self) -> list[Any]:

@@ -28,7 +28,12 @@ class DummySession:
     def __init__(self) -> None:
         self.execute_results = [
             SimpleResult(120),
-            SimpleResult([SimpleNamespace(id=1, total_time_seconds=100), SimpleNamespace(id=2, total_time_seconds=20)]),
+            SimpleResult(
+                [
+                    SimpleNamespace(id=1, total_time_seconds=100),
+                    SimpleNamespace(id=2, total_time_seconds=20),
+                ]
+            ),
         ]
 
     async def execute(self, _stmt):

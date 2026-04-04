@@ -47,6 +47,7 @@ strict = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 plugins = []
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

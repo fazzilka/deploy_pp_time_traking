@@ -4,7 +4,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,8 +35,25 @@ Instrumentator().instrument(app).expose(app, include_in_schema=False)
 async def health() -> dict[str, str]:
     async with AsyncSessionFactory() as session:
         await _check_db(session)
-    return {"status": "ok", "database": "ok"}
+        await _check_schema(session)
+    return {"status": "ok", "database": "ok", "schema": "ok"}
 
 
 async def _check_db(session: AsyncSession) -> None:
     await session.execute(text("SELECT 1"))
+
+
+async def _check_schema(session: AsyncSession) -> None:
+    result = await session.execute(
+        text(
+            "SELECT "
+            "to_regclass('public.tasks') IS NOT NULL, "
+            "to_regclass('public.time_intervals') IS NOT NULL"
+        )
+    )
+    tasks_exists, intervals_exist = result.one()
+    if not tasks_exists or not intervals_exist:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database schema is not ready",
+        )

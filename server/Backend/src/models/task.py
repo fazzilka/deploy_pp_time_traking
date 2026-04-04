@@ -17,7 +17,7 @@ class Task(Base):
     description: Mapped[str] = mapped_column(Text(), nullable=False, default="")
     total_time_seconds: Mapped[int] = mapped_column(BigInteger(), nullable=False, default=0)
 
-    intervals: Mapped[list["TimeInterval"]] = relationship(
+    intervals: Mapped[list[TimeInterval]] = relationship(
         back_populates="task",
         cascade="all, delete-orphan",
         passive_deletes=True,

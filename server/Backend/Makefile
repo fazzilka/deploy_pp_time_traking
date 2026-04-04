@@ -1,4 +1,8 @@
-.PHONY: run logs down lint type test hooks commit migrate upgrade downgrade
+.PHONY: run logs down lint type test hooks commit migrate upgrade downgrade sync
+
+UV_CACHE_DIR ?= .uv-cache
+UV = UV_CACHE_DIR=$(UV_CACHE_DIR) uv
+UV_RUN = $(UV) run --no-sync
 
 run:
 	docker compose up --build -d
@@ -9,28 +13,31 @@ logs:
 down:
 	docker compose down
 
+sync:
+	$(UV) sync --frozen
+
 lint:
-	uv run ruff format src
-	uv run ruff check --fix src
+	$(UV_RUN) ruff format src tests
+	$(UV_RUN) ruff check --fix src tests
 
 type:
-	uv run mypy src
+	$(UV_RUN) mypy src
 
 test:
-	uv run pytest tests -q
+	$(UV_RUN) pytest tests -q
 
 hooks:
-	uv run pre-commit install
-	uv run pre-commit run --all-files
+	$(UV_RUN) pre-commit install
+	$(UV_RUN) pre-commit run --all-files
 
 commit:
-	uv run cz commit
+	$(UV_RUN) cz commit
 
 migrate:
-	uv run alembic revision --autogenerate -m "manual migration"
+	$(UV_RUN) alembic revision --autogenerate -m "manual migration"
 
 upgrade:
-	uv run alembic upgrade head
+	$(UV_RUN) alembic upgrade head
 
 downgrade:
-	uv run alembic downgrade -1
+	$(UV_RUN) alembic downgrade -1

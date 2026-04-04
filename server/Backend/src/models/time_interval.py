@@ -8,9 +8,7 @@ from src.db.session import Base
 
 class TimeInterval(Base):
     __tablename__ = "time_intervals"
-    __table_args__ = (
-        Index("ix_time_intervals_task_id_finished_at", "task_id", "finished_at"),
-    )
+    __table_args__ = (Index("ix_time_intervals_task_id_finished_at", "task_id", "finished_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)

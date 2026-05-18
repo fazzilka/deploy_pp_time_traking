@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException, status
 
+from src.api.deps import get_current_active_user
 from src.db.session import get_db_session
 from src.main import app
-from src.models.task import Task
 from tests.conftest import DummyResult
 
 
@@ -91,7 +91,11 @@ async def test_list_tasks_filters_and_search(
     async def override_session():
         yield dummy_session
 
+    async def override_user():
+        return SimpleNamespace(id=1)
+
     app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
     try:
         response = await test_client.get(
             "/api/v1/tasks",
@@ -108,12 +112,16 @@ async def test_list_tasks_filters_and_search(
 
 @pytest.mark.asyncio
 async def test_delete_task_not_found_returns_404(test_client, dummy_session) -> None:
-    dummy_session.get_map[(Task, 99)] = None
+    dummy_session.execute_results = [DummyResult(scalar_one_or_none=None)]
 
     async def override_session():
         yield dummy_session
 
+    async def override_user():
+        return SimpleNamespace(id=1)
+
     app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
     try:
         response = await test_client.delete("/api/v1/tasks/99")
     finally:

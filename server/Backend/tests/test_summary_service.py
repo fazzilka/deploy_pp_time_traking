@@ -42,7 +42,7 @@ class DummySession:
 
 @pytest.mark.asyncio
 async def test_build_summary_returns_total_and_top_tasks() -> None:
-    total, tasks = await build_summary(DummySession(), limit=10)
+    total, tasks = await build_summary(DummySession(), user_id=1, limit=10)
 
     assert total == 120
     assert len(tasks) == 2

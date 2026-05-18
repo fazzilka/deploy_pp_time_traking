@@ -36,7 +36,7 @@ async def test_start_timer_creates_interval(monkeypatch: pytest.MonkeyPatch) -> 
     session = DummySession()
     task = SimpleNamespace(id=1)
 
-    async def fake_get_task_for_update(_session, _task_id):
+    async def fake_get_task_for_update(_session, _task_id, _user_id):
         return task
 
     async def fake_get_active_interval(_session, _task_id):
@@ -46,7 +46,7 @@ async def test_start_timer_creates_interval(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(timer_service, "_get_active_interval", fake_get_active_interval)
     monkeypatch.setattr(timer_service, "utc_now", lambda: datetime(2026, 2, 23, tzinfo=UTC))
 
-    result = await timer_service.start_timer(session, 1)
+    result = await timer_service.start_timer(session, 1, 10)
 
     assert result is task
     assert len(session.added) == 1
@@ -59,7 +59,7 @@ async def test_start_timer_creates_interval(monkeypatch: pytest.MonkeyPatch) -> 
 async def test_start_timer_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
     session = DummySession()
 
-    async def fake_get_task_for_update(_session, _task_id):
+    async def fake_get_task_for_update(_session, _task_id, _user_id):
         return SimpleNamespace(id=1)
 
     async def fake_get_active_interval(_session, _task_id):
@@ -69,7 +69,7 @@ async def test_start_timer_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(timer_service, "_get_active_interval", fake_get_active_interval)
 
     with pytest.raises(HTTPException) as exc:
-        await timer_service.start_timer(session, 1)
+        await timer_service.start_timer(session, 1, 10)
 
     assert exc.value.status_code == 409
 
@@ -83,7 +83,7 @@ async def test_stop_timer_updates_total_time(monkeypatch: pytest.MonkeyPatch) ->
         finished_at=None,
     )
 
-    async def fake_get_task_for_update(_session, _task_id):
+    async def fake_get_task_for_update(_session, _task_id, _user_id):
         return task
 
     async def fake_get_active_interval(_session, _task_id):
@@ -97,7 +97,7 @@ async def test_stop_timer_updates_total_time(monkeypatch: pytest.MonkeyPatch) ->
         lambda: datetime(2026, 2, 23, 12, 1, 30, tzinfo=UTC),
     )
 
-    await timer_service.stop_timer(session, 1)
+    await timer_service.stop_timer(session, 1, 10)
 
     assert task.total_time_seconds == 95
     assert active_interval.finished_at is not None

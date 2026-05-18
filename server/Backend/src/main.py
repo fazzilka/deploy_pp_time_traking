@@ -48,11 +48,12 @@ async def _check_schema(session: AsyncSession) -> None:
         text(
             "SELECT "
             "to_regclass('public.tasks') IS NOT NULL, "
-            "to_regclass('public.time_intervals') IS NOT NULL"
+            "to_regclass('public.time_intervals') IS NOT NULL, "
+            "to_regclass('public.users') IS NOT NULL"
         )
     )
-    tasks_exists, intervals_exist = result.one()
-    if not tasks_exists or not intervals_exist:
+    tasks_exists, intervals_exist, users_exist = result.one()
+    if not tasks_exists or not intervals_exist or not users_exist:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database schema is not ready",

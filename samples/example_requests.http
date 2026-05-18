@@ -1,5 +1,7 @@
 ```http
 @host = http://localhost:8000
+@token = вставить_access_token_пользователя
+@admin_token = вставить_access_token_администратора
 
 ### Проверка работоспособности
 GET {{host}}/health
@@ -7,8 +9,47 @@ GET {{host}}/health
 ### Получение метрик
 GET {{host}}/metrics
 
-### Создание задачи
+### Регистрация пользователя
+POST {{host}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "username": "dmitry",
+  "password": "password123",
+  "full_name": "Дмитрий"
+}
+
+### Вход пользователя
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+
+### Получение профиля
+GET {{host}}/api/v1/users/me
+Authorization: Bearer {{token}}
+
+### Обновление профиля
+PATCH {{host}}/api/v1/users/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "dmitry_new",
+  "full_name": "Дмитрий Иванов"
+}
+
+### Получение активности за год
+GET {{host}}/api/v1/users/me/activity?year=2026
+Authorization: Bearer {{token}}
+
+### Создание задачи с JWT
 POST {{host}}/api/v1/tasks
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -16,22 +57,27 @@ Content-Type: application/json
   "description": "Реализовать запуск и остановку измерения времени"
 }
 
-### Получение списка задач
+### Получение списка задач с JWT
 GET {{host}}/api/v1/tasks
+Authorization: Bearer {{token}}
 
 ### Получение списка задач с поиском
 GET {{host}}/api/v1/tasks?search=таймер
+Authorization: Bearer {{token}}
 
 ### Получение списка задач с фильтром по времени больше нуля
 GET {{host}}/api/v1/tasks?has_time=true
+Authorization: Bearer {{token}}
 
 ### Получение задачи по идентификатору
 # Заменить 1 на реальный идентификатор
 GET {{host}}/api/v1/tasks/1
+Authorization: Bearer {{token}}
 
 ### Изменение задачи
 # Заменить 1 на реальный идентификатор
 PATCH {{host}}/api/v1/tasks/1
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -39,17 +85,49 @@ Content-Type: application/json
   "description": "Добавить запуск, остановку и сводную информацию"
 }
 
-### Запуск таймера
+### Запуск таймера с JWT
 # Заменить 1 на реальный идентификатор
 POST {{host}}/api/v1/tasks/1/timer/start
+Authorization: Bearer {{token}}
 
-### Остановка таймера
+### Остановка таймера с JWT
 # Заменить 1 на реальный идентификатор
 POST {{host}}/api/v1/tasks/1/timer/stop
+Authorization: Bearer {{token}}
 
-### Получение сводки времени
+### Получение сводки времени с JWT
 GET {{host}}/api/v1/summary?limit=10
+Authorization: Bearer {{token}}
 
 ### Удаление задачи
 # Заменить 1 на реальный идентификатор
 DELETE {{host}}/api/v1/tasks/1
+Authorization: Bearer {{token}}
+
+### Получение списка пользователей администратором
+GET {{host}}/api/v1/admin/users?limit=50&offset=0
+Authorization: Bearer {{admin_token}}
+
+### Получение пользователя администратором
+GET {{host}}/api/v1/admin/users/1
+Authorization: Bearer {{admin_token}}
+
+### Изменение пользователя администратором
+PATCH {{host}}/api/v1/admin/users/1
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "role": "admin",
+  "is_active": true,
+  "full_name": "Дмитрий Иванов"
+}
+
+### Получение активности пользователя администратором
+GET {{host}}/api/v1/admin/users/1/activity?year=2026
+Authorization: Bearer {{admin_token}}
+
+### Получение общей статистики администратором
+GET {{host}}/api/v1/admin/stats
+Authorization: Bearer {{admin_token}}
+```

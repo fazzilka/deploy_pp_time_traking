@@ -12,9 +12,9 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-async def start_timer(session: AsyncSession, task_id: int) -> Task:
+async def start_timer(session: AsyncSession, task_id: int, user_id: int) -> Task:
     async with session.begin():
-        task = await _get_task_for_update(session, task_id)
+        task = await _get_task_for_update(session, task_id, user_id)
         active_interval = await _get_active_interval(session, task_id)
         if active_interval is not None:
             raise HTTPException(
@@ -26,9 +26,9 @@ async def start_timer(session: AsyncSession, task_id: int) -> Task:
     return task
 
 
-async def stop_timer(session: AsyncSession, task_id: int) -> Task:
+async def stop_timer(session: AsyncSession, task_id: int, user_id: int) -> Task:
     async with session.begin():
-        task = await _get_task_for_update(session, task_id)
+        task = await _get_task_for_update(session, task_id, user_id)
         active_interval = await _get_active_interval(session, task_id)
         if active_interval is None:
             raise HTTPException(
@@ -45,8 +45,8 @@ async def stop_timer(session: AsyncSession, task_id: int) -> Task:
     return task
 
 
-async def _get_task_for_update(session: AsyncSession, task_id: int) -> Task:
-    stmt = select(Task).where(Task.id == task_id).with_for_update()
+async def _get_task_for_update(session: AsyncSession, task_id: int, user_id: int) -> Task:
+    stmt = select(Task).where(Task.id == task_id, Task.user_id == user_id).with_for_update()
     result = await session.execute(stmt)
     task = result.scalar_one_or_none()
     if task is None:

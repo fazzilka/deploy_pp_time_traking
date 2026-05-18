@@ -1,4 +1,4 @@
-.PHONY: run logs down lint type test hooks commit migrate upgrade downgrade sync
+.PHONY: run logs down lint type test hooks commit migrate upgrade downgrade sync create-admin
 
 UV_CACHE_DIR ?= .uv-cache
 UV = UV_CACHE_DIR=$(UV_CACHE_DIR) uv
@@ -41,3 +41,6 @@ upgrade:
 
 downgrade:
 	$(UV_RUN) alembic downgrade -1
+
+create-admin:
+	$(UV_RUN) python -m src.scripts.create_admin

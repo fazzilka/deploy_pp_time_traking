@@ -1,0 +1,86 @@
+.task-row {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(92px, auto) 72px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+
+.task-row + .task-row {
+  margin-top: 22px;
+}
+
+.task-row__dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.task-row--active .task-row__dot {
+  background: var(--color-green);
+  box-shadow: 0 0 0 4px rgba(46, 160, 67, 0.16);
+}
+
+.task-row__content {
+  min-width: 0;
+}
+
+.task-row__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row__description {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row__time {
+  min-width: 110px;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.task-row__button {
+  width: 72px;
+  height: 42px;
+  padding: 0;
+}
+
+@media (max-width: 620px) {
+  .task-row {
+    grid-template-columns: 32px minmax(0, 1fr) 72px;
+    gap: 12px;
+  }
+
+  .task-row__time {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    text-align: left;
+    font-size: 16px;
+  }
+
+  .task-row__button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}

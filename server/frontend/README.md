@@ -25,10 +25,10 @@ Create `.env` from `.env.example` when local overrides are needed.
 
 ```env
 VITE_API_URL=http://localhost:8000
-VITE_USE_MOCKS=true
+VITE_USE_MOCKS=false
 ```
 
-`VITE_USE_MOCKS=true` keeps the UI fully usable without a backend. Set it to `false` when the backend API is ready.
+`VITE_USE_MOCKS=false` connects the UI to the backend. Set it to `true` only when you need the standalone mock UI.
 
 ## Pages
 

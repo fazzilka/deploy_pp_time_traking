@@ -96,7 +96,6 @@ export function ReportsPage() {
   const maxWeekTime = Math.max(...weekDays.map((day) => day.total_time_seconds), 1);
   const topTasks = reports.summary.top_tasks;
   const maxTaskTime = Math.max(...topTasks.map((task) => task.total_time_seconds), 1);
-  const activityStrip = getLastDays(reports.days, 30);
 
   return (
     <main className="reports-page app-container">
@@ -171,22 +170,6 @@ export function ReportsPage() {
         </aside>
       </section>
 
-      <section className="reports-activity">
-        <div>
-          <h2>Активность за 30 дней</h2>
-          <p>Короткая полоса активности по дням.</p>
-        </div>
-        <div className="reports-activity__strip">
-          {activityStrip.map((day) => (
-            <span
-              key={day.date}
-              className="reports-activity__cell"
-              data-level={day.level}
-              title={`${day.date}: ${formatHumanDuration(day.total_time_seconds)}`}
-            />
-          ))}
-        </div>
-      </section>
     </main>
   );
 }

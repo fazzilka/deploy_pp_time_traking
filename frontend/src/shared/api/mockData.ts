@@ -30,6 +30,7 @@ export const mockTasks: Task[] = [
     title: "Сверстать dashboard таймера",
     description: "Две ровные колонки, активная задача и очередь задач",
     total_time_seconds: 18420,
+    created_at: "2026-05-24T08:30:00.000Z",
     time_intervals: [
       {
         id: 101,
@@ -43,6 +44,7 @@ export const mockTasks: Task[] = [
     title: "Подготовить activity grid",
     description: "CSS Grid 53 недели на 7 дней, GitHub-like легенда",
     total_time_seconds: 27600,
+    created_at: "2026-05-24T10:10:00.000Z",
     time_intervals: [],
   },
   {
@@ -50,6 +52,7 @@ export const mockTasks: Task[] = [
     title: "Собрать страницу отчётов",
     description: "Карточки, недельный график и топ задач",
     total_time_seconds: 13480,
+    created_at: "2026-05-25T13:40:00.000Z",
     time_intervals: [],
   },
   {
@@ -57,6 +60,7 @@ export const mockTasks: Task[] = [
     title: "Проверить мобильную адаптацию",
     description: "390px без наложений и лишнего горизонтального скролла",
     total_time_seconds: 0,
+    created_at: "2026-05-26T11:15:00.000Z",
     time_intervals: [],
   },
   {
@@ -64,6 +68,7 @@ export const mockTasks: Task[] = [
     title: "Подключить будущий API слой",
     description: "Оставить моки, но сохранить контракт fetch-клиента",
     total_time_seconds: 8520,
+    created_at: "2026-05-27T16:25:00.000Z",
     time_intervals: [],
   },
 ];

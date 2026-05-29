@@ -1,9 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
-import { createTask, getTasks, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
+import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
 import type { Task } from "../../shared/types/task";
 import "./DashboardPage.css";
+
+type ActiveTimerState = {
+  taskId: number;
+  startedAt: string;
+  order: number;
+};
 
 function getActiveInterval(task: Task) {
   return task.time_intervals?.find((interval) => interval.ended_at === null) ?? null;
@@ -18,12 +25,50 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
   const [tick, setTick] = useState(Date.now());
+  const [activeTimers, setActiveTimers] = useState<Record<number, ActiveTimerState>>({});
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const activeTask = useMemo(() => tasks.find((task) => getActiveInterval(task)) ?? null, [tasks]);
+  const activeTimerEntries = useMemo(
+    () => Object.values(activeTimers).sort((firstTimer, secondTimer) => secondTimer.order - firstTimer.order),
+    [activeTimers],
+  );
+
+  const primaryActiveTimer = activeTimerEntries[0] ?? null;
+  const activeTask = useMemo(
+    () => (primaryActiveTimer ? tasks.find((task) => task.id === primaryActiveTimer.taskId) ?? null : null),
+    [primaryActiveTimer, tasks],
+  );
+
+  function syncActiveTimers(nextTasks: Task[]) {
+    setActiveTimers((currentTimers) => {
+      const validTaskIds = new Set(nextTasks.map((task) => task.id));
+      const syncedTimers: Record<number, ActiveTimerState> = {};
+
+      Object.values(currentTimers).forEach((timer) => {
+        if (validTaskIds.has(timer.taskId)) {
+          syncedTimers[timer.taskId] = timer;
+        }
+      });
+
+      nextTasks.forEach((task) => {
+        const activeInterval = getActiveInterval(task);
+
+        if (activeInterval) {
+          syncedTimers[task.id] = {
+            taskId: task.id,
+            startedAt: activeInterval.started_at,
+            order: syncedTimers[task.id]?.order ?? new Date(activeInterval.started_at).getTime(),
+          };
+        }
+      });
+
+      return syncedTimers;
+    });
+  }
 
   async function loadTasks() {
     setIsLoading(true);
@@ -35,6 +80,14 @@ export function DashboardPage() {
         hasTime: hasTimeOnly,
       });
       setTasks(nextTasks);
+      syncActiveTimers(nextTasks);
+      setSelectedTask((currentTask) => {
+        if (!currentTask) {
+          return null;
+        }
+
+        return nextTasks.find((task) => task.id === currentTask.id) ?? null;
+      });
     } catch {
       setError("Не удалось загрузить задачи");
     } finally {
@@ -55,7 +108,7 @@ export function DashboardPage() {
   }, [searchQuery, hasTimeOnly]);
 
   useEffect(() => {
-    if (!activeTask) {
+    if (activeTimerEntries.length === 0) {
       return undefined;
     }
 
@@ -64,24 +117,38 @@ export function DashboardPage() {
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [activeTask?.id]);
+  }, [activeTimerEntries.length]);
 
   function getTaskDisplaySeconds(task: Task): number {
-    const activeInterval = getActiveInterval(task);
+    const activeTimer = activeTimers[task.id];
 
-    if (!activeInterval) {
+    if (!activeTimer) {
       return task.total_time_seconds;
     }
 
-    return task.total_time_seconds + Math.max(0, Math.floor((tick - new Date(activeInterval.started_at).getTime()) / 1000));
+    return task.total_time_seconds + Math.max(0, Math.floor((tick - new Date(activeTimer.startedAt).getTime()) / 1000));
   }
 
   async function handleStart(taskId: number) {
+    if (activeTimers[taskId]) {
+      return;
+    }
+
     setBusyTaskId(taskId);
     setError(null);
 
     try {
-      await startTaskTimer(taskId);
+      const localStartedAt = new Date().toISOString();
+      const updatedTask = await startTaskTimer(taskId);
+      const startedAt = getActiveInterval(updatedTask)?.started_at ?? localStartedAt;
+      setActiveTimers((currentTimers) => ({
+        ...currentTimers,
+        [taskId]: {
+          taskId,
+          startedAt,
+          order: Date.now(),
+        },
+      }));
       await loadTasks();
     } catch {
       setError("Не удалось запустить таймер");
@@ -96,9 +163,40 @@ export function DashboardPage() {
 
     try {
       await stopTaskTimer(taskId);
+      setActiveTimers((currentTimers) => {
+        const nextTimers = { ...currentTimers };
+        delete nextTimers[taskId];
+        return nextTimers;
+      });
       await loadTasks();
     } catch {
       setError("Не удалось остановить таймер");
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  async function handleDelete(taskId: number) {
+    const shouldDelete = window.confirm("Удалить задачу? Все интервалы времени по ней также будут удалены.");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setBusyTaskId(taskId);
+    setError(null);
+
+    try {
+      await deleteTask(taskId);
+      setSelectedTask((currentTask) => (currentTask?.id === taskId ? null : currentTask));
+      setActiveTimers((currentTimers) => {
+        const nextTimers = { ...currentTimers };
+        delete nextTimers[taskId];
+        return nextTimers;
+      });
+      await loadTasks();
+    } catch {
+      setError("Не удалось удалить задачу");
     } finally {
       setBusyTaskId(null);
     }
@@ -146,6 +244,7 @@ export function DashboardPage() {
         <TimerCard
           activeTask={activeTask}
           elapsedTime={activeTask ? getTaskDisplaySeconds(activeTask) : 0}
+          activeCount={activeTimerEntries.length}
           isStopping={Boolean(activeTask && busyTaskId === activeTask.id)}
           onStop={() => activeTask && void handleStop(activeTask.id)}
         />
@@ -204,7 +303,7 @@ export function DashboardPage() {
               <div className="status-message">Загружаем задачи...</div>
             ) : tasks.length > 0 ? (
               tasks.map((task) => {
-                const isActive = activeTask?.id === task.id;
+                const isActive = Boolean(activeTimers[task.id]);
 
                 return (
                   <TaskRow
@@ -213,8 +312,10 @@ export function DashboardPage() {
                     isActive={isActive}
                     displaySeconds={getTaskDisplaySeconds(task)}
                     isBusy={busyTaskId === task.id}
+                    onOpen={setSelectedTask}
                     onStart={(taskId) => void handleStart(taskId)}
                     onStop={(taskId) => void handleStop(taskId)}
+                    onDelete={(taskId) => void handleDelete(taskId)}
                   />
                 );
               })
@@ -230,6 +331,19 @@ export function DashboardPage() {
           </div>
         </section>
       </section>
+
+      {selectedTask && (
+        <TaskDetailsModal
+          task={selectedTask}
+          isActive={Boolean(activeTimers[selectedTask.id])}
+          displaySeconds={getTaskDisplaySeconds(selectedTask)}
+          isBusy={busyTaskId === selectedTask.id}
+          onClose={() => setSelectedTask(null)}
+          onStart={(taskId) => void handleStart(taskId)}
+          onStop={(taskId) => void handleStop(taskId)}
+          onDelete={(taskId) => void handleDelete(taskId)}
+        />
+      )}
     </main>
   );
 }

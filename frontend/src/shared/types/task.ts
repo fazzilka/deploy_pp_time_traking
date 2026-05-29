@@ -9,6 +9,8 @@ export type Task = {
   title: string;
   description: string | null;
   total_time_seconds: number;
+  created_at?: string;
+  updated_at?: string;
   time_intervals?: TimeInterval[];
 };
 

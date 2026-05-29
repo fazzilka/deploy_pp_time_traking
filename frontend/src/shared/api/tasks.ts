@@ -4,10 +4,6 @@ import type { CreateTaskRequest, Task, TaskQuery } from "../types/task";
 
 const tasksStore: Task[] = mockTasks.map((task) => ({ ...task, time_intervals: [...(task.time_intervals ?? [])] }));
 
-function findActiveTask(): Task | undefined {
-  return tasksStore.find((task) => task.time_intervals?.some((interval) => interval.ended_at === null));
-}
-
 function serializeQuery(query: TaskQuery = {}): string {
   const params = new URLSearchParams();
 
@@ -44,6 +40,7 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
       title: payload.title.trim(),
       description: payload.description?.trim() || null,
       total_time_seconds: 0,
+      created_at: new Date().toISOString(),
       time_intervals: [],
     };
 
@@ -59,24 +56,15 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
 
 export async function startTaskTimer(taskId: number): Promise<Task> {
   if (USE_MOCKS) {
-    const currentActive = findActiveTask();
     const now = new Date().toISOString();
-
-    if (currentActive) {
-      const activeInterval = currentActive.time_intervals?.find((interval) => interval.ended_at === null);
-
-      if (activeInterval) {
-        activeInterval.ended_at = now;
-        currentActive.total_time_seconds += Math.floor(
-          (new Date(activeInterval.ended_at).getTime() - new Date(activeInterval.started_at).getTime()) / 1000,
-        );
-      }
-    }
-
     const task = tasksStore.find((item) => item.id === taskId);
 
     if (!task) {
       throw new Error("Задача не найдена");
+    }
+
+    if (task.time_intervals?.some((interval) => interval.ended_at === null)) {
+      return task;
     }
 
     task.time_intervals = [
@@ -93,6 +81,23 @@ export async function startTaskTimer(taskId: number): Promise<Task> {
 
   return apiRequest<Task>(`/api/v1/tasks/${taskId}/timer/start`, {
     method: "POST",
+  });
+}
+
+export async function deleteTask(taskId: number): Promise<void> {
+  if (USE_MOCKS) {
+    const taskIndex = tasksStore.findIndex((task) => task.id === taskId);
+
+    if (taskIndex === -1) {
+      throw new Error("Задача не найдена");
+    }
+
+    tasksStore.splice(taskIndex, 1);
+    return;
+  }
+
+  return apiRequest<void>(`/api/v1/tasks/${taskId}`, {
+    method: "DELETE",
   });
 }
 

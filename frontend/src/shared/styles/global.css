@@ -174,15 +174,6 @@ a {
   background: rgba(248, 81, 73, 0.08);
 }
 
-.placeholder-page {
-  padding-top: 80px;
-}
-
-.placeholder-page h1 {
-  margin: 16px 0 0;
-  font-size: 42px;
-}
-
 @media (max-width: 760px) {
   .app-container {
     width: calc(100% - 32px);

@@ -1,15 +1,14 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { App } from "../App";
+import { ProtectedRoute } from "../components/ProtectedRoute/ProtectedRoute";
+import { AuthPage } from "../pages/AuthPage/AuthPage";
+import { DashboardPage } from "../pages/DashboardPage/DashboardPage";
+import { ProfilePage } from "../pages/ProfilePage/ProfilePage";
+import { ReportsPage } from "../pages/ReportsPage/ReportsPage";
+import { isAuthenticated } from "../shared/api/auth";
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <main className="app-page">
-      <div className="app-container placeholder-page">
-        <p className="eyebrow">Time Tracking</p>
-        <h1>{title}</h1>
-      </div>
-    </main>
-  );
+function RootRedirect() {
+  return <Navigate to={isAuthenticated() ? "/dashboard" : "/auth"} replace />;
 }
 
 export const router = createBrowserRouter([
@@ -18,23 +17,28 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <Navigate to="/auth" replace />,
+        element: <RootRedirect />,
       },
       {
         path: "/auth",
-        element: <PlaceholderPage title="Auth" />,
+        element: <AuthPage />,
       },
       {
-        path: "/dashboard",
-        element: <PlaceholderPage title="Dashboard" />,
-      },
-      {
-        path: "/profile",
-        element: <PlaceholderPage title="Profile" />,
-      },
-      {
-        path: "/reports",
-        element: <PlaceholderPage title="Reports" />,
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "/dashboard",
+            element: <DashboardPage />,
+          },
+          {
+            path: "/profile",
+            element: <ProfilePage />,
+          },
+          {
+            path: "/reports",
+            element: <ReportsPage />,
+          },
+        ],
       },
     ],
   },

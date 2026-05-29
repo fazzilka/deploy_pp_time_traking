@@ -81,7 +81,7 @@ export function ProfilePage() {
 
   const displayName = user.full_name || user.username;
   const avatarColor = getAvatarColor(user.username || user.email);
-  const topThreeTasks = topTasks.slice(0, 2);
+  const topThreeTasks = topTasks.slice(0, 3);
   const maxTopTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
 
   return (

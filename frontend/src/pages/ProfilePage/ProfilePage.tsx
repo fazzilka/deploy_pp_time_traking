@@ -13,7 +13,7 @@ import "./ProfilePage.css";
 export function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
-  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
+  const [topTasks, setTopTasks] = useState<Task[]>([]);
   const [selectedYear, setSelectedYear] = useState(2026);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,12 @@ export function ProfilePage() {
       const [nextUser, nextActivity, nextTasks] = await Promise.all([getCurrentUser(), getUserActivity(year), getTasks()]);
       setUser(nextUser);
       setActivity(nextActivity);
-      setRecentTasks(nextTasks.filter((task) => task.total_time_seconds > 0).slice(0, 2));
+      setTopTasks(
+        nextTasks
+          .filter((task) => task.total_time_seconds > 0)
+          .sort((firstTask, secondTask) => secondTask.total_time_seconds - firstTask.total_time_seconds)
+          .slice(0, 3),
+      );
       setUsername(nextUser.username);
       setFullName(nextUser.full_name ?? "");
     } catch {
@@ -148,18 +153,33 @@ export function ProfilePage() {
             <StatCard title="Всего времени" value={formatHumanDuration(user.stats.total_time_seconds)} subtitle="по всем задачам" accent="yellow" />
           </div>
 
-          <div className="profile-recent">
-            <span>Последние задачи</span>
-            {recentTasks.length > 0 ? (
-              recentTasks.map((task) => (
-                <strong key={task.id}>
-                  {task.title} · {formatHumanDuration(task.total_time_seconds)}
-                </strong>
-              ))
-            ) : (
-              <strong>Нет задач с временем</strong>
-            )}
-          </div>
+          <section className="profile-top-tasks" aria-label="Топ задач">
+            <h2>Топ задач</h2>
+            <div className="profile-top-tasks__list">
+              {topTasks.length > 0 ? (
+                topTasks.map((task, index) => {
+                  const maxTime = Math.max(...topTasks.map((topTask) => topTask.total_time_seconds), 1);
+                  const progress = Math.max(8, (task.total_time_seconds / maxTime) * 100);
+
+                  return (
+                    <article className="profile-top-task" key={task.id}>
+                      <span className="profile-top-task__rank">{index + 1}</span>
+                      <div className="profile-top-task__content">
+                        <strong className="profile-top-task__title">{task.title}</strong>
+                        <span className="profile-top-task__description">{task.description || "Описание не указано"}</span>
+                      </div>
+                      <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds)}</span>
+                      <div className="profile-top-task__progress">
+                        <div className="profile-top-task__progressFill" style={{ width: `${progress}%` }} />
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="status-message">Нет задач с временем</div>
+              )}
+            </div>
+          </section>
         </section>
       </div>
     </main>

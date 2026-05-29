@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .activity-header h2 {
@@ -18,22 +18,10 @@
   font-weight: 800;
 }
 
-.activity-header button {
-  height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-panel);
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
 .activity-area {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px;
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 28px;
   align-items: start;
 }
 
@@ -41,19 +29,22 @@
   min-width: 0;
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: transparent;
-  padding: 36px 42px 28px;
+  border-radius: 12px;
+  background: var(--color-bg);
+  padding: 26px 30px 22px;
+}
+
+.activity-grid-shell {
+  min-width: 870px;
 }
 
 .activity-months {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  min-width: 900px;
   margin-left: 58px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   color: var(--color-text);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -66,10 +57,10 @@
 
 .activity-weekdays {
   display: grid;
-  grid-template-rows: repeat(7, 13px);
+  grid-template-rows: repeat(7, 12px);
   row-gap: 4px;
   color: var(--color-text);
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -88,15 +79,15 @@
 .activity-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-columns: repeat(53, 13px);
-  grid-template-rows: repeat(7, 13px);
+  grid-template-columns: repeat(53, 12px);
+  grid-template-rows: repeat(7, 12px);
   width: max-content;
   gap: 4px;
 }
 
 .activity-cell {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   display: block;
   border-radius: 3px;
   background: var(--activity-0);
@@ -119,12 +110,11 @@
 }
 
 .activity-footer {
-  min-width: 900px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  margin-top: 24px;
+  margin-top: 18px;
   margin-left: 58px;
   color: var(--color-muted);
   font-size: 13px;
@@ -140,18 +130,18 @@
 .activity-years {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
 }
 
 .activity-year {
-  width: 150px;
-  height: 52px;
-  padding-left: 24px;
+  width: 116px;
+  height: 44px;
+  padding-left: 18px;
   border: none;
   border-radius: 8px;
   background: transparent;
   color: var(--color-muted);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   text-align: left;
 }
@@ -180,7 +170,7 @@
   }
 
   .activity-card {
-    padding: 24px 18px;
+    padding: 22px 16px;
   }
 
   .activity-year {

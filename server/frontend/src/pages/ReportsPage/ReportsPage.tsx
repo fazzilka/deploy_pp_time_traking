@@ -94,8 +94,8 @@ export function ReportsPage() {
 
   const weekDays = getWeekDays(reports.days);
   const maxWeekTime = Math.max(...weekDays.map((day) => day.total_time_seconds), 1);
-  const topTasks = reports.summary.top_tasks;
-  const maxTaskTime = Math.max(...topTasks.map((task) => task.total_time_seconds), 1);
+  const topThreeTasks = reports.summary.top_tasks.slice(0, 3);
+  const maxTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
 
   return (
     <main className="reports-page app-container">
@@ -153,8 +153,8 @@ export function ReportsPage() {
 
         <aside className="top-tasks">
           <h2>Топ задач</h2>
-          {topTasks.length > 0 ? (
-            topTasks.map((task, index) => (
+          {topThreeTasks.length > 0 ? (
+            topThreeTasks.map((task, index) => (
               <article className="top-task" key={task.id}>
                 <span className="top-task__place">{index + 1}</span>
                 <strong>{task.title}</strong>

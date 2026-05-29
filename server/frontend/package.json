@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "dev": "node_modules/.bin/vite",
+    "build": "node_modules/.bin/tsc -b && vite build",
+    "preview": "node_modules/.bin/vite preview",
+    "typecheck": "node_modules/.bin/tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.0.0",

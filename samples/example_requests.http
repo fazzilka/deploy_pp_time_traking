@@ -1,4 +1,3 @@
-```http
 @host = http://localhost:8000
 @token = вставить_access_token_пользователя
 @admin_token = вставить_access_token_администратора
@@ -99,6 +98,10 @@ Authorization: Bearer {{token}}
 GET {{host}}/api/v1/summary?limit=10
 Authorization: Bearer {{token}}
 
+### Получение топ-3 задач для отчетов
+GET {{host}}/api/v1/summary?limit=3
+Authorization: Bearer {{token}}
+
 ### Удаление задачи
 # Заменить 1 на реальный идентификатор
 DELETE {{host}}/api/v1/tasks/1
@@ -130,4 +133,3 @@ Authorization: Bearer {{admin_token}}
 ### Получение общей статистики администратором
 GET {{host}}/api/v1/admin/stats
 Authorization: Bearer {{admin_token}}
-```

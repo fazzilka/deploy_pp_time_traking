@@ -32,8 +32,7 @@ export function ProfilePage() {
       setTopTasks(
         nextTasks
           .filter((task) => task.total_time_seconds > 0)
-          .sort((firstTask, secondTask) => secondTask.total_time_seconds - firstTask.total_time_seconds)
-          .slice(0, 3),
+          .sort((firstTask, secondTask) => secondTask.total_time_seconds - firstTask.total_time_seconds),
       );
       setUsername(nextUser.username);
       setFullName(nextUser.full_name ?? "");
@@ -82,6 +81,8 @@ export function ProfilePage() {
 
   const displayName = user.full_name || user.username;
   const avatarColor = getAvatarColor(user.username || user.email);
+  const topThreeTasks = topTasks.slice(0, 3);
+  const maxTopTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
 
   return (
     <main className="profile-page app-container">
@@ -154,29 +155,30 @@ export function ProfilePage() {
           </div>
 
           <section className="profile-top-tasks" aria-label="Топ задач">
-            <h2>Топ задач</h2>
+            <h2 className="profile-top-tasks__title">Топ задач</h2>
             <div className="profile-top-tasks__list">
-              {topTasks.length > 0 ? (
-                topTasks.map((task, index) => {
-                  const maxTime = Math.max(...topTasks.map((topTask) => topTask.total_time_seconds), 1);
-                  const progress = Math.max(8, (task.total_time_seconds / maxTime) * 100);
+              {topThreeTasks.length > 0 ? (
+                topThreeTasks.map((task, index) => {
+                  const progress = Math.max(8, (task.total_time_seconds / maxTopTaskTime) * 100);
 
                   return (
                     <article className="profile-top-task" key={task.id}>
-                      <span className="profile-top-task__rank">{index + 1}</span>
-                      <div className="profile-top-task__content">
-                        <strong className="profile-top-task__title">{task.title}</strong>
-                        <span className="profile-top-task__description">{task.description || "Описание не указано"}</span>
+                      <div className="profile-top-task__main">
+                        <span className="profile-top-task__rank">{index + 1}</span>
+                        <div className="profile-top-task__content">
+                          <strong className="profile-top-task__name">{task.title}</strong>
+                          <span className="profile-top-task__description">{task.description || "Описание не указано"}</span>
+                        </div>
+                        <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds)}</span>
                       </div>
-                      <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds)}</span>
                       <div className="profile-top-task__progress">
-                        <div className="profile-top-task__progressFill" style={{ width: `${progress}%` }} />
+                        <div className="profile-top-task__progress-fill" style={{ width: `${progress}%` }} />
                       </div>
                     </article>
                   );
                 })
               ) : (
-                <div className="status-message">Нет задач с временем</div>
+                <div className="profile-top-tasks__empty">Пока нет задач с накопленным временем.</div>
               )}
             </div>
           </section>

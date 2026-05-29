@@ -57,7 +57,11 @@ async def get_task(task_id: int, session: SessionDep, current_user: CurrentUserD
     return await _load_task_or_404(session, task_id, current_user.id)
 
 
-@router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=TaskRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_task(
     payload: TaskCreate, session: SessionDep, current_user: CurrentUserDep
 ) -> Task:

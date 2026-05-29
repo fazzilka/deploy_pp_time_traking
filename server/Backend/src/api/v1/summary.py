@@ -5,8 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import CurrentUserDep
 from src.db.session import get_db_session
-from src.schemas.summary import SummaryResponse
-from src.schemas.task import TaskRead
+from src.schemas.summary import SummaryResponse, SummaryTask
 from src.services.summary import build_summary
 
 router = APIRouter(tags=["summary"])
@@ -21,6 +20,6 @@ async def get_summary(
 ) -> SummaryResponse:
     total_time, top_tasks = await build_summary(session, current_user.id, limit=limit)
     return SummaryResponse(
-        total_time_seconds=total_time,
-        top_tasks=[TaskRead.model_validate(task) for task in top_tasks],
+        total_time_seconds_all_tasks=total_time,
+        top_tasks=[SummaryTask.model_validate(task) for task in top_tasks],
     )

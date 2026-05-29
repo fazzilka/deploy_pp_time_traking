@@ -16,7 +16,7 @@ async def build_summary(
 
     top_stmt = (
         select(Task)
-        .where(Task.user_id == user_id)
+        .where(Task.user_id == user_id, Task.total_time_seconds > 0)
         .options(selectinload(Task.intervals))
         .order_by(Task.total_time_seconds.desc(), Task.id.asc())
         .limit(limit)

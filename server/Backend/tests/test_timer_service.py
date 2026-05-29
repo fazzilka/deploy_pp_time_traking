@@ -75,6 +75,30 @@ async def test_start_timer_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_start_timer_checks_active_interval_only_for_requested_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = DummySession()
+    checked_task_ids: list[int] = []
+
+    async def fake_get_task_for_update(_session, _task_id, _user_id):
+        return SimpleNamespace(id=_task_id)
+
+    async def fake_get_active_interval(_session, task_id):
+        checked_task_ids.append(task_id)
+        return None
+
+    monkeypatch.setattr(timer_service, "_get_task_for_update", fake_get_task_for_update)
+    monkeypatch.setattr(timer_service, "_get_active_interval", fake_get_active_interval)
+    monkeypatch.setattr(timer_service, "utc_now", lambda: datetime(2026, 2, 23, tzinfo=UTC))
+
+    await timer_service.start_timer(session, 2, 10)
+
+    assert checked_task_ids == [2]
+    assert len(session.added) == 1
+
+
+@pytest.mark.asyncio
 async def test_stop_timer_updates_total_time(monkeypatch: pytest.MonkeyPatch) -> None:
     session = DummySession()
     task = SimpleNamespace(id=1, total_time_seconds=5)

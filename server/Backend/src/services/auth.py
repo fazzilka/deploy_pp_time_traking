@@ -6,7 +6,7 @@ from src.core.security import create_access_token, get_password_hash, verify_pas
 from src.models.enums import UserRole
 from src.models.user import User
 from src.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
-from src.schemas.user import UserPublic
+from src.services.user import get_user_profile
 
 
 async def register_user(session: AsyncSession, payload: RegisterRequest) -> User:
@@ -43,7 +43,7 @@ async def login_user(session: AsyncSession, payload: LoginRequest) -> TokenRespo
 
     return TokenResponse(
         access_token=create_access_token(user.id, user.role),
-        user=UserPublic.model_validate(user),
+        user=await get_user_profile(session, user),
     )
 
 

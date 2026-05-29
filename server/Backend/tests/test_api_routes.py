@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -108,6 +109,90 @@ async def test_list_tasks_filters_and_search(
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Задача"
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_uses_frontend_interval_field_names(
+    test_client,
+    dummy_session,
+) -> None:
+    dummy_session.execute_results = [
+        DummyResult(
+            scalar_one=[
+                SimpleNamespace(
+                    id=1,
+                    title="Задача с таймером",
+                    description="",
+                    total_time_seconds=0,
+                    intervals=[
+                        SimpleNamespace(
+                            id=10,
+                            started_at=datetime(2026, 5, 18, 10, 0, tzinfo=UTC),
+                            finished_at=None,
+                        )
+                    ],
+                )
+            ]
+        )
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/tasks")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "intervals" not in data[0]
+    assert data[0]["time_intervals"][0]["ended_at"] is None
+    assert "finished_at" not in data[0]["time_intervals"][0]
+
+
+@pytest.mark.asyncio
+async def test_summary_uses_frontend_total_field_name(
+    test_client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def override_session():
+        yield object()
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    async def fake_build_summary(*_args, **_kwargs):
+        return 120, [
+            SimpleNamespace(
+                id=1,
+                title="Самая долгая задача",
+                description="",
+                total_time_seconds=120,
+                intervals=[],
+            )
+        ]
+
+    monkeypatch.setattr("src.api.v1.summary.build_summary", fake_build_summary)
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/summary?limit=3")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_time_seconds_all_tasks"] == 120
+    assert "total_time_seconds" not in data
+    assert data["top_tasks"] == [
+        {"id": 1, "title": "Самая долгая задача", "total_time_seconds": 120}
+    ]
 
 
 @pytest.mark.asyncio

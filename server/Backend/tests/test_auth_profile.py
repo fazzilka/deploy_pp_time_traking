@@ -123,7 +123,13 @@ async def test_register_duplicate_username_returns_409() -> None:
 async def test_login_user_returns_bearer_token() -> None:
     session = DummySession()
     user = make_user()
-    session.execute_results = [DummyResult(scalar_one_or_none=user)]
+    session.execute_results = [
+        DummyResult(scalar_one_or_none=user),
+        DummyResult(scalar_one=0),
+        DummyResult(scalar_one=0),
+        DummyResult(scalar_one=0),
+        DummyResult(scalar_one=[]),
+    ]
 
     response = await login_user(
         session,
@@ -133,6 +139,7 @@ async def test_login_user_returns_bearer_token() -> None:
     assert response.token_type == "bearer"
     assert response.access_token
     assert response.user.id == user.id
+    assert response.user.stats.tasks_count == 0
 
 
 @pytest.mark.asyncio

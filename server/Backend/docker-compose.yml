@@ -4,11 +4,12 @@ services:
     container_name: time_tracking_backend
     environment:
       APP_HOST: 0.0.0.0
-      APP_PORT: ${APP_PORT:-8080}
+      APP_PORT: ${APP_PORT:-8000}
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/time_tracking
       LOG_LEVEL: INFO
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     ports:
-      - "${BACKEND_HOST_PORT:-8080}:${APP_PORT:-8080}"
+      - "${BACKEND_HOST_PORT:-8000}:${APP_PORT:-8000}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -18,7 +19,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import os, urllib.request; port = os.environ.get('APP_PORT', '8080'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health').read()",
+          "import os, urllib.request; port = os.environ.get('APP_PORT', '8000'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health').read()",
         ]
       interval: 10s
       timeout: 5s

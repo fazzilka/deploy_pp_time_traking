@@ -1,4 +1,8 @@
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
+
+from src.models.enums import TaskPriority
 
 
 class SummaryTask(BaseModel):
@@ -7,6 +11,8 @@ class SummaryTask(BaseModel):
     id: int
     title: str
     total_time_seconds: int
+    deadline: date | None = None
+    priority: TaskPriority = TaskPriority.MEDIUM
 
 
 class SummaryResponse(BaseModel):

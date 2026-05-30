@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -7,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from src.api.deps import CurrentUserDep
 from src.db.session import get_db_session
+from src.models.enums import TaskPriority
 from src.models.task import Task
 from src.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from src.services.timer import start_timer, stop_timer
@@ -35,8 +37,11 @@ async def _load_task_or_404(session: AsyncSession, task_id: int, user_id: int) -
 async def list_tasks(
     session: SessionDep,
     current_user: CurrentUserDep,
-    search: str | None = Query(default=None),
-    has_time: bool | None = Query(default=None),
+    search: Annotated[str | None, Query()] = None,
+    has_time: Annotated[bool | None, Query()] = None,
+    priority: Annotated[TaskPriority | None, Query()] = None,
+    deadline_before: Annotated[date | None, Query()] = None,
+    deadline_after: Annotated[date | None, Query()] = None,
 ) -> list[Task]:
     stmt = (
         select(Task)
@@ -48,6 +53,12 @@ async def list_tasks(
         stmt = stmt.where(Task.title.ilike(f"%{search}%"))
     if has_time is True:
         stmt = stmt.where(Task.total_time_seconds > 0)
+    if priority is not None:
+        stmt = stmt.where(Task.priority == priority)
+    if deadline_before is not None:
+        stmt = stmt.where(Task.deadline <= deadline_before)
+    if deadline_after is not None:
+        stmt = stmt.where(Task.deadline >= deadline_after)
     result = await session.execute(stmt)
     return list(result.scalars().unique().all())
 
@@ -65,7 +76,13 @@ async def get_task(task_id: int, session: SessionDep, current_user: CurrentUserD
 async def create_task(
     payload: TaskCreate, session: SessionDep, current_user: CurrentUserDep
 ) -> Task:
-    task = Task(title=payload.title, description=payload.description, user_id=current_user.id)
+    task = Task(
+        title=payload.title,
+        description=payload.description or "",
+        deadline=payload.deadline,
+        priority=payload.priority,
+        user_id=current_user.id,
+    )
     session.add(task)
     await session.commit()
     return await _load_task_or_404(session, task.id, current_user.id)
@@ -80,6 +97,8 @@ async def update_task(
 ) -> Task:
     task = await _load_task_or_404(session, task_id, current_user.id)
     for key, value in payload.model_dump(exclude_unset=True).items():
+        if key == "description" and value is None:
+            value = ""
         setattr(task, key, value)
     await session.commit()
     return await _load_task_or_404(session, task_id, current_user.id)

@@ -1,0 +1,51 @@
+.priority-icon {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--color-muted);
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.priority-icon__glyph {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.priority-icon__label {
+  min-width: 0;
+  margin-left: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-icon--highest {
+  color: #f85149;
+}
+
+.priority-icon--high {
+  color: #ff7b72;
+}
+
+.priority-icon--medium {
+  color: #d29922;
+}
+
+.priority-icon--low {
+  color: #58a6ff;
+}
+
+.priority-icon--lowest {
+  color: #8b949e;
+}

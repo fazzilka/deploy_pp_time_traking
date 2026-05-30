@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
+import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getTasks } from "../../shared/api/tasks";
 import { getCurrentUser, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
@@ -166,7 +167,10 @@ export function ProfilePage() {
                       <div className="profile-top-task__main">
                         <span className="profile-top-task__rank">{index + 1}</span>
                         <div className="profile-top-task__content">
-                          <strong className="profile-top-task__name">{task.title}</strong>
+                          <strong className="profile-top-task__name">
+                            <PriorityIcon priority={task.priority} />
+                            <span>{task.title}</span>
+                          </strong>
                           <span className="profile-top-task__description">{task.description || "Описание не указано"}</span>
                         </div>
                         <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds)}</span>

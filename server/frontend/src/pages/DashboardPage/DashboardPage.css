@@ -79,12 +79,27 @@
 
 .task-create {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   margin-top: 14px;
   padding: 14px;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--color-bg);
+}
+
+.task-create__field {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.task-create__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 14px;
 }
 
 .task-create__error {
@@ -152,5 +167,9 @@
 
   .task-create__actions {
     flex-direction: column;
+  }
+
+  .task-create__row {
+    grid-template-columns: 1fr;
   }
 }

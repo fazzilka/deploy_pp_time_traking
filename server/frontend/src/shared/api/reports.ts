@@ -19,6 +19,8 @@ export async function getSummary(): Promise<SummaryResponse> {
           id: task.id,
           title: task.title,
           total_time_seconds: task.total_time_seconds,
+          deadline: task.deadline,
+          priority: task.priority,
         })),
     };
   }

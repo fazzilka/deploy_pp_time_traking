@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getReportsData } from "../../shared/api/reports";
 import type { ActivityDay, SummaryResponse } from "../../shared/types/reports";
@@ -157,7 +158,10 @@ export function ReportsPage() {
             topThreeTasks.map((task, index) => (
               <article className="top-task" key={task.id}>
                 <span className="top-task__place">{index + 1}</span>
-                <strong>{task.title}</strong>
+                <strong className="top-task__title">
+                  <PriorityIcon priority={task.priority} />
+                  <span>{task.title}</span>
+                </strong>
                 <span>{formatHumanDuration(task.total_time_seconds)}</span>
                 <div className="top-task__progress">
                   <div className="top-task__progress-fill" style={{ width: `${Math.max(8, (task.total_time_seconds / maxTaskTime) * 100)}%` }} />

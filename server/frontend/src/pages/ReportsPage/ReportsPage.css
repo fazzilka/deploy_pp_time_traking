@@ -154,10 +154,18 @@
   font-weight: 800;
 }
 
-.top-task strong {
+.top-task__title {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
   color: var(--color-text);
+}
+
+.top-task__title span:last-child {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

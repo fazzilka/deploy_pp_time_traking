@@ -1,3 +1,5 @@
+import type { TaskPriority } from "./task";
+
 export type ActivityLevel = 0 | 1 | 2 | 3 | 4;
 
 export type ActivityDay = {
@@ -24,5 +26,7 @@ export type SummaryResponse = {
     id: number;
     title: string;
     total_time_seconds: number;
+    deadline: string | null;
+    priority: TaskPriority;
   }>;
 };

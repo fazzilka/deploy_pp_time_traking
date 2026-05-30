@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
 import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
-import type { Task } from "../../shared/types/task";
+import type { Task, TaskPriority } from "../../shared/types/task";
 import "./DashboardPage.css";
 
 type ActiveTimerState = {
@@ -30,6 +31,8 @@ export function DashboardPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newDeadline, setNewDeadline] = useState("");
+  const [newPriority, setNewPriority] = useState<TaskPriority>("medium");
   const [createError, setCreateError] = useState<string | null>(null);
 
   const activeTimerEntries = useMemo(
@@ -215,9 +218,13 @@ export function DashboardPage() {
       await createTask({
         title: newTitle,
         description: newDescription || null,
+        deadline: newDeadline || null,
+        priority: newPriority,
       });
       setNewTitle("");
       setNewDescription("");
+      setNewDeadline("");
+      setNewPriority("medium");
       setIsCreateOpen(false);
       await loadTasks();
     } catch {
@@ -273,19 +280,40 @@ export function DashboardPage() {
 
           {isCreateOpen && (
             <form className="task-create" onSubmit={handleCreateTask}>
-              <input
-                className="text-field"
-                type="text"
-                value={newTitle}
-                onChange={(event) => setNewTitle(event.target.value)}
-                placeholder="Название задачи"
-              />
-              <textarea
-                className="textarea-field"
-                value={newDescription}
-                onChange={(event) => setNewDescription(event.target.value)}
-                placeholder="Описание"
-              />
+              <label className="task-create__field task-create__field--full">
+                <span>Название</span>
+                <input
+                  className="text-field"
+                  type="text"
+                  value={newTitle}
+                  onChange={(event) => setNewTitle(event.target.value)}
+                  placeholder="Название задачи"
+                />
+              </label>
+              <label className="task-create__field task-create__field--full">
+                <span>Описание</span>
+                <textarea
+                  className="textarea-field"
+                  value={newDescription}
+                  onChange={(event) => setNewDescription(event.target.value)}
+                  placeholder="Описание"
+                />
+              </label>
+              <div className="task-create__row">
+                <label className="task-create__field">
+                  <span>Срок выполнения</span>
+                  <input
+                    className="text-field"
+                    type="date"
+                    value={newDeadline}
+                    onChange={(event) => setNewDeadline(event.target.value)}
+                  />
+                </label>
+                <label className="task-create__field">
+                  <span>Приоритет</span>
+                  <PrioritySelect value={newPriority} onChange={setNewPriority} />
+                </label>
+              </div>
               {createError && <p className="task-create__error">{createError}</p>}
               <div className="task-create__actions">
                 <button className="button button--green" type="submit">

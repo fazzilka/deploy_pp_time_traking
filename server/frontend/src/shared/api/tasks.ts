@@ -1,6 +1,6 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { mockTasks } from "./mockData";
-import type { CreateTaskRequest, Task, TaskQuery } from "../types/task";
+import type { CreateTaskRequest, Task, TaskQuery, UpdateTaskRequest } from "../types/task";
 
 const tasksStore: Task[] = mockTasks.map((task) => ({ ...task, time_intervals: [...(task.time_intervals ?? [])] }));
 
@@ -15,6 +15,18 @@ function serializeQuery(query: TaskQuery = {}): string {
     params.set("has_time", "true");
   }
 
+  if (query.priority) {
+    params.set("priority", query.priority);
+  }
+
+  if (query.deadlineBefore) {
+    params.set("deadline_before", query.deadlineBefore);
+  }
+
+  if (query.deadlineAfter) {
+    params.set("deadline_after", query.deadlineAfter);
+  }
+
   const search = params.toString();
   return search ? `?${search}` : "";
 }
@@ -26,7 +38,12 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
     return tasksStore.filter((task) => {
       const matchesSearch = !search || task.title.toLowerCase().includes(search);
       const matchesTime = !query.hasTime || task.total_time_seconds > 0;
-      return matchesSearch && matchesTime;
+      const matchesPriority = !query.priority || task.priority === query.priority;
+      const matchesDeadlineBefore =
+        !query.deadlineBefore || Boolean(task.deadline && task.deadline <= query.deadlineBefore);
+      const matchesDeadlineAfter =
+        !query.deadlineAfter || Boolean(task.deadline && task.deadline >= query.deadlineAfter);
+      return matchesSearch && matchesTime && matchesPriority && matchesDeadlineBefore && matchesDeadlineAfter;
     });
   }
 
@@ -40,6 +57,8 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
       title: payload.title.trim(),
       description: payload.description?.trim() || null,
       total_time_seconds: 0,
+      deadline: payload.deadline || null,
+      priority: payload.priority ?? "medium",
       created_at: new Date().toISOString(),
       time_intervals: [],
     };
@@ -98,6 +117,39 @@ export async function deleteTask(taskId: number): Promise<void> {
 
   return apiRequest<void>(`/api/v1/tasks/${taskId}`, {
     method: "DELETE",
+  });
+}
+
+export async function updateTask(taskId: number, payload: UpdateTaskRequest): Promise<Task> {
+  if (USE_MOCKS) {
+    const task = tasksStore.find((item) => item.id === taskId);
+
+    if (!task) {
+      throw new Error("Задача не найдена");
+    }
+
+    if (payload.title !== undefined) {
+      task.title = payload.title.trim();
+    }
+
+    if (payload.description !== undefined) {
+      task.description = payload.description?.trim() || null;
+    }
+
+    if (payload.deadline !== undefined) {
+      task.deadline = payload.deadline || null;
+    }
+
+    if (payload.priority !== undefined) {
+      task.priority = payload.priority;
+    }
+
+    return task;
+  }
+
+  return apiRequest<Task>(`/api/v1/tasks/${taskId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 

@@ -20,12 +20,16 @@ class DummyTx:
 class DummySession:
     def __init__(self) -> None:
         self.added: list[object] = []
+        self.committed = False
 
     def begin(self) -> DummyTx:
         return DummyTx()
 
     def add(self, item: object) -> None:
         self.added.append(item)
+
+    async def commit(self) -> None:
+        self.committed = True
 
     async def refresh(self, _task: object) -> None:
         return None
@@ -53,6 +57,7 @@ async def test_start_timer_creates_interval(monkeypatch: pytest.MonkeyPatch) -> 
     interval = session.added[0]
     assert interval.task_id == 1
     assert interval.finished_at is None
+    assert session.committed is True
 
 
 @pytest.mark.asyncio
@@ -96,6 +101,7 @@ async def test_start_timer_checks_active_interval_only_for_requested_task(
 
     assert checked_task_ids == [2]
     assert len(session.added) == 1
+    assert session.committed is True
 
 
 @pytest.mark.asyncio
@@ -125,3 +131,4 @@ async def test_stop_timer_updates_total_time(monkeypatch: pytest.MonkeyPatch) ->
 
     assert task.total_time_seconds == 95
     assert active_interval.finished_at is not None
+    assert session.committed is True

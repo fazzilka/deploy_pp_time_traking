@@ -13,34 +13,34 @@ def utc_now() -> datetime:
 
 
 async def start_timer(session: AsyncSession, task_id: int, user_id: int) -> Task:
-    async with session.begin():
-        task = await _get_task_for_update(session, task_id, user_id)
-        active_interval = await _get_active_interval(session, task_id)
-        if active_interval is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Активный интервал уже существует",
-            )
-        session.add(TimeInterval(task_id=task_id, started_at=utc_now(), finished_at=None))
+    task = await _get_task_for_update(session, task_id, user_id)
+    active_interval = await _get_active_interval(session, task_id)
+    if active_interval is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Активный интервал уже существует",
+        )
+    session.add(TimeInterval(task_id=task_id, started_at=utc_now(), finished_at=None))
+    await session.commit()
     await session.refresh(task)
     return task
 
 
 async def stop_timer(session: AsyncSession, task_id: int, user_id: int) -> Task:
-    async with session.begin():
-        task = await _get_task_for_update(session, task_id, user_id)
-        active_interval = await _get_active_interval(session, task_id)
-        if active_interval is None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Активный интервал не найден",
-            )
-        finished_at = utc_now()
-        active_interval.finished_at = finished_at
-        duration = int((finished_at - active_interval.started_at).total_seconds())
-        if duration < 0:
-            duration = 0
-        task.total_time_seconds += duration
+    task = await _get_task_for_update(session, task_id, user_id)
+    active_interval = await _get_active_interval(session, task_id)
+    if active_interval is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Активный интервал не найден",
+        )
+    finished_at = utc_now()
+    active_interval.finished_at = finished_at
+    duration = int((finished_at - active_interval.started_at).total_seconds())
+    if duration < 0:
+        duration = 0
+    task.total_time_seconds += duration
+    await session.commit()
     await session.refresh(task)
     return task
 

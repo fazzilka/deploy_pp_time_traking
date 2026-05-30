@@ -20,6 +20,6 @@ COPY --from=builder /app /app
 
 RUN chmod +x /app/scripts/docker-entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 8000
 
 CMD ["./scripts/docker-entrypoint.sh"]

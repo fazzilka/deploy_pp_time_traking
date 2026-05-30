@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -83,6 +83,8 @@ async def test_list_tasks_filters_and_search(
                     title="Задача",
                     description="",
                     total_time_seconds=5,
+                    deadline=date(2026, 5, 30),
+                    priority="high",
                     intervals=[],
                 )
             ]
@@ -100,7 +102,13 @@ async def test_list_tasks_filters_and_search(
     try:
         response = await test_client.get(
             "/api/v1/tasks",
-            params={"search": "Зад", "has_time": "true"},
+            params={
+                "search": "Зад",
+                "has_time": "true",
+                "priority": "high",
+                "deadline_before": "2026-06-01",
+                "deadline_after": "2026-05-01",
+            },
         )
     finally:
         app.dependency_overrides.clear()
@@ -109,6 +117,151 @@ async def test_list_tasks_filters_and_search(
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Задача"
+    assert data[0]["deadline"] == "2026-05-30"
+    assert data[0]["priority"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_invalid_priority_returns_422(
+    test_client,
+    dummy_session,
+) -> None:
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/tasks", params={"priority": "urgent"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_accepts_deadline_and_priority(test_client, dummy_session) -> None:
+    dummy_session.execute_results = [
+        DummyResult(
+            scalar_one_or_none=SimpleNamespace(
+                id=10,
+                title="Дедлайн задача",
+                description="Описание",
+                total_time_seconds=0,
+                deadline=date(2026, 5, 30),
+                priority="highest",
+                intervals=[],
+            )
+        )
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Дедлайн задача",
+                "description": "Описание",
+                "deadline": "2026-05-30",
+                "priority": "highest",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    assert dummy_session.items[0].deadline == date(2026, 5, 30)
+    assert dummy_session.items[0].priority == "highest"
+    data = response.json()
+    assert data["deadline"] == "2026-05-30"
+    assert data["priority"] == "highest"
+
+
+@pytest.mark.asyncio
+async def test_create_task_defaults_deadline_and_priority(test_client, dummy_session) -> None:
+    dummy_session.execute_results = [
+        DummyResult(
+            scalar_one_or_none=SimpleNamespace(
+                id=11,
+                title="Обычная задача",
+                description="",
+                total_time_seconds=0,
+                deadline=None,
+                priority="medium",
+                intervals=[],
+            )
+        )
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post("/api/v1/tasks", json={"title": "Обычная задача"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    assert dummy_session.items[0].deadline is None
+    assert dummy_session.items[0].priority == "medium"
+    data = response.json()
+    assert data["deadline"] is None
+    assert data["priority"] == "medium"
+
+
+@pytest.mark.asyncio
+async def test_update_task_changes_deadline_and_priority(test_client, dummy_session) -> None:
+    task = SimpleNamespace(
+        id=12,
+        title="Задача",
+        description="",
+        total_time_seconds=0,
+        deadline=None,
+        priority="medium",
+        intervals=[],
+    )
+    dummy_session.execute_results = [
+        DummyResult(scalar_one_or_none=task),
+        DummyResult(scalar_one_or_none=task),
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.patch(
+            "/api/v1/tasks/12",
+            json={"deadline": "2026-06-01", "priority": "low"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert task.deadline == date(2026, 6, 1)
+    assert task.priority == "low"
+    data = response.json()
+    assert data["deadline"] == "2026-06-01"
+    assert data["priority"] == "low"
 
 
 @pytest.mark.asyncio
@@ -191,7 +344,13 @@ async def test_summary_uses_frontend_total_field_name(
     assert data["total_time_seconds_all_tasks"] == 120
     assert "total_time_seconds" not in data
     assert data["top_tasks"] == [
-        {"id": 1, "title": "Самая долгая задача", "total_time_seconds": 120}
+        {
+            "id": 1,
+            "title": "Самая долгая задача",
+            "total_time_seconds": 120,
+            "deadline": None,
+            "priority": "medium",
+        }
     ]
 
 

@@ -1,4 +1,4 @@
-import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
+import { PriorityIcon, priorityMeta } from "../PriorityIcon/PriorityIcon";
 import type { Task } from "../../shared/types/task";
 import { formatDeadline, getDeadlineLabel, getDeadlineStatus } from "../../shared/utils/date";
 import { formatDate, formatDuration, formatHumanDuration } from "../../shared/utils/time";
@@ -30,6 +30,10 @@ export function TaskDetailsModal({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="task-details-modal" role="dialog" aria-modal="true" aria-labelledby="task-details-title" onClick={(event) => event.stopPropagation()}>
+        <button className="task-details-modal__close" type="button" onClick={onClose} aria-label="Закрыть">
+          ×
+        </button>
+
         <div className="task-details-modal__layout">
           <div className="task-details-modal__main">
             <div className="task-details-modal__header">
@@ -39,9 +43,6 @@ export function TaskDetailsModal({
                   {task.title}
                 </h2>
               </div>
-              <button className="task-details-modal__close" type="button" onClick={onClose} aria-label="Закрыть">
-                ×
-              </button>
             </div>
 
             <p className="task-details-modal__description">{task.description || "Описание не указано"}</p>
@@ -81,18 +82,29 @@ export function TaskDetailsModal({
             </div>
           </div>
 
-          <aside className="task-details-modal__side" aria-label="Параметры задачи">
-            <div className="task-meta-card">
-              <span className="task-meta-card__label">Срок выполнения</span>
-              <strong className="task-meta-card__value">{formatDeadline(task.deadline)}</strong>
-              <span className={`task-meta-card__status task-meta-card__status--${deadlineStatus}`}>
+          <aside className="task-details-modal__meta-panel" aria-label="Параметры задачи">
+            <div className="task-meta-item">
+              <div className="task-meta-item__header">
+                <span className="task-meta-item__icon" aria-hidden="true">
+                  ◷
+                </span>
+                <span className="task-meta-item__label">Срок выполнения</span>
+              </div>
+              <strong className="task-meta-item__value">{formatDeadline(task.deadline)}</strong>
+              <span className={`task-meta-item__hint task-meta-item__hint--${deadlineStatus}`}>
                 {getDeadlineLabel(task.deadline)}
               </span>
             </div>
 
-            <div className="task-meta-card">
-              <span className="task-meta-card__label">Приоритет</span>
-              <PriorityIcon priority={task.priority} showLabel />
+            <div className="task-meta-item">
+              <div className="task-meta-item__header">
+                <PriorityIcon priority={task.priority} />
+                <span className="task-meta-item__label">Приоритет</span>
+              </div>
+              <div className="task-meta-item__value task-meta-item__value--inline">
+                <PriorityIcon priority={task.priority} />
+                <span>{priorityMeta[task.priority].label}</span>
+              </div>
             </div>
           </aside>
         </div>

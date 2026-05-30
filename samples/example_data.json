@@ -5,6 +5,8 @@
       "title": "Реализовать создание задач",
       "description": "Добавить возможность создавать задачу с названием и описанием.",
       "total_time_seconds": 1500,
+      "deadline": "2026-05-30",
+      "priority": "high",
       "created_at": "2026-03-10T09:00:00Z",
       "updated_at": "2026-03-10T12:00:00Z",
       "time_intervals": [
@@ -36,6 +38,8 @@
       "title": "Сделать таймер запуска и остановки",
       "description": "Реализовать запуск и остановку измерения времени по задаче.",
       "total_time_seconds": 420,
+      "deadline": "2026-06-01",
+      "priority": "highest",
       "created_at": "2026-03-11T08:00:00Z",
       "updated_at": "2026-03-11T09:30:00Z",
       "time_intervals": [
@@ -53,6 +57,8 @@
       "title": "Подготовить сводку времени",
       "description": "Сделать сводку по суммарному времени и список задач с наибольшим временем.",
       "total_time_seconds": 0,
+      "deadline": null,
+      "priority": "medium",
       "created_at": "2026-03-12T14:00:00Z",
       "updated_at": "2026-03-12T14:00:00Z",
       "time_intervals": []
@@ -62,6 +68,8 @@
       "title": "Активная задача с незакрытым интервалом",
       "description": "Пример задачи с активным интервалом времени, который не учитывается в суммарном времени.",
       "total_time_seconds": 300,
+      "deadline": "2026-06-05",
+      "priority": "low",
       "created_at": "2026-03-13T10:00:00Z",
       "updated_at": "2026-03-13T10:20:00Z",
       "time_intervals": [
@@ -88,17 +96,23 @@
       {
         "id": 1,
         "title": "Реализовать создание задач",
-        "total_time_seconds": 1500
+        "total_time_seconds": 1500,
+        "deadline": "2026-05-30",
+        "priority": "high"
       },
       {
         "id": 2,
         "title": "Сделать таймер запуска и остановки",
-        "total_time_seconds": 420
+        "total_time_seconds": 420,
+        "deadline": "2026-06-01",
+        "priority": "highest"
       },
       {
         "id": 4,
         "title": "Активная задача с незакрытым интервалом",
-        "total_time_seconds": 300
+        "total_time_seconds": 300,
+        "deadline": "2026-06-05",
+        "priority": "low"
       }
     ]
   }

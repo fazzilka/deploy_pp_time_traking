@@ -162,7 +162,10 @@ Response model: `ActivityResponse`.
 Query params:
 
 - `search: str | None`;
-- `has_time: bool | None`.
+- `has_time: bool | None`;
+- `priority: lowest | low | medium | high | highest | None`;
+- `deadline_before: date | None`;
+- `deadline_after: date | None`.
 
 Response model: `list[TaskRead]`.
 
@@ -175,6 +178,8 @@ Response model: `list[TaskRead]`.
     "title": "Задача",
     "description": "",
     "total_time_seconds": 5,
+    "deadline": "2026-05-30",
+    "priority": "high",
     "created_at": null,
     "updated_at": null,
     "time_intervals": [
@@ -204,6 +209,19 @@ JWT: требуется.
 
 Request schema: `TaskCreate`.
 
+Request example:
+
+```json
+{
+  "title": "Сделать билеты ТИДЗ",
+  "description": "Подготовить ответы",
+  "deadline": "2026-05-30",
+  "priority": "high"
+}
+```
+
+`deadline` может быть `null`. `priority` по умолчанию: `medium`.
+
 Response: `201 Created`, `TaskRead`.
 
 Источник: `server/Backend/src/api/v1/tasks.py`, `create_task`.
@@ -213,6 +231,8 @@ Response: `201 Created`, `TaskRead`.
 JWT: требуется.
 
 Request schema: `TaskUpdate`.
+
+Можно обновлять `title`, `description`, `deadline`, `priority`.
 
 Response model: `TaskRead`.
 
@@ -265,7 +285,9 @@ Response model: `SummaryResponse`.
     {
       "id": 1,
       "title": "Задача",
-      "total_time_seconds": 2220
+      "total_time_seconds": 2220,
+      "deadline": "2026-05-30",
+      "priority": "high"
     }
   ]
 }

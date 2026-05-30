@@ -53,7 +53,9 @@ Content-Type: application/json
 
 {
   "title": "Сделать таймер",
-  "description": "Реализовать запуск и остановку измерения времени"
+  "description": "Реализовать запуск и остановку измерения времени",
+  "deadline": "2026-05-30",
+  "priority": "high"
 }
 
 ### Получение списка задач с JWT
@@ -66,6 +68,10 @@ Authorization: Bearer {{token}}
 
 ### Получение списка задач с фильтром по времени больше нуля
 GET {{host}}/api/v1/tasks?has_time=true
+Authorization: Bearer {{token}}
+
+### Получение списка задач с фильтром по приоритету и сроку
+GET {{host}}/api/v1/tasks?priority=high&deadline_before=2026-06-01&deadline_after=2026-05-01
 Authorization: Bearer {{token}}
 
 ### Получение задачи по идентификатору
@@ -81,7 +87,9 @@ Content-Type: application/json
 
 {
   "title": "Сделать таймер и сводку",
-  "description": "Добавить запуск, остановку и сводную информацию"
+  "description": "Добавить запуск, остановку и сводную информацию",
+  "deadline": "2026-06-01",
+  "priority": "highest"
 }
 
 ### Запуск таймера с JWT

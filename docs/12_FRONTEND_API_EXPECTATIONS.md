@@ -166,7 +166,10 @@ JWT: требуется.
 Query params:
 
 - `search` для поиска по названию;
-- `has_time=true` для фильтра задач с накопленным временем.
+- `has_time=true` для фильтра задач с накопленным временем;
+- `priority=high` для фильтра по приоритету;
+- `deadline_before=2026-06-01` для фильтра задач со сроком до даты;
+- `deadline_after=2026-05-01` для фильтра задач со сроком после даты.
 
 Frontend ожидает массив:
 
@@ -177,6 +180,8 @@ Frontend ожидает массив:
     "title": "Сделать таймер",
     "description": "Описание",
     "total_time_seconds": 5050,
+    "deadline": "2026-05-30",
+    "priority": "high",
     "created_at": "2026-05-18T10:00:00Z",
     "updated_at": "2026-05-18T10:00:00Z",
     "time_intervals": [
@@ -209,11 +214,13 @@ Frontend отправляет:
 ```json
 {
   "title": "Новая задача",
-  "description": "Описание"
+  "description": "Описание",
+  "deadline": "2026-05-30",
+  "priority": "high"
 }
 ```
 
-Frontend ожидает созданную задачу в формате `Task`.
+Frontend ожидает созданную задачу в формате `Task`. Если `deadline` не указан, backend должен вернуть `null`. Если `priority` не указан, backend должен вернуть `medium`.
 
 ### PATCH /api/v1/tasks/{task_id}
 
@@ -239,6 +246,8 @@ Frontend ожидает обновленную `Task` с активным инт
   "title": "Задача",
   "description": "Описание",
   "total_time_seconds": 0,
+  "deadline": null,
+  "priority": "medium",
   "time_intervals": [
     {
       "id": 22,
@@ -272,7 +281,9 @@ Frontend ожидает:
     {
       "id": 1,
       "title": "Авторизация и профиль",
-      "total_time_seconds": 15120
+      "total_time_seconds": 15120,
+      "deadline": "2026-05-30",
+      "priority": "high"
     }
   ]
 }

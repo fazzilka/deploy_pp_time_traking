@@ -22,3 +22,7 @@
 | Timer start/stop under JWT | Endpoint должен работать после auth dependency | На реальном HTTP был `500` из-за вложенного `session.begin()` после auth-запроса | Исправлено: timer service использует текущую session и явный `commit()` |
 | Admin bootstrap in Docker | `create_admin` должен работать в контейнере | Compose не передавал `ADMIN_*` env в backend | Исправлено: `ADMIN_*` прокинуты в `docker-compose.yml` |
 | Docker runtime port | Backend должен быть на `8000` | Dockerfile/entrypoint fallback оставались на `8080` | Исправлено: Dockerfile `EXPOSE 8000`, entrypoint fallback `8000` |
+| Task deadline | Frontend показывает и отправляет `deadline` | Поля в backend не было | Добавлены column, schema, migration, UI и API examples |
+| Task priority | Frontend показывает маленький priority icon и отправляет `priority` | Поля в backend не было | Добавлен `TaskPriority`, default `medium`, фильтр и отображение |
+| Task filters | Frontend/API контракту нужны `priority`, `deadline_before`, `deadline_after` | Были только `search`, `has_time` | Добавлены query params в `GET /api/v1/tasks` |
+| Summary top task metadata | Reports/Profile показывают priority icon в top tasks | Summary отдавал только `id/title/total_time_seconds` | `SummaryTask` теперь включает `deadline` и `priority` |

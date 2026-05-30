@@ -285,6 +285,30 @@ Query params: `search`, `role`, `is_active`, `limit`, `offset`.
 
 Response model: `AdminUserListResponse`.
 
+Response shape:
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "email": "user@example.com",
+      "username": "user",
+      "full_name": "User",
+      "role": "user",
+      "is_active": true,
+      "avatar_letter": "U",
+      "created_at": "2026-05-18T10:00:00Z",
+      "stats": {
+        "tasks_count": 2,
+        "total_time_seconds": 120
+      }
+    }
+  ],
+  "total": 1
+}
+```
+
 ### GET /api/v1/admin/users/{user_id}
 
 Response model: `UserProfile`.
@@ -308,5 +332,7 @@ Response model: `AdminSystemStats`.
 ## 7. Конфигурация
 
 - Backend app default port в `Settings`: `8000`.
+- Dockerfile exposes `8000`, entrypoint fallback port is `8000`.
 - Docker compose default host port: `8000`.
 - CORS middleware разрешает dev origins из `CORS_ALLOW_ORIGINS`, по умолчанию `http://localhost:5173,http://127.0.0.1:5173`.
+- Docker compose передает в backend `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES` и `ADMIN_*` переменные, чтобы JWT и `python -m src.scripts.create_admin` работали внутри контейнера.

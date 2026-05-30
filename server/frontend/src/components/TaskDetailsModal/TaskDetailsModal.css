@@ -11,32 +11,31 @@
 
 .task-details-modal {
   position: relative;
-  width: 920px;
-  max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 48px);
+  width: min(760px, calc(100vw - 40px));
+  max-height: calc(100vh - 64px);
   overflow: auto;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 16px;
   background: var(--color-panel);
-  padding: 36px 42px 38px;
+  padding: 28px 32px;
 }
 
 .task-details-modal__close {
   position: absolute;
-  top: 24px;
-  right: 24px;
+  top: 20px;
+  right: 20px;
   z-index: 2;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-bg);
   color: var(--color-muted);
-  font-size: 30px;
+  font-size: 24px;
   line-height: 1;
   font-weight: 700;
 }
@@ -53,31 +52,29 @@
 }
 
 .task-details-modal__status {
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   color: var(--color-green-bright);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.2;
   font-weight: 900;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .task-details-modal__title {
-  max-width: 680px;
   margin: 0;
-  padding-right: 72px;
+  padding-right: 60px;
   color: var(--color-text);
-  font-size: 40px;
-  line-height: 1.1;
+  font-size: 30px;
+  line-height: 1.15;
   font-weight: 900;
   overflow-wrap: anywhere;
 }
 
 .task-details-modal__description {
-  max-width: 680px;
-  margin: 26px 0 0;
+  margin: 14px 0 0;
   color: var(--color-muted);
-  font-size: 22px;
+  font-size: 17px;
   line-height: 1.45;
   font-weight: 700;
   overflow-wrap: anywhere;
@@ -86,31 +83,30 @@
 
 .task-details-modal__info-grid {
   width: 100%;
-  max-width: 720px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  margin-top: 34px;
+  gap: 12px;
+  margin-top: 22px;
 }
 
 .task-info-card {
-  height: 112px;
+  min-height: 86px;
   min-width: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: center;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-bg);
-  padding: 18px 20px;
+  padding: 14px 16px;
 }
 
 .task-info-card__label {
   display: block;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -118,7 +114,7 @@
 .task-info-card__value {
   display: block;
   color: var(--color-text);
-  font-size: 24px;
+  font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
   white-space: nowrap;
@@ -128,9 +124,9 @@
 
 .task-info-card__hint {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.2;
   font-weight: 800;
   white-space: nowrap;
@@ -160,7 +156,7 @@
   align-items: center;
   gap: 10px;
   color: var(--color-text);
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -173,8 +169,7 @@
 }
 
 .task-details-modal__created {
-  max-width: 720px;
-  margin: 18px 0 0;
+  margin: 14px 0 0;
   color: var(--color-muted);
   font-size: 14px;
   font-weight: 700;
@@ -183,32 +178,33 @@
 .task-details-modal__actions {
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin-top: 34px;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
 }
 
 .task-details-modal__actions button {
-  height: 56px;
-  min-height: 56px;
-  border-radius: 10px;
-  padding: 0 32px;
-  font-size: 22px;
-  font-weight: 900;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 0 22px;
+  font-size: 16px;
+  font-weight: 800;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 700px) {
   .task-details-modal {
-    width: min(100% - 24px, 920px);
-    padding: 28px 24px;
+    width: calc(100vw - 24px);
+    padding: 24px 20px;
   }
 
   .task-details-modal__title {
-    font-size: 32px;
-    padding-right: 64px;
+    font-size: 26px;
+    padding-right: 48px;
   }
 
   .task-details-modal__description {
-    font-size: 18px;
+    font-size: 15px;
   }
 
   .task-details-modal__info-grid {
@@ -217,16 +213,12 @@
   }
 
   .task-info-card {
-    height: 104px;
-  }
-
-  .task-details-modal__actions {
-    flex-wrap: wrap;
+    min-height: 86px;
   }
 
   .task-details-modal__actions button {
-    height: 50px;
-    min-height: 50px;
-    font-size: 18px;
+    height: 44px;
+    min-height: 44px;
+    font-size: 16px;
   }
 }

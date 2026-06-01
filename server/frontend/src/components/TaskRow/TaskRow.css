@@ -1,0 +1,128 @@
+.task-row {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) minmax(100px, auto) 66px 34px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+.task-row + .task-row {
+  margin-top: 12px;
+}
+
+.task-row__dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.task-row--active .task-row__dot {
+  background: var(--color-green);
+  box-shadow: 0 0 0 4px rgba(46, 160, 67, 0.16);
+}
+
+.task-row__content {
+  min-width: 0;
+}
+
+.task-row__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row__description {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.task-row__meta span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-row__time {
+  min-width: 100px;
+  color: var(--color-text);
+  font-size: 17px;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-row__button {
+  width: 66px;
+  height: 38px;
+  padding: 0;
+}
+
+.task-row__delete {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.task-row__delete:hover:not(:disabled) {
+  border-color: rgba(248, 81, 73, 0.6);
+  color: var(--color-red);
+}
+
+@media (max-width: 620px) {
+  .task-row {
+    grid-template-columns: 28px minmax(0, 1fr) 66px 34px;
+    gap: 12px;
+  }
+
+  .task-row__time {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    text-align: left;
+    font-size: 16px;
+  }
+
+  .task-row__button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .task-row__delete {
+    grid-column: 4;
+    grid-row: 1 / span 2;
+  }
+}

@@ -5,15 +5,13 @@ import "./ActivityGrid.css";
 
 type ActivityGridProps = {
   days: ActivityDay[];
-  selectedYear: number;
-  onYearChange: (year: number) => void;
+  year: number;
 };
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const years = [2026, 2025, 2024];
 
-export function ActivityGrid({ days, selectedYear, onYearChange }: ActivityGridProps) {
-  const cells = normalizeActivityDays(days, selectedYear);
+export function ActivityGrid({ days, year }: ActivityGridProps) {
+  const cells = normalizeActivityDays(days, year);
   const totalContributions = days.reduce((sum, day) => sum + day.intervals_count, 0);
 
   return (
@@ -38,7 +36,7 @@ export function ActivityGrid({ days, selectedYear, onYearChange }: ActivityGridP
                 <span>Fri</span>
               </div>
 
-              <div className="activity-grid" aria-label={`Активность за ${selectedYear} год`}>
+              <div className="activity-grid" aria-label={`Активность за ${year} год`}>
                 {cells.map((day) => (
                   <span
                     key={day.date}
@@ -63,17 +61,8 @@ export function ActivityGrid({ days, selectedYear, onYearChange }: ActivityGridP
           </div>
         </div>
 
-        <div className="activity-years" aria-label="Выбор года">
-          {years.map((year) => (
-            <button
-              key={year}
-              className={`activity-year${year === selectedYear ? " active" : ""}`}
-              type="button"
-              onClick={() => onYearChange(year)}
-            >
-              {year}
-            </button>
-          ))}
+        <div className="activity-years" aria-label="Текущий год">
+          <div className="activity-year activity-year--active">{year}</div>
         </div>
       </div>
     </section>

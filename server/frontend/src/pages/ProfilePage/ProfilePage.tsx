@@ -11,23 +11,24 @@ import { getAvatarColor } from "../../shared/utils/avatar";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
 import "./ProfilePage.css";
 
+const currentYear = new Date().getFullYear();
+
 export function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
   const [topTasks, setTopTasks] = useState<Task[]>([]);
-  const [selectedYear, setSelectedYear] = useState(2026);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
 
-  async function loadProfile(year = selectedYear) {
+  async function loadProfile() {
     setIsLoading(true);
     setError(null);
 
     try {
-      const [nextUser, nextActivity, nextTasks] = await Promise.all([getCurrentUser(), getUserActivity(year), getTasks()]);
+      const [nextUser, nextActivity, nextTasks] = await Promise.all([getCurrentUser(), getUserActivity(currentYear), getTasks()]);
       setUser(nextUser);
       setActivity(nextActivity);
       setTopTasks(
@@ -45,8 +46,8 @@ export function ProfilePage() {
   }
 
   useEffect(() => {
-    void loadProfile(selectedYear);
-  }, [selectedYear]);
+    void loadProfile();
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -142,7 +143,7 @@ export function ProfilePage() {
 
           {error && <div className="status-message status-message--error profile-error">{error}</div>}
 
-          <ActivityGrid days={activity.days} selectedYear={selectedYear} onYearChange={setSelectedYear} />
+          <ActivityGrid days={activity.days} year={currentYear} />
 
           <div className="profile-stats">
             <StatCard

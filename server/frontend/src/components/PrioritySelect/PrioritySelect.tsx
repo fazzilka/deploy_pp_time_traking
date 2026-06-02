@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { PriorityIcon, priorityMeta } from "../PriorityIcon/PriorityIcon";
 import type { TaskPriority } from "../../shared/types/task";
 import "./PrioritySelect.css";
@@ -10,22 +11,65 @@ type PrioritySelectProps = {
 const priorities: TaskPriority[] = ["highest", "high", "medium", "low", "lowest"];
 
 export function PrioritySelect({ value, onChange }: PrioritySelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selectedMeta = priorityMeta[value];
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    function handleDocumentClick(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
+  }, [isOpen]);
+
+  function handleSelect(priority: TaskPriority) {
+    onChange(priority);
+    setIsOpen(false);
+  }
+
   return (
-    <div className="priority-select">
-      <span className="priority-select__icon" aria-hidden="true">
-        <PriorityIcon priority={value} />
-      </span>
-      <select
-        className="priority-select__control"
-        value={value}
-        onChange={(event) => onChange(event.target.value as TaskPriority)}
+    <div className="priority-select" ref={rootRef}>
+      <button
+        className="priority-select__button"
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
-        {priorities.map((priority) => (
-          <option key={priority} value={priority}>
-            {priorityMeta[priority].label}
-          </option>
-        ))}
-      </select>
+        <span className="priority-select__value">
+          <PriorityIcon priority={value} />
+          <span className="priority-select__label">{selectedMeta.label}</span>
+        </span>
+        <span className="priority-select__chevron" aria-hidden="true">
+          v
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="priority-select__menu" role="listbox">
+          {priorities.map((priority) => (
+            <button
+              key={priority}
+              className={`priority-select__option${priority === value ? " priority-select__option--active" : ""}`}
+              type="button"
+              role="option"
+              aria-selected={priority === value}
+              onClick={() => handleSelect(priority)}
+            >
+              <PriorityIcon priority={priority} />
+              <span>{priorityMeta[priority].label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

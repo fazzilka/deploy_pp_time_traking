@@ -1,0 +1,139 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        VITE_API_URL: ""
+        VITE_USE_MOCKS: "false"
+    container_name: time_tracking_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    labels:
+      logging: promtail
+      service: frontend
+
+  backend:
+    build:
+      context: ./server/Backend
+      dockerfile: Dockerfile
+    container_name: time_tracking_backend
+    restart: unless-stopped
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: ${APP_PORT:-8000}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-time_tracking}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-20}
+      DB_POOL_TIMEOUT_SECONDS: ${DB_POOL_TIMEOUT_SECONDS:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost,http://127.0.0.1}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-Администратор}
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; port = os.environ.get('APP_PORT', '8000'); urllib.request.urlopen(f'http://127.0.0.1:{port}/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    labels:
+      logging: promtail
+      service: backend
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: time_tracking_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-time_tracking}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-time_tracking}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: time_tracking_prometheus
+    restart: unless-stopped
+    command:
+      [
+        "--config.file=/etc/prometheus/prometheus.yml",
+        "--storage.tsdb.path=/prometheus",
+        "--storage.tsdb.retention.time=15d",
+      ]
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: time_tracking_loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki-config.yml"]
+    volumes:
+      - ./deploy/loki.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: time_tracking_promtail
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/promtail-config.yml"]
+    volumes:
+      - ./deploy/promtail.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: time_tracking_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning/datasources/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./deploy/grafana/provisioning/dashboards/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:

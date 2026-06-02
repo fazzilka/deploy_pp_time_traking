@@ -1,0 +1,48 @@
+{
+  "uid": "time-tracking-overview",
+  "title": "Time Tracking Overview",
+  "tags": ["time-tracking", "fastapi", "docker"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Backend up",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "Prometheus"}, "expr": "up{job=\"backend\"}", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP requests / sec",
+      "gridPos": {"x": 6, "y": 0, "w": 9, "h": 8},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "Prometheus"}, "expr": "sum(rate(http_requests_total[1m]))", "legendFormat": "rps", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP 5xx / sec",
+      "gridPos": {"x": 15, "y": 0, "w": 9, "h": 8},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "Prometheus"}, "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m]))", "legendFormat": "5xx", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p95",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "Prometheus"}, "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95", "refId": "A"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container memory",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [{"datasource": {"type": "prometheus", "uid": "Prometheus"}, "expr": "process_resident_memory_bytes{job=\"backend\"}", "legendFormat": "backend RSS", "refId": "A"}]
+    },
+    {
+      "type": "logs",
+      "title": "Backend logs",
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 10},
+      "targets": [{"datasource": {"type": "loki", "uid": "Loki"}, "expr": "{service=\"backend\"}", "refId": "A"}]
+    }
+  ]
+}

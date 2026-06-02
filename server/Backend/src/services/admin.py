@@ -45,17 +45,54 @@ async def list_users(
     if is_active is not None:
         filters.append(User.is_active == is_active)
 
+    stats_subquery = (
+        select(
+            Task.user_id.label("user_id"),
+            func.count(Task.id).label("tasks_count"),
+            func.coalesce(func.sum(Task.total_time_seconds), 0).label("total_time_seconds"),
+        )
+        .group_by(Task.user_id)
+        .subquery()
+    )
+
     total_stmt = select(func.count(User.id))
-    users_stmt = select(User).order_by(User.id.asc()).limit(limit).offset(offset)
+    users_stmt = (
+        select(
+            User,
+            func.coalesce(stats_subquery.c.tasks_count, 0).label("tasks_count"),
+            func.coalesce(stats_subquery.c.total_time_seconds, 0).label("total_time_seconds"),
+        )
+        .outerjoin(stats_subquery, stats_subquery.c.user_id == User.id)
+        .order_by(User.id.asc())
+        .limit(limit)
+        .offset(offset)
+    )
     if filters:
         total_stmt = total_stmt.where(*filters)
         users_stmt = users_stmt.where(*filters)
 
     total_result = await session.execute(total_stmt)
     users_result = await session.execute(users_stmt)
-    users = list(users_result.scalars().all())
+    rows = users_result.all()
     return AdminUserListResponse(
-        items=[await _build_admin_user(session, user) for user in users],
+        items=[
+            AdminUserRead.model_validate(
+                {
+                    "id": user.id,
+                    "email": user.email,
+                    "username": user.username,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                    "is_active": user.is_active,
+                    "created_at": user.created_at,
+                    "stats": AdminUserStats(
+                        tasks_count=int(tasks_count),
+                        total_time_seconds=int(total_time_seconds),
+                    ),
+                }
+            )
+            for user, tasks_count, total_time_seconds in rows
+        ],
         total=int(total_result.scalar_one()),
     )
 

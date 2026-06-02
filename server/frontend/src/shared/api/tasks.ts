@@ -27,6 +27,14 @@ function serializeQuery(query: TaskQuery = {}): string {
     params.set("deadline_after", query.deadlineAfter);
   }
 
+  if (query.limit !== undefined) {
+    params.set("limit", String(query.limit));
+  }
+
+  if (query.offset !== undefined) {
+    params.set("offset", String(query.offset));
+  }
+
   const search = params.toString();
   return search ? `?${search}` : "";
 }

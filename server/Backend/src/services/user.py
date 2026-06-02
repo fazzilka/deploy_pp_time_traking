@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.task import Task
@@ -19,6 +19,7 @@ from src.schemas.user import (
 )
 
 LEVEL_THRESHOLDS_SECONDS = (1, 1800, 3600, 7200)
+DATETIME_TYPE = datetime
 
 
 @dataclass(frozen=True)
@@ -177,8 +178,15 @@ async def _load_day_activity(
 ) -> dict[date, DayActivity]:
     start_at = datetime.combine(start_date, time.min, tzinfo=UTC)
     end_at = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=UTC)
+    activity_date = func.date(TimeInterval.finished_at)
+    duration_seconds = func.extract("epoch", TimeInterval.finished_at - TimeInterval.started_at)
+    non_negative_duration = case((duration_seconds < 0, 0), else_=duration_seconds)
     stmt = (
-        select(TimeInterval.started_at, TimeInterval.finished_at)
+        select(
+            activity_date,
+            func.count(TimeInterval.id),
+            func.coalesce(func.sum(non_negative_duration), 0),
+        )
         .join(Task, Task.id == TimeInterval.task_id)
         .where(
             Task.user_id == user_id,
@@ -186,18 +194,15 @@ async def _load_day_activity(
             TimeInterval.finished_at >= start_at,
             TimeInterval.finished_at < end_at,
         )
+        .group_by(activity_date)
     )
     result = await session.execute(stmt)
     activity: dict[date, DayActivity] = {}
-    for started_at, finished_at in result.all():
-        if finished_at is None:
-            continue
-        activity_date = _to_utc(finished_at).date()
-        duration = max(int((_to_utc(finished_at) - _to_utc(started_at)).total_seconds()), 0)
-        current = activity.get(activity_date, DayActivity())
-        activity[activity_date] = DayActivity(
-            intervals_count=current.intervals_count + 1,
-            total_time_seconds=current.total_time_seconds + duration,
+    for raw_activity_date, intervals_count, total_time_seconds in result.all():
+        current_date = _coerce_date(raw_activity_date)
+        activity[current_date] = DayActivity(
+            intervals_count=int(intervals_count or 0),
+            total_time_seconds=int(total_time_seconds or 0),
         )
     return activity
 
@@ -220,3 +225,11 @@ def _to_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _coerce_date(value: date | datetime | str) -> date:
+    if isinstance(value, DATETIME_TYPE):
+        return _to_utc(value).date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(value)

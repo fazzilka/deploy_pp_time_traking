@@ -21,6 +21,7 @@ from src.schemas.user import (
     TopUserStats,
     UserPublic,
 )
+from src.services import admin as admin_service
 from src.services import auth as auth_service
 from src.services import user as user_service
 from src.services.auth import login_user, register_user
@@ -217,12 +218,9 @@ async def test_activity_includes_empty_days_and_closed_intervals(
         DummyResult(
             scalar_one=[
                 (
-                    datetime(2026, 1, 2, 10, 0, tzinfo=UTC),
-                    datetime(2026, 1, 2, 11, 0, tzinfo=UTC),
-                ),
-                (
-                    datetime(2026, 1, 3, 10, 0, tzinfo=UTC),
-                    None,
+                    date(2026, 1, 2),
+                    1,
+                    3600,
                 ),
             ]
         )
@@ -275,6 +273,24 @@ async def test_regular_user_cannot_open_admin_routes(test_client) -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_list_users_builds_stats_without_per_user_queries() -> None:
+    session = DummySession()
+    user = make_user(role=UserRole.ADMIN)
+    session.execute_results = [
+        DummyResult(scalar_one=1),
+        DummyResult(scalar_one=[(user, 3, 7200)]),
+    ]
+
+    response = await admin_service.list_users(session, limit=50, offset=0)
+
+    assert response.total == 1
+    assert len(response.items) == 1
+    assert response.items[0].stats.tasks_count == 3
+    assert response.items[0].stats.total_time_seconds == 7200
+    assert session.execute_results == []
 
 
 @pytest.mark.asyncio

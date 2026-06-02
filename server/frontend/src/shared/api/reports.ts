@@ -1,5 +1,4 @@
 import { apiRequest, USE_MOCKS } from "./client";
-import { mockSummary } from "./mockData";
 import { getTasks } from "./tasks";
 import { getUserActivity } from "./profile";
 import type { ActivityResponse, SummaryResponse } from "../types/reports";
@@ -36,7 +35,7 @@ export async function getReportsData(year: number): Promise<{
   const [summary, tasks, activity] = await Promise.all([getSummary(), getTasks(), getUserActivity(year)]);
 
   return {
-    summary: summary.top_tasks.length > 0 ? summary : mockSummary,
+    summary,
     tasks,
     activity,
   };

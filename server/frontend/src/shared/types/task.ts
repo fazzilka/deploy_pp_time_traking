@@ -38,4 +38,6 @@ export type TaskQuery = {
   priority?: TaskPriority;
   deadlineBefore?: string;
   deadlineAfter?: string;
+  limit?: number;
+  offset?: number;
 };

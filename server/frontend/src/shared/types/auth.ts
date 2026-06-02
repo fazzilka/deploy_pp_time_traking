@@ -17,3 +17,5 @@ export type AuthResponse = {
   token_type: "bearer";
   user?: User;
 };
+
+export type RegisterResponse = User;

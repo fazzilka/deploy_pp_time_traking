@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and package caches
+.venv/
+venv/
+.uv-cache/
+
+# Local env files
+.env
+*.env.local
+
+# Frontend
+node_modules/
+dist/
+
+# IDE and notes
+.idea/
+.vscode/
+.obsidian/
+
+# OS
+.DS_Store

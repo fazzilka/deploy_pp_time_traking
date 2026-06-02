@@ -67,7 +67,7 @@ export function AuthPage() {
             password: form.password,
           });
 
-      if (response.access_token) {
+      if ("access_token" in response && response.access_token) {
         saveAccessToken(response.access_token);
         navigate("/dashboard", { replace: true });
         return;

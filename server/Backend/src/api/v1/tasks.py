@@ -10,6 +10,7 @@ from src.api.deps import CurrentUserDep
 from src.db.session import get_db_session
 from src.models.enums import TaskPriority
 from src.models.task import Task
+from src.models.time_interval import TimeInterval
 from src.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from src.services.timer import start_timer, stop_timer
 
@@ -21,7 +22,7 @@ def _task_detail_stmt(task_id: int, user_id: int) -> Select[tuple[Task]]:
     return (
         select(Task)
         .where(Task.id == task_id, Task.user_id == user_id)
-        .options(selectinload(Task.intervals))
+        .options(selectinload(Task.intervals.and_(TimeInterval.finished_at.is_(None))))
     )
 
 
@@ -42,12 +43,16 @@ async def list_tasks(
     priority: Annotated[TaskPriority | None, Query()] = None,
     deadline_before: Annotated[date | None, Query()] = None,
     deadline_after: Annotated[date | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[Task]:
     stmt = (
         select(Task)
         .where(Task.user_id == current_user.id)
-        .options(selectinload(Task.intervals))
+        .options(selectinload(Task.intervals.and_(TimeInterval.finished_at.is_(None))))
         .order_by(Task.id.desc())
+        .limit(limit)
+        .offset(offset)
     )
     if search:
         stmt = stmt.where(Task.title.ilike(f"%{search}%"))

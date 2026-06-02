@@ -1,6 +1,5 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.models.task import Task
 
@@ -17,7 +16,6 @@ async def build_summary(
     top_stmt = (
         select(Task)
         .where(Task.user_id == user_id, Task.total_time_seconds > 0)
-        .options(selectinload(Task.intervals))
         .order_by(Task.total_time_seconds.desc(), Task.id.asc())
         .limit(limit)
     )

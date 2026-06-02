@@ -1,6 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
+export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("access_token");

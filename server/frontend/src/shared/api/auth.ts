@@ -1,6 +1,6 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { mockUser } from "./mockData";
-import type { AuthResponse, LoginRequest, RegisterRequest } from "../types/auth";
+import type { AuthResponse, LoginRequest, RegisterRequest, RegisterResponse } from "../types/auth";
 
 const tokenKey = "access_token";
 
@@ -43,7 +43,7 @@ export async function login(payload: LoginRequest): Promise<AuthResponse> {
   });
 }
 
-export async function register(payload: RegisterRequest): Promise<AuthResponse> {
+export async function register(payload: RegisterRequest): Promise<AuthResponse | RegisterResponse> {
   if (USE_MOCKS) {
     if (!payload.email.includes("@")) {
       throw new Error("Введите корректный email");
@@ -70,7 +70,7 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse> 
     };
   }
 
-  return apiRequest<AuthResponse>("/api/v1/auth/register", {
+  return apiRequest<RegisterResponse>("/api/v1/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });

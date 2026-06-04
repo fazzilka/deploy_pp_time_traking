@@ -64,5 +64,5 @@ async def _check_schema(session: AsyncSession) -> None:
     if not tasks_exists or not intervals_exist or not users_exist:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database schema is not ready!",
+            detail="Database schema is not ready",
         )

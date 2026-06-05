@@ -175,6 +175,221 @@ async def test_login_inactive_user_returns_403() -> None:
     assert exc.value.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_change_password_updates_hash_and_allows_login_with_new_password() -> None:
+    session = DummySession()
+    user = make_user(hashed_password=auth_service.get_password_hash("oldpass123"))
+
+    await user_service.change_password(
+        session,
+        user,
+        old_password="oldpass123",
+        new_password="newpass456",
+    )
+
+    assert session.committed is True
+    assert auth_service.verify_password("newpass456", user.hashed_password)
+    assert not auth_service.verify_password("oldpass123", user.hashed_password)
+
+    old_login_session = DummySession()
+    old_login_session.execute_results = [DummyResult(scalar_one_or_none=user)]
+    with pytest.raises(HTTPException) as exc:
+        await login_user(
+            old_login_session,
+            LoginRequest(email="user@example.com", password="oldpass123"),
+        )
+
+    assert exc.value.status_code == 401
+
+    new_login_session = DummySession()
+    new_login_session.execute_results = [
+        DummyResult(scalar_one_or_none=user),
+        DummyResult(scalar_one=(0, 0, 0)),
+        DummyResult(scalar_one=[]),
+    ]
+    response = await login_user(
+        new_login_session,
+        LoginRequest(email="user@example.com", password="newpass456"),
+    )
+
+    assert response.access_token
+    assert response.user.id == user.id
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_old_password_returns_400() -> None:
+    session = DummySession()
+    user = make_user(hashed_password=auth_service.get_password_hash("oldpass123"))
+
+    with pytest.raises(HTTPException) as exc:
+        await user_service.change_password(
+            session,
+            user,
+            old_password="wrongpass",
+            new_password="newpass456",
+        )
+
+    assert exc.value.status_code == 400
+    assert auth_service.verify_password("oldpass123", user.hashed_password)
+    assert session.committed is False
+
+
+@pytest.mark.asyncio
+async def test_change_password_same_password_returns_400() -> None:
+    session = DummySession()
+    user = make_user(hashed_password=auth_service.get_password_hash("oldpass123"))
+
+    with pytest.raises(HTTPException) as exc:
+        await user_service.change_password(
+            session,
+            user,
+            old_password="oldpass123",
+            new_password="oldpass123",
+        )
+
+    assert exc.value.status_code == 400
+    assert auth_service.verify_password("oldpass123", user.hashed_password)
+    assert session.committed is False
+
+
+@pytest.mark.asyncio
+async def test_change_password_endpoint_requires_token(test_client) -> None:
+    response = await test_client.post(
+        "/api/v1/users/me/change-password",
+        json={
+            "old_password": "oldpass123",
+            "new_password": "newpass456",
+            "confirm_password": "newpass456",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_endpoint_success_hides_password_fields(
+    test_client,
+    dummy_session,
+) -> None:
+    user = make_user(hashed_password=auth_service.get_password_hash("oldpass123"))
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return user
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post(
+            "/api/v1/users/me/change-password",
+            json={
+                "old_password": "oldpass123",
+                "new_password": "newpass456",
+                "confirm_password": "newpass456",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Пароль успешно изменён"}
+    response_text = response.text
+    assert "hashed_password" not in response_text
+    assert "oldpass123" not in response_text
+    assert "newpass456" not in response_text
+    assert auth_service.verify_password("newpass456", user.hashed_password)
+
+
+@pytest.mark.asyncio
+async def test_change_password_endpoint_wrong_old_password_returns_400(
+    test_client,
+    dummy_session,
+) -> None:
+    user = make_user(hashed_password=auth_service.get_password_hash("oldpass123"))
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return user
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post(
+            "/api/v1/users/me/change-password",
+            json={
+                "old_password": "wrongpass",
+                "new_password": "newpass456",
+                "confirm_password": "newpass456",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Старый пароль указан неверно"
+    assert auth_service.verify_password("oldpass123", user.hashed_password)
+
+
+@pytest.mark.asyncio
+async def test_change_password_endpoint_rejects_short_new_password(
+    test_client,
+    dummy_session,
+) -> None:
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return make_user()
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post(
+            "/api/v1/users/me/change-password",
+            json={
+                "old_password": "oldpass123",
+                "new_password": "short",
+                "confirm_password": "short",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_change_password_endpoint_rejects_mismatched_confirmation(
+    test_client,
+    dummy_session,
+) -> None:
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return make_user()
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post(
+            "/api/v1/users/me/change-password",
+            json={
+                "old_password": "oldpass123",
+                "new_password": "newpass456",
+                "confirm_password": "another456",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
 def test_user_public_contains_avatar_letter() -> None:
     user = UserPublic.model_validate(make_user(full_name="Дмитрий"))
 

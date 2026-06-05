@@ -17,8 +17,6 @@ venv/
 .env.prod
 *.env.local
 *.log
-.codex_tmp/
-deploy_ready_bundle.zip
 
 # Frontend
 node_modules/

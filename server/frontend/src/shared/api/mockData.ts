@@ -129,6 +129,7 @@ export function getMockActivity(year: number): ActivityResponse {
 
 export const mockSummary: SummaryResponse = {
   total_time_seconds_all_tasks: mockTasks.reduce((sum, task) => sum + task.total_time_seconds, 0),
+  tasks_with_time_count: mockTasks.filter((task) => task.total_time_seconds > 0).length,
   top_tasks: mockTasks
     .filter((task) => task.total_time_seconds > 0)
     .sort((a, b) => b.total_time_seconds - a.total_time_seconds)
@@ -136,6 +137,7 @@ export const mockSummary: SummaryResponse = {
     .map((task) => ({
       id: task.id,
       title: task.title,
+      description: task.description,
       total_time_seconds: task.total_time_seconds,
       deadline: task.deadline,
       priority: task.priority,

@@ -3,6 +3,7 @@ import { mockTasks } from "./mockData";
 import type { CreateTaskRequest, Task, TaskQuery, UpdateTaskRequest } from "../types/task";
 
 const tasksStore: Task[] = mockTasks.map((task) => ({ ...task, time_intervals: [...(task.time_intervals ?? [])] }));
+const pendingTaskRequests = new Map<string, Promise<Task[]>>();
 
 function serializeQuery(query: TaskQuery = {}): string {
   const params = new URLSearchParams();
@@ -55,7 +56,18 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
     });
   }
 
-  return apiRequest<Task[]>(`/api/v1/tasks${serializeQuery(query)}`);
+  const path = `/api/v1/tasks${serializeQuery(query)}`;
+  const pendingRequest = pendingTaskRequests.get(path);
+
+  if (pendingRequest) {
+    return pendingRequest;
+  }
+
+  const request = apiRequest<Task[]>(path).finally(() => {
+    pendingTaskRequests.delete(path);
+  });
+  pendingTaskRequests.set(path, request);
+  return request;
 }
 
 export async function createTask(payload: CreateTaskRequest): Promise<Task> {

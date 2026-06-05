@@ -4,13 +4,21 @@ import type { ActivityResponse } from "../types/reports";
 import type { UpdateUserRequest, User } from "../types/user";
 
 let userStore: User = { ...mockUser, stats: { ...mockUser.stats } };
+let currentUserRequest: Promise<User> | null = null;
+const pendingActivityRequests = new Map<number, Promise<ActivityResponse>>();
 
 export async function getCurrentUser(): Promise<User> {
   if (USE_MOCKS) {
     return userStore;
   }
 
-  return apiRequest<User>("/api/v1/users/me");
+  if (!currentUserRequest) {
+    currentUserRequest = apiRequest<User>("/api/v1/users/me").finally(() => {
+      currentUserRequest = null;
+    });
+  }
+
+  return currentUserRequest;
 }
 
 export async function updateCurrentUser(payload: UpdateUserRequest): Promise<User> {
@@ -25,6 +33,7 @@ export async function updateCurrentUser(payload: UpdateUserRequest): Promise<Use
     return userStore;
   }
 
+  currentUserRequest = null;
   return apiRequest<User>("/api/v1/users/me", {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -36,5 +45,15 @@ export async function getUserActivity(year: number): Promise<ActivityResponse> {
     return getMockActivity(year);
   }
 
-  return apiRequest<ActivityResponse>(`/api/v1/users/me/activity?year=${year}`);
+  const pendingRequest = pendingActivityRequests.get(year);
+
+  if (pendingRequest) {
+    return pendingRequest;
+  }
+
+  const request = apiRequest<ActivityResponse>(`/api/v1/users/me/activity?year=${year}`).finally(() => {
+    pendingActivityRequests.delete(year);
+  });
+  pendingActivityRequests.set(year, request);
+  return request;
 }

@@ -3,7 +3,6 @@ import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getReportsData } from "../../shared/api/reports";
 import type { ActivityDay, SummaryResponse } from "../../shared/types/reports";
-import type { Task } from "../../shared/types/task";
 import { getBestActivityDay, getLastDays } from "../../shared/utils/activity";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./ReportsPage.css";
@@ -12,7 +11,6 @@ const weekdayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 type ReportsState = {
   summary: SummaryResponse;
-  tasks: Task[];
   days: ActivityDay[];
 };
 
@@ -48,7 +46,6 @@ export function ReportsPage() {
         const data = await getReportsData(2026);
         setReports({
           summary: data.summary,
-          tasks: data.tasks,
           days: data.activity.days,
         });
       } catch {
@@ -71,7 +68,7 @@ export function ReportsPage() {
     const bestDay = getBestActivityDay(reports.days);
 
     return {
-      tasksWithTime: reports.tasks.filter((task) => task.total_time_seconds > 0).length,
+      tasksWithTime: reports.summary.tasks_with_time_count,
       averagePerDay: activeDays.length > 0 ? Math.floor(totalActivityTime / activeDays.length) : 0,
       bestDay,
     };

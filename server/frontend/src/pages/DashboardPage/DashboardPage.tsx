@@ -13,8 +13,17 @@ type ActiveTimerState = {
   order: number;
 };
 
+const TASKS_PAGE_LIMIT = 50;
+
 function getActiveInterval(task: Task) {
   return task.time_intervals?.find((interval) => interval.ended_at === null) ?? null;
+}
+
+function keepActiveIntervalsOnly(task: Task): Task {
+  return {
+    ...task,
+    time_intervals: task.time_intervals?.filter((interval) => interval.ended_at === null) ?? [],
+  };
 }
 
 export function DashboardPage() {
@@ -81,6 +90,8 @@ export function DashboardPage() {
       const nextTasks = await getTasks({
         search: searchQuery,
         hasTime: hasTimeOnly,
+        limit: TASKS_PAGE_LIMIT,
+        offset: 0,
       });
       setTasks(nextTasks);
       syncActiveTimers(nextTasks);
@@ -96,6 +107,27 @@ export function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function taskMatchesCurrentFilters(task: Task): boolean {
+    const search = searchQuery.trim().toLowerCase();
+
+    if (search && !task.title.toLowerCase().includes(search)) {
+      return false;
+    }
+
+    return !hasTimeOnly || task.total_time_seconds > 0;
+  }
+
+  function replaceTask(updatedTask: Task) {
+    const listTask = keepActiveIntervalsOnly(updatedTask);
+
+    setTasks((currentTasks) =>
+      currentTasks
+        .map((task) => (task.id === listTask.id ? listTask : task))
+        .filter((task) => taskMatchesCurrentFilters(task)),
+    );
+    setSelectedTask((currentTask) => (currentTask?.id === listTask.id ? listTask : currentTask));
   }
 
   useEffect(() => {
@@ -152,7 +184,7 @@ export function DashboardPage() {
           order: Date.now(),
         },
       }));
-      await loadTasks();
+      replaceTask(updatedTask);
     } catch {
       setError("Не удалось запустить таймер");
     } finally {
@@ -165,13 +197,13 @@ export function DashboardPage() {
     setError(null);
 
     try {
-      await stopTaskTimer(taskId);
+      const updatedTask = await stopTaskTimer(taskId);
       setActiveTimers((currentTimers) => {
         const nextTimers = { ...currentTimers };
         delete nextTimers[taskId];
         return nextTimers;
       });
-      await loadTasks();
+      replaceTask(updatedTask);
     } catch {
       setError("Не удалось остановить таймер");
     } finally {
@@ -192,12 +224,12 @@ export function DashboardPage() {
     try {
       await deleteTask(taskId);
       setSelectedTask((currentTask) => (currentTask?.id === taskId ? null : currentTask));
+      setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
       setActiveTimers((currentTimers) => {
         const nextTimers = { ...currentTimers };
         delete nextTimers[taskId];
         return nextTimers;
       });
-      await loadTasks();
     } catch {
       setError("Не удалось удалить задачу");
     } finally {
@@ -215,18 +247,22 @@ export function DashboardPage() {
     }
 
     try {
-      await createTask({
-        title: newTitle,
-        description: newDescription || null,
-        deadline: newDeadline || null,
-        priority: newPriority,
-      });
+      const createdTask = keepActiveIntervalsOnly(
+        await createTask({
+          title: newTitle,
+          description: newDescription || null,
+          deadline: newDeadline || null,
+          priority: newPriority,
+        }),
+      );
+      if (taskMatchesCurrentFilters(createdTask)) {
+        setTasks((currentTasks) => [createdTask, ...currentTasks].slice(0, TASKS_PAGE_LIMIT));
+      }
       setNewTitle("");
       setNewDescription("");
       setNewDeadline("");
       setNewPriority("medium");
       setIsCreateOpen(false);
-      await loadTasks();
     } catch {
       setCreateError("Не удалось создать задачу");
     }

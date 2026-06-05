@@ -2,10 +2,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
-import { getTasks } from "../../shared/api/tasks";
 import { getCurrentUser, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
-import type { ActivityResponse } from "../../shared/types/reports";
-import type { Task } from "../../shared/types/task";
+import { getSummary } from "../../shared/api/reports";
+import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
 import type { User } from "../../shared/types/user";
 import { getAvatarColor } from "../../shared/utils/avatar";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
@@ -16,7 +15,7 @@ const currentYear = new Date().getFullYear();
 export function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
-  const [topTasks, setTopTasks] = useState<Task[]>([]);
+  const [topTasks, setTopTasks] = useState<SummaryResponse["top_tasks"]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -28,14 +27,14 @@ export function ProfilePage() {
     setError(null);
 
     try {
-      const [nextUser, nextActivity, nextTasks] = await Promise.all([getCurrentUser(), getUserActivity(currentYear), getTasks()]);
+      const [nextUser, nextActivity, summary] = await Promise.all([
+        getCurrentUser(),
+        getUserActivity(currentYear),
+        getSummary(3),
+      ]);
       setUser(nextUser);
       setActivity(nextActivity);
-      setTopTasks(
-        nextTasks
-          .filter((task) => task.total_time_seconds > 0)
-          .sort((firstTask, secondTask) => secondTask.total_time_seconds - firstTask.total_time_seconds),
-      );
+      setTopTasks(summary.top_tasks);
       setUsername(nextUser.username);
       setFullName(nextUser.full_name ?? "");
     } catch {

@@ -22,9 +22,11 @@ export type ActivityResponse = {
 
 export type SummaryResponse = {
   total_time_seconds_all_tasks: number;
+  tasks_with_time_count: number;
   top_tasks: Array<{
     id: number;
     title: string;
+    description: string | null;
     total_time_seconds: number;
     deadline: string | null;
     priority: TaskPriority;

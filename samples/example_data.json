@@ -92,10 +92,12 @@
   ],
   "summary_example": {
     "total_time_seconds_all_tasks": 2220,
+    "tasks_with_time_count": 3,
     "top_tasks": [
       {
         "id": 1,
         "title": "Реализовать создание задач",
+        "description": "Добавить возможность создавать задачу с названием и описанием.",
         "total_time_seconds": 1500,
         "deadline": "2026-05-30",
         "priority": "high"
@@ -103,6 +105,7 @@
       {
         "id": 2,
         "title": "Сделать таймер запуска и остановки",
+        "description": "Реализовать запуск и остановку измерения времени по задаче.",
         "total_time_seconds": 420,
         "deadline": "2026-06-01",
         "priority": "highest"
@@ -110,6 +113,7 @@
       {
         "id": 4,
         "title": "Активная задача с незакрытым интервалом",
+        "description": "Пример задачи с активным интервалом времени, который не учитывается в суммарном времени.",
         "total_time_seconds": 300,
         "deadline": "2026-06-05",
         "priority": "low"

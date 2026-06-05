@@ -59,19 +59,19 @@ Content-Type: application/json
 }
 
 ### Получение списка задач с JWT
-GET {{host}}/api/v1/tasks
+GET {{host}}/api/v1/tasks?limit=50&offset=0
 Authorization: Bearer {{token}}
 
 ### Получение списка задач с поиском
-GET {{host}}/api/v1/tasks?search=таймер
+GET {{host}}/api/v1/tasks?search=таймер&limit=50&offset=0
 Authorization: Bearer {{token}}
 
 ### Получение списка задач с фильтром по времени больше нуля
-GET {{host}}/api/v1/tasks?has_time=true
+GET {{host}}/api/v1/tasks?has_time=true&limit=50&offset=0
 Authorization: Bearer {{token}}
 
 ### Получение списка задач с фильтром по приоритету и сроку
-GET {{host}}/api/v1/tasks?priority=high&deadline_before=2026-06-01&deadline_after=2026-05-01
+GET {{host}}/api/v1/tasks?priority=high&deadline_before=2026-06-01&deadline_after=2026-05-01&limit=50&offset=0
 Authorization: Bearer {{token}}
 
 ### Получение задачи по идентификатору

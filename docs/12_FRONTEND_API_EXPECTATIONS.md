@@ -170,6 +170,8 @@ Query params:
 - `priority=high` для фильтра по приоритету;
 - `deadline_before=2026-06-01` для фильтра задач со сроком до даты;
 - `deadline_after=2026-05-01` для фильтра задач со сроком после даты.
+- `limit=50` для ограничения количества задач;
+- `offset=0` для смещения выборки.
 
 Frontend ожидает массив:
 
@@ -277,10 +279,12 @@ Frontend ожидает:
 ```json
 {
   "total_time_seconds_all_tasks": 2220,
+  "tasks_with_time_count": 3,
   "top_tasks": [
     {
       "id": 1,
       "title": "Авторизация и профиль",
+      "description": "Описание задачи",
       "total_time_seconds": 15120,
       "deadline": "2026-05-30",
       "priority": "high"

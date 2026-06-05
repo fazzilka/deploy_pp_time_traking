@@ -166,6 +166,8 @@ Query params:
 - `priority: lowest | low | medium | high | highest | None`;
 - `deadline_before: date | None`;
 - `deadline_after: date | None`.
+- `limit: int = 50`, диапазон от 1 до 100;
+- `offset: int = 0`.
 
 Response model: `list[TaskRead]`.
 
@@ -281,10 +283,12 @@ Response model: `SummaryResponse`.
 ```json
 {
   "total_time_seconds_all_tasks": 2220,
+  "tasks_with_time_count": 3,
   "top_tasks": [
     {
       "id": 1,
       "title": "Задача",
+      "description": "Описание",
       "total_time_seconds": 2220,
       "deadline": "2026-05-30",
       "priority": "high"

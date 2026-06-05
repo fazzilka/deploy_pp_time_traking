@@ -143,6 +143,32 @@ Response model: `UserProfile`.
 
 Источник: `server/Backend/src/api/v1/users.py`, `update_me`.
 
+### POST /api/v1/users/me/change-password
+
+JWT: требуется.
+
+Request schema: `ChangePasswordRequest`.
+
+```json
+{
+  "old_password": "old-password",
+  "new_password": "new-password",
+  "confirm_password": "new-password"
+}
+```
+
+Response model: `ChangePasswordResponse`.
+
+```json
+{
+  "message": "Пароль успешно изменён"
+}
+```
+
+Ошибки: `400`, если старый пароль неверный или новый совпадает со старым; `422`, если новый пароль короткий или подтверждение не совпадает.
+
+Источник: `server/Backend/src/api/v1/users.py`, `change_my_password`; `server/Backend/src/services/user.py`, `change_password`.
+
 ### GET /api/v1/users/me/activity?year=2026
 
 JWT: требуется.

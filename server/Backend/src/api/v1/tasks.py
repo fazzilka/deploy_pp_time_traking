@@ -22,12 +22,20 @@ def _task_detail_stmt(task_id: int, user_id: int) -> Select[tuple[Task]]:
     return (
         select(Task)
         .where(Task.id == task_id, Task.user_id == user_id)
-        .options(selectinload(Task.intervals.and_(TimeInterval.finished_at.is_(None))))
+        .options(selectinload(Task.intervals))
     )
 
 
 async def _load_task_or_404(session: AsyncSession, task_id: int, user_id: int) -> Task:
     result = await session.execute(_task_detail_stmt(task_id, user_id))
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+    return task
+
+
+async def _load_owned_task_or_404(session: AsyncSession, task_id: int, user_id: int) -> Task:
+    result = await session.execute(select(Task).where(Task.id == task_id, Task.user_id == user_id))
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
@@ -43,14 +51,14 @@ async def list_tasks(
     priority: Annotated[TaskPriority | None, Query()] = None,
     deadline_before: Annotated[date | None, Query()] = None,
     deadline_after: Annotated[date | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[Task]:
     stmt = (
         select(Task)
         .where(Task.user_id == current_user.id)
         .options(selectinload(Task.intervals.and_(TimeInterval.finished_at.is_(None))))
-        .order_by(Task.id.desc())
+        .order_by(Task.created_at.desc(), Task.id.desc())
         .limit(limit)
         .offset(offset)
     )
@@ -100,7 +108,7 @@ async def update_task(
     session: SessionDep,
     current_user: CurrentUserDep,
 ) -> Task:
-    task = await _load_task_or_404(session, task_id, current_user.id)
+    task = await _load_owned_task_or_404(session, task_id, current_user.id)
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key == "description" and value is None:
             value = ""
@@ -111,7 +119,7 @@ async def update_task(
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(task_id: int, session: SessionDep, current_user: CurrentUserDep) -> Response:
-    task = await _load_task_or_404(session, task_id, current_user.id)
+    task = await _load_owned_task_or_404(session, task_id, current_user.id)
     await session.delete(task)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,8 +1,14 @@
 from fastapi import APIRouter, Query
 
 from src.api.deps import CurrentUserDep, SessionDep
-from src.schemas.user import ActivityResponse, UserProfile, UserUpdate
-from src.services.user import get_activity, get_user_profile, update_user_profile
+from src.schemas.user import (
+    ActivityResponse,
+    ChangePasswordRequest,
+    ChangePasswordResponse,
+    UserProfile,
+    UserUpdate,
+)
+from src.services.user import change_password, get_activity, get_user_profile, update_user_profile
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -19,6 +25,21 @@ async def update_me(
     current_user: CurrentUserDep,
 ) -> UserProfile:
     return await update_user_profile(session, current_user, payload)
+
+
+@router.post("/me/change-password", response_model=ChangePasswordResponse)
+async def change_my_password(
+    payload: ChangePasswordRequest,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> ChangePasswordResponse:
+    await change_password(
+        session,
+        current_user,
+        old_password=payload.old_password,
+        new_password=payload.new_password,
+    )
+    return ChangePasswordResponse(message="Пароль успешно изменён")
 
 
 @router.get("/me/activity", response_model=ActivityResponse)

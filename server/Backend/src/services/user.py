@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.security import get_password_hash, verify_password
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
 from src.models.user import User
@@ -68,6 +69,29 @@ async def update_user_profile(
     await session.commit()
     await session.refresh(user)
     return await get_user_profile(session, user)
+
+
+async def change_password(
+    session: AsyncSession,
+    user: User,
+    *,
+    old_password: str,
+    new_password: str,
+) -> None:
+    if not verify_password(old_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Старый пароль указан неверно",
+        )
+    if verify_password(new_password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Новый пароль должен отличаться от старого",
+        )
+
+    user.hashed_password = get_password_hash(new_password)
+    await session.commit()
+    await session.refresh(user)
 
 
 async def get_user_by_username(session: AsyncSession, username: str) -> User | None:

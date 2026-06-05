@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from src.core.config import settings
+from src.core.metrics import configure_db_metrics
 
 
 class Base(DeclarativeBase):
@@ -17,6 +18,7 @@ engine = create_async_engine(
     max_overflow=settings.db_max_overflow,
     pool_timeout=settings.db_pool_timeout_seconds,
 )
+configure_db_metrics(engine.sync_engine)
 AsyncSessionFactory = async_sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession)
 
 

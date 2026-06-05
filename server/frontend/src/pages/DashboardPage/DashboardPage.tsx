@@ -406,6 +406,7 @@ export function DashboardPage() {
           onStart={(taskId) => void handleStart(taskId)}
           onStop={(taskId) => void handleStop(taskId)}
           onDelete={(taskId) => void handleDelete(taskId)}
+          onTaskUpdated={replaceTask}
         />
       )}
     </main>

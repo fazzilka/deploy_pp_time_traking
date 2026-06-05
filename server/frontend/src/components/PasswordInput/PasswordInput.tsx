@@ -28,6 +28,12 @@ export function PasswordInput({
 }: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
   const inputId = id ?? name;
+  const toggleLabel = isVisible ? "Скрыть пароль" : "Показать пароль";
+  const toggleIcon = isVisible ? "●" : "○";
+
+  function togglePasswordVisibility() {
+    setIsVisible((currentValue) => !currentValue);
+  }
 
   return (
     <div className="password-input">
@@ -51,10 +57,10 @@ export function PasswordInput({
         <button
           className="password-input__toggle"
           type="button"
-          aria-label={isVisible ? "Скрыть пароль" : "Показать пароль"}
-          onClick={() => setIsVisible((currentValue) => !currentValue)}
+          aria-label={toggleLabel}
+          onClick={togglePasswordVisibility}
         >
-          {isVisible ? "Скрыть" : "Показать"}
+          <span aria-hidden="true">{toggleIcon}</span>
         </button>
       </div>
       {error && <div className="password-input__error">{error}</div>}

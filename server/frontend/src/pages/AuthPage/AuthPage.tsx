@@ -161,7 +161,7 @@ export function AuthPage() {
           <PasswordInput
             id="confirmPassword"
             name="confirmPassword"
-            label="Подтвердите пароль"
+            label="Confirm your password"
             value={form.confirmPassword}
             autoComplete="new-password"
             required

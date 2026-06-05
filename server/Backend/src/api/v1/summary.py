@@ -18,8 +18,9 @@ async def get_summary(
     current_user: CurrentUserDep,
     limit: int = Query(default=10, ge=1, le=100),
 ) -> SummaryResponse:
-    total_time, top_tasks = await build_summary(session, current_user.id, limit=limit)
+    summary = await build_summary(session, current_user.id, limit=limit)
     return SummaryResponse(
-        total_time_seconds_all_tasks=total_time,
-        top_tasks=[SummaryTask.model_validate(task) for task in top_tasks],
+        total_time_seconds_all_tasks=summary.total_time_seconds_all_tasks,
+        tasks_with_time_count=summary.tasks_with_time_count,
+        top_tasks=[SummaryTask.model_validate(task) for task in summary.top_tasks],
     )

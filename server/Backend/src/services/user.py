@@ -76,20 +76,23 @@ async def get_user_by_username(session: AsyncSession, username: str) -> User | N
 
 
 async def get_profile_stats(session: AsyncSession, user_id: int) -> ProfileStats:
-    tasks_count_result = await session.execute(
-        select(func.count(Task.id)).where(Task.user_id == user_id)
+    tasks_with_time = func.coalesce(
+        func.sum(case((Task.total_time_seconds > 0, 1), else_=0)),
+        0,
     )
-    tasks_with_time_result = await session.execute(
-        select(func.count(Task.id)).where(Task.user_id == user_id, Task.total_time_seconds > 0)
+    stats_result = await session.execute(
+        select(
+            func.count(Task.id),
+            tasks_with_time,
+            func.coalesce(func.sum(Task.total_time_seconds), 0),
+        ).where(Task.user_id == user_id)
     )
-    total_time_result = await session.execute(
-        select(func.coalesce(func.sum(Task.total_time_seconds), 0)).where(Task.user_id == user_id)
-    )
+    tasks_count, tasks_with_time_count, total_time_seconds = stats_result.one()
     activity = await get_activity(session, user_id)
     return ProfileStats(
-        tasks_count=int(tasks_count_result.scalar_one()),
-        tasks_with_time_count=int(tasks_with_time_result.scalar_one()),
-        total_time_seconds=int(total_time_result.scalar_one()),
+        tasks_count=int(tasks_count),
+        tasks_with_time_count=int(tasks_with_time_count),
+        total_time_seconds=int(total_time_seconds),
         current_streak_days=activity.summary.current_streak_days,
         max_streak_days=activity.summary.max_streak_days,
     )

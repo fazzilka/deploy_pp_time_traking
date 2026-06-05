@@ -143,7 +143,7 @@ admin
 GRAFANA_ADMIN_PASSWORD=...
 ```
 
-Provisioning автоматически добавляет datasource Prometheus и Loki, а также dashboard `Time Tracking Overview`.
+Provisioning автоматически добавляет datasource Prometheus и Loki, а также dashboards `Time Tracking Overview` и `Time Tracking Observability`.
 
 ## 9. Prometheus и Loki
 
@@ -165,7 +165,7 @@ Prometheus собирает backend metrics:
 backend:8000/metrics
 ```
 
-Loki доступен внутри docker network и подключён к Grafana как datasource. Promtail читает Docker logs из `/var/lib/docker/containers`.
+Также Prometheus собирает PostgreSQL metrics через `postgres-exporter:9187` и container metrics через `cadvisor:8080`. Loki доступен внутри docker network и подключён к Grafana как datasource. Promtail читает Docker logs из `/var/lib/docker/containers`.
 
 ## 10. Логи
 

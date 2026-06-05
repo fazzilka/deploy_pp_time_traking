@@ -9,7 +9,12 @@ from src.db.session import Base
 class TimeInterval(Base):
     __tablename__ = "time_intervals"
     __table_args__ = (
+        Index("ix_time_intervals_task_id", "task_id"),
+        Index("ix_time_intervals_started_at", "started_at"),
+        Index("ix_time_intervals_finished_at", "finished_at"),
         Index("ix_time_intervals_task_id_finished_at", "task_id", "finished_at"),
+        Index("ix_time_intervals_task_id_started_at", "task_id", "started_at"),
+        Index("ix_time_intervals_started_at_finished_at", "started_at", "finished_at"),
         Index(
             "ux_time_intervals_one_active_per_task",
             "task_id",

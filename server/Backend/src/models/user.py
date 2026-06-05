@@ -31,7 +31,7 @@ class User(Base):
         index=True,
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean(), nullable=False, default=True, server_default="true"
+        Boolean(), nullable=False, default=True, server_default="true", index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

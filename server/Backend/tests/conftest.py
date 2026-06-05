@@ -8,11 +8,21 @@ from httpx import ASGITransport, AsyncClient
 
 
 class DummyResult:
-    def __init__(self, *, scalar_one: Any = None, scalar_one_or_none: Any = None) -> None:
+    def __init__(
+        self,
+        *,
+        scalar_one: Any = None,
+        scalar_one_or_none: Any = None,
+        rows: list[Any] | None = None,
+    ) -> None:
         self._scalar_one = scalar_one
         self._scalar_one_or_none = scalar_one_or_none
+        self._rows = rows
 
     def scalar_one(self) -> Any:
+        return self._scalar_one
+
+    def one(self) -> Any:
         return self._scalar_one
 
     def scalar_one_or_none(self) -> Any:
@@ -25,6 +35,8 @@ class DummyResult:
         return self
 
     def all(self) -> list[Any]:
+        if self._rows is not None:
+            return self._rows
         return list(self._scalar_one or [])
 
 
@@ -35,8 +47,10 @@ class DummySession:
         self.execute_results: list[DummyResult] = []
         self.get_map: dict[tuple[type[Any], int], Any] = {}
         self.committed = False
+        self.execute_count = 0
 
     async def execute(self, _stmt: Any) -> DummyResult:
+        self.execute_count += 1
         if self.execute_results:
             return self.execute_results.pop(0)
         return DummyResult(scalar_one=[])

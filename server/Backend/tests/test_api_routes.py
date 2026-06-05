@@ -143,6 +143,51 @@ async def test_list_tasks_invalid_priority_returns_422(
 
 
 @pytest.mark.asyncio
+async def test_list_tasks_accepts_limit_and_offset(
+    test_client,
+    dummy_session,
+) -> None:
+    dummy_session.execute_results = [DummyResult(scalar_one=[])]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/tasks", params={"limit": "25", "offset": "50"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_rejects_limit_above_maximum(
+    test_client,
+    dummy_session,
+) -> None:
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/tasks", params={"limit": "101"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_create_task_accepts_deadline_and_priority(test_client, dummy_session) -> None:
     dummy_session.execute_results = [
         DummyResult(
@@ -321,15 +366,19 @@ async def test_summary_uses_frontend_total_field_name(
         return SimpleNamespace(id=1)
 
     async def fake_build_summary(*_args, **_kwargs):
-        return 120, [
-            SimpleNamespace(
-                id=1,
-                title="Самая долгая задача",
-                description="",
-                total_time_seconds=120,
-                intervals=[],
-            )
-        ]
+        return SimpleNamespace(
+            total_time_seconds_all_tasks=120,
+            tasks_with_time_count=1,
+            top_tasks=[
+                SimpleNamespace(
+                    id=1,
+                    title="Самая долгая задача",
+                    description="Описание",
+                    total_time_seconds=120,
+                    intervals=[],
+                )
+            ],
+        )
 
     monkeypatch.setattr("src.api.v1.summary.build_summary", fake_build_summary)
     app.dependency_overrides[get_db_session] = override_session
@@ -343,10 +392,12 @@ async def test_summary_uses_frontend_total_field_name(
     data = response.json()
     assert data["total_time_seconds_all_tasks"] == 120
     assert "total_time_seconds" not in data
+    assert data["tasks_with_time_count"] == 1
     assert data["top_tasks"] == [
         {
             "id": 1,
             "title": "Самая долгая задача",
+            "description": "Описание",
             "total_time_seconds": 120,
             "deadline": None,
             "priority": "medium",
@@ -368,6 +419,26 @@ async def test_delete_task_not_found_returns_404(test_client, dummy_session) -> 
     app.dependency_overrides[get_current_active_user] = override_user
     try:
         response = await test_client.delete("/api/v1/tasks/99")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_task_not_found_returns_404(test_client, dummy_session) -> None:
+    dummy_session.execute_results = [DummyResult(scalar_one_or_none=None)]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/tasks/99")
     finally:
         app.dependency_overrides.clear()
 

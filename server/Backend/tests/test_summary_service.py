@@ -1,49 +1,47 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
 from src.services.summary import build_summary
 
 
 class SimpleResult:
-    def __init__(self, scalar_one):
-        self._scalar_one = scalar_one
+    def __init__(self, *, one=None, rows=None):
+        self._one = one
+        self._rows = rows or []
 
-    def scalar_one(self):
-        return self._scalar_one
-
-    def scalars(self):
-        return self
-
-    def unique(self):
-        return self
+    def one(self):
+        return self._one
 
     def all(self):
-        return list(self._scalar_one)
+        return list(self._rows)
 
 
 class DummySession:
     def __init__(self) -> None:
         self.execute_results = [
-            SimpleResult(120),
+            SimpleResult(one=(120, 2)),
             SimpleResult(
-                [
-                    SimpleNamespace(id=1, total_time_seconds=100),
-                    SimpleNamespace(id=2, total_time_seconds=20),
-                ]
+                rows=[
+                    (1, "Первая", "Описание", 100, None, "high"),
+                    (2, "Вторая", "", 20, None, "medium"),
+                ],
             ),
         ]
+        self.execute_count = 0
 
     async def execute(self, _stmt):
+        self.execute_count += 1
         return self.execute_results.pop(0)
 
 
 @pytest.mark.asyncio
 async def test_build_summary_returns_total_and_top_tasks() -> None:
-    total, tasks = await build_summary(DummySession(), user_id=1, limit=10)
+    session = DummySession()
+    summary = await build_summary(session, user_id=1, limit=10)
 
-    assert total == 120
-    assert len(tasks) == 2
-    assert tasks[0].id == 1
+    assert summary.total_time_seconds_all_tasks == 120
+    assert summary.tasks_with_time_count == 2
+    assert len(summary.top_tasks) == 2
+    assert summary.top_tasks[0].id == 1
+    assert session.execute_count == 2

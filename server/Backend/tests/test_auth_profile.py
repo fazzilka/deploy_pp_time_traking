@@ -126,9 +126,7 @@ async def test_login_user_returns_bearer_token() -> None:
     user = make_user()
     session.execute_results = [
         DummyResult(scalar_one_or_none=user),
-        DummyResult(scalar_one=0),
-        DummyResult(scalar_one=0),
-        DummyResult(scalar_one=0),
+        DummyResult(scalar_one=(0, 0, 0)),
         DummyResult(scalar_one=[]),
     ]
 
@@ -141,6 +139,7 @@ async def test_login_user_returns_bearer_token() -> None:
     assert response.access_token
     assert response.user.id == user.id
     assert response.user.stats.tasks_count == 0
+    assert session.execute_count == 3
 
 
 @pytest.mark.asyncio
@@ -242,6 +241,33 @@ async def test_activity_includes_empty_days_and_closed_intervals(
     day_with_time = next(day for day in activity.days if day.date == date(2026, 1, 2))
     assert day_with_time.total_time_seconds == 3600
     assert day_with_time.intervals_count == 1
+    assert session.execute_count == 1
+
+
+@pytest.mark.asyncio
+async def test_profile_stats_uses_single_task_aggregate_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = DummySession()
+    session.execute_results = [
+        DummyResult(scalar_one=(5, 3, 7200)),
+        DummyResult(scalar_one=[]),
+    ]
+    monkeypatch.setattr(
+        user_service,
+        "datetime",
+        SimpleNamespace(
+            now=lambda _tz: datetime(2026, 1, 3, tzinfo=UTC),
+            combine=datetime.combine,
+        ),
+    )
+
+    stats = await user_service.get_profile_stats(session, user_id=1)
+
+    assert stats.tasks_count == 5
+    assert stats.tasks_with_time_count == 3
+    assert stats.total_time_seconds == 7200
+    assert session.execute_count == 2
 
 
 @pytest.mark.asyncio

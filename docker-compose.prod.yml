@@ -71,6 +71,33 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: time_tracking_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-time_tracking}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-postgres}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: time_tracking_cadvisor
+    restart: unless-stopped
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=10s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: time_tracking_prometheus
@@ -89,6 +116,10 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      postgres-exporter:
+        condition: service_started
+      cadvisor:
+        condition: service_started
 
   loki:
     image: grafana/loki:3.4.2

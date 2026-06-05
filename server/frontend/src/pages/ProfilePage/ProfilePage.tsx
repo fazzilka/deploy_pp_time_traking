@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
+import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
-import { getCurrentUser, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
+import { changePassword, getCurrentUser, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
 import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
 import type { User } from "../../shared/types/user";
@@ -11,6 +12,18 @@ import { formatDate, formatHumanDuration } from "../../shared/utils/time";
 import "./ProfilePage.css";
 
 const currentYear = new Date().getFullYear();
+
+type PasswordFormState = {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+const initialPasswordForm: PasswordFormState = {
+  oldPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+};
 
 export function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -21,6 +34,11 @@ export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState<PasswordFormState>(initialPasswordForm);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
 
   async function loadProfile() {
     setIsLoading(true);
@@ -64,6 +82,70 @@ export function ProfilePage() {
     }
   }
 
+  function updatePasswordField(field: keyof PasswordFormState, value: string) {
+    setPasswordForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
+  }
+
+  function openPasswordModal() {
+    setPasswordForm(initialPasswordForm);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setIsPasswordModalOpen(true);
+  }
+
+  function closePasswordModal() {
+    setPasswordForm(initialPasswordForm);
+    setPasswordError(null);
+    setIsPasswordModalOpen(false);
+  }
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError("Заполните все поля");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError("Новый пароль должен содержать не менее 6 символов");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("Новый пароль и подтверждение пароля не совпадают");
+      return;
+    }
+
+    if (passwordForm.oldPassword === passwordForm.newPassword) {
+      setPasswordError("Новый пароль должен отличаться от старого");
+      return;
+    }
+
+    setIsPasswordSubmitting(true);
+
+    try {
+      const response = await changePassword({
+        old_password: passwordForm.oldPassword,
+        new_password: passwordForm.newPassword,
+        confirm_password: passwordForm.confirmPassword,
+      });
+      setPasswordForm(initialPasswordForm);
+      setIsPasswordModalOpen(false);
+      setPasswordSuccess(response.message || "Пароль успешно изменён");
+    } catch (caughtError) {
+      const nextError = caughtError instanceof Error ? caughtError.message : "Не удалось изменить пароль";
+      setPasswordError(nextError);
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
+  }
+
   if (isLoading && !user) {
     return (
       <main className="profile-page app-container">
@@ -95,9 +177,16 @@ export function ProfilePage() {
           <h1 className="profile-name">{displayName}</h1>
           <p className="profile-username">@{user.username}</p>
 
-          <button className="profile-edit" type="button" onClick={() => setIsEditing((value) => !value)}>
-            Редактировать профиль
-          </button>
+          <div className="profile-actions">
+            <button className="profile-edit" type="button" onClick={() => setIsEditing((value) => !value)}>
+              Редактировать профиль
+            </button>
+            <button className="profile-edit" type="button" onClick={openPasswordModal}>
+              Изменить пароль
+            </button>
+          </div>
+
+          {passwordSuccess && <p className="profile-password-success">{passwordSuccess}</p>}
 
           {isEditing && (
             <form className="profile-form" onSubmit={handleSubmit}>
@@ -188,6 +277,65 @@ export function ProfilePage() {
           </section>
         </section>
       </div>
+
+      {isPasswordModalOpen && (
+        <div className="change-password-backdrop" role="presentation" onClick={closePasswordModal}>
+          <section
+            className="change-password-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-password-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="change-password-modal__title" id="change-password-title">
+              Изменение пароля
+            </h2>
+            <form className="change-password-modal__form" onSubmit={handlePasswordSubmit}>
+              <PasswordInput
+                id="oldPassword"
+                name="oldPassword"
+                label="Старый пароль"
+                value={passwordForm.oldPassword}
+                autoComplete="current-password"
+                required
+                minLength={6}
+                onChange={(value) => updatePasswordField("oldPassword", value)}
+              />
+              <PasswordInput
+                id="newPassword"
+                name="newPassword"
+                label="Новый пароль"
+                value={passwordForm.newPassword}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                onChange={(value) => updatePasswordField("newPassword", value)}
+              />
+              <PasswordInput
+                id="confirmNewPassword"
+                name="confirmNewPassword"
+                label="Подтвердите новый пароль"
+                value={passwordForm.confirmPassword}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                onChange={(value) => updatePasswordField("confirmPassword", value)}
+              />
+
+              {passwordError && <p className="change-password-modal__error">{passwordError}</p>}
+
+              <div className="change-password-modal__actions">
+                <button className="button" type="button" onClick={closePasswordModal}>
+                  Отмена
+                </button>
+                <button className="button button--green" type="submit" disabled={isPasswordSubmitting}>
+                  {isPasswordSubmitting ? "Сохраняем..." : "Сохранить"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

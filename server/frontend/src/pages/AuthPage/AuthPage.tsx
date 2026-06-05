@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { isAuthenticated, login, register, saveAccessToken } from "../../shared/api/auth";
 import "./AuthPage.css";
 
@@ -10,6 +11,7 @@ type AuthFormState = {
   username: string;
   fullName: string;
   password: string;
+  confirmPassword: string;
 };
 
 const initialFormState: AuthFormState = {
@@ -17,6 +19,7 @@ const initialFormState: AuthFormState = {
   username: "",
   fullName: "",
   password: "",
+  confirmPassword: "",
 };
 
 export function AuthPage() {
@@ -52,6 +55,19 @@ export function AuthPage() {
     event.preventDefault();
     setError(null);
     setMessage(null);
+
+    if (!isLogin) {
+      if (form.password.length < 6) {
+        setError("Пароль должен содержать не менее 6 символов");
+        return;
+      }
+
+      if (form.password !== form.confirmPassword) {
+        setError("Пароли не совпадают");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -130,17 +146,29 @@ export function AuthPage() {
           </>
         )}
 
-        <div className="auth-field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={form.password}
-            onChange={(event) => updateField("password", event.target.value)}
-            autoComplete={isLogin ? "current-password" : "new-password"}
+        <PasswordInput
+          id="password"
+          name="password"
+          label="Password"
+          value={form.password}
+          autoComplete={isLogin ? "current-password" : "new-password"}
+          required
+          minLength={6}
+          onChange={(value) => updateField("password", value)}
+        />
+
+        {!isLogin && (
+          <PasswordInput
+            id="confirmPassword"
+            name="confirmPassword"
+            label="Подтвердите пароль"
+            value={form.confirmPassword}
+            autoComplete="new-password"
             required
+            minLength={6}
+            onChange={(value) => updateField("confirmPassword", value)}
           />
-        </div>
+        )}
 
         {error && <p className="auth-card__error">{error}</p>}
         {message && <p className="auth-card__message">{message}</p>}

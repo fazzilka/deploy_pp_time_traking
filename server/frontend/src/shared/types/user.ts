@@ -24,3 +24,13 @@ export type UpdateUserRequest = {
   username: string;
   full_name: string | null;
 };
+
+export type ChangePasswordRequest = {
+  old_password: string;
+  new_password: string;
+  confirm_password: string;
+};
+
+export type ChangePasswordResponse = {
+  message: string;
+};

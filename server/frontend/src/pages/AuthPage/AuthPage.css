@@ -45,6 +45,10 @@
   margin-bottom: 18px;
 }
 
+.auth-card .password-input {
+  margin-bottom: 18px;
+}
+
 .auth-field label {
   display: block;
   margin-bottom: 8px;

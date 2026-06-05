@@ -1,7 +1,7 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { mockUser, getMockActivity } from "./mockData";
 import type { ActivityResponse } from "../types/reports";
-import type { UpdateUserRequest, User } from "../types/user";
+import type { ChangePasswordRequest, ChangePasswordResponse, UpdateUserRequest, User } from "../types/user";
 
 let userStore: User = { ...mockUser, stats: { ...mockUser.stats } };
 let currentUserRequest: Promise<User> | null = null;
@@ -36,6 +36,21 @@ export async function updateCurrentUser(payload: UpdateUserRequest): Promise<Use
   currentUserRequest = null;
   return apiRequest<User>("/api/v1/users/me", {
     method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function changePassword(payload: ChangePasswordRequest): Promise<ChangePasswordResponse> {
+  if (USE_MOCKS) {
+    if (payload.old_password !== "password123") {
+      throw new Error("Старый пароль указан неверно");
+    }
+
+    return { message: "Пароль успешно изменён" };
+  }
+
+  return apiRequest<ChangePasswordResponse>("/api/v1/users/me/change-password", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }

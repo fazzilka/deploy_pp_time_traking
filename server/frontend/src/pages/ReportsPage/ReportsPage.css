@@ -102,17 +102,27 @@
 .week-chart__bars {
   height: 210px;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
   align-items: end;
-  gap: 32px;
   margin-top: 28px;
   padding: 0 40px;
+}
+
+.week-chart__bars--days-7 {
+  grid-template-columns: repeat(7, minmax(42px, 1fr));
+  gap: 32px;
+}
+
+.week-chart__bars--days-30 {
+  grid-template-columns: repeat(30, minmax(8px, 1fr));
+  gap: 8px;
+  padding: 0 8px;
 }
 
 .week-chart__bar-wrap {
   display: grid;
   gap: 12px;
   justify-items: center;
+  min-width: 0;
 }
 
 .week-chart__bar {
@@ -129,12 +139,29 @@
   width: 100%;
   border-radius: 14px;
   background: var(--color-green);
+  transition: height 180ms ease;
 }
 
 .week-chart__bar-wrap span {
+  min-height: 16px;
   color: var(--color-muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+.week-chart__bars--days-30 .week-chart__bar-wrap {
+  gap: 10px;
+}
+
+.week-chart__bars--days-30 .week-chart__bar-wrap span {
+  font-size: 11px;
+}
+
+.week-chart__empty {
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .top-tasks {
@@ -244,6 +271,10 @@
   .week-chart__bars {
     gap: 12px;
     padding: 0;
+  }
+
+  .week-chart__bars--days-30 {
+    gap: 5px;
   }
 
   .reports-title {

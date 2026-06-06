@@ -3,39 +3,97 @@ import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getReportsData } from "../../shared/api/reports";
 import type { ActivityDay, SummaryResponse } from "../../shared/types/reports";
-import { getBestActivityDay, getLastDays } from "../../shared/utils/activity";
-import { formatHumanDuration } from "../../shared/utils/time";
+import { getBestActivityDay } from "../../shared/utils/activity";
+import { formatDuration, formatHumanDuration } from "../../shared/utils/time";
 import "./ReportsPage.css";
 
-const weekdayLabels = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const currentYear = new Date().getFullYear();
+const weekdayLabels = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
 type ReportsState = {
   summary: SummaryResponse;
   days: ActivityDay[];
 };
 
-function getWeekDays(days: ActivityDay[]): ActivityDay[] {
-  const lastDays = getLastDays(days, 7);
+type ReportPeriod = 7 | 30;
 
-  if (lastDays.length === 7) {
-    return lastDays;
-  }
+type TimeByDay = {
+  date: string;
+  weekdayLabel: string;
+  totalSeconds: number;
+  heightPercent: number;
+  title: string;
+  showLabel: boolean;
+};
 
-  return [
-    ...Array.from({ length: 7 - lastDays.length }, (_, index): ActivityDay => ({
-      date: `empty-${index}`,
-      intervals_count: 0,
-      total_time_seconds: 0,
-      level: 0,
-    })),
-    ...lastDays,
-  ];
+function getLastNDays(count: number): Date[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (count - 1 - index));
+    return date;
+  });
+}
+
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatShortDate(date: Date): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function shouldShowDayLabel(index: number, period: ReportPeriod): boolean {
+  return period === 7 || index === 0 || index === period - 1 || (index + 1) % 5 === 0;
+}
+
+function buildTimeByDays(days: ActivityDay[], period: ReportPeriod): TimeByDay[] {
+  const secondsByDate = new Map(
+    days.map((day) => [day.date, Math.max(0, Math.floor(day.total_time_seconds || 0))]),
+  );
+  const rawDays = getLastNDays(period).map((date, index) => {
+    const dateKey = toLocalDateKey(date);
+
+    return {
+      date,
+      dateKey,
+      totalSeconds: secondsByDate.get(dateKey) ?? 0,
+      showLabel: shouldShowDayLabel(index, period),
+    };
+  });
+  const maxSeconds = Math.max(...rawDays.map((day) => day.totalSeconds), 0);
+
+  return rawDays.map((day) => {
+    const heightPercent =
+      day.totalSeconds > 0 && maxSeconds > 0
+        ? Math.max(Math.round((day.totalSeconds / maxSeconds) * 100), 8)
+        : 0;
+
+    return {
+      date: day.dateKey,
+      weekdayLabel: weekdayLabels[day.date.getDay()],
+      totalSeconds: day.totalSeconds,
+      heightPercent,
+      title: `${formatShortDate(day.date)}: ${formatDuration(day.totalSeconds)}`,
+      showLabel: day.showLabel,
+    };
+  });
 }
 
 export function ReportsPage() {
   const [reports, setReports] = useState<ReportsState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<ReportPeriod>(7);
 
   useEffect(() => {
     async function loadReports() {
@@ -43,7 +101,7 @@ export function ReportsPage() {
       setError(null);
 
       try {
-        const data = await getReportsData(2026);
+        const data = await getReportsData(currentYear);
         setReports({
           summary: data.summary,
           days: data.activity.days,
@@ -90,10 +148,11 @@ export function ReportsPage() {
     );
   }
 
-  const weekDays = getWeekDays(reports.days);
-  const maxWeekTime = Math.max(...weekDays.map((day) => day.total_time_seconds), 1);
+  const timeByDays = buildTimeByDays(reports.days, period);
+  const hasAnyTimeInPeriod = timeByDays.some((day) => day.totalSeconds > 0);
   const topThreeTasks = reports.summary.top_tasks.slice(0, 3);
   const maxTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
+  const periodLabel = period === 7 ? "Последние 7 дней" : "Последние 30 дней";
 
   return (
     <main className="reports-page app-container">
@@ -104,9 +163,14 @@ export function ReportsPage() {
           <p className="page-copy">Сводка времени, динамика за неделю и задачи, которые забрали больше всего внимания.</p>
         </div>
 
-        <select className="reports-period" defaultValue="7days" aria-label="Период отчёта">
-          <option value="7days">Последние 7 дней</option>
-          <option value="30days">Последние 30 дней</option>
+        <select
+          className="reports-period"
+          value={String(period)}
+          aria-label="Период отчёта"
+          onChange={(event) => setPeriod(event.target.value === "30" ? 30 : 7)}
+        >
+          <option value="7">Последние 7 дней</option>
+          <option value="30">Последние 30 дней</option>
         </select>
       </section>
 
@@ -129,24 +193,22 @@ export function ReportsPage() {
           <div className="week-chart__header">
             <div>
               <h2>Время по дням</h2>
-              <p>Последние 7 дней</p>
+              <p>{periodLabel}</p>
             </div>
           </div>
 
-          <div className="week-chart__bars">
-            {weekDays.map((day, index) => {
-              const height = Math.max(8, Math.round((day.total_time_seconds / maxWeekTime) * 190));
-
-              return (
-                <div className="week-chart__bar-wrap" key={`${day.date}-${index}`}>
-                  <div className="week-chart__bar" title={`${day.date}: ${formatHumanDuration(day.total_time_seconds)}`}>
-                    <div className="week-chart__bar-fill" style={{ height: `${height}px` }} />
-                  </div>
-                  <span>{weekdayLabels[index]}</span>
+          <div className={`week-chart__bars week-chart__bars--days-${period}`}>
+            {timeByDays.map((day) => (
+              <div className="week-chart__bar-wrap" key={day.date}>
+                <div className="week-chart__bar" title={day.title}>
+                  <div className="week-chart__bar-fill" style={{ height: `${day.heightPercent}%` }} />
                 </div>
-              );
-            })}
+                <span>{day.showLabel ? day.weekdayLabel : ""}</span>
+              </div>
+            ))}
           </div>
+
+          {!hasAnyTimeInPeriod && <p className="week-chart__empty">За выбранный период пока нет закрытых интервалов</p>}
         </div>
 
         <aside className="top-tasks">

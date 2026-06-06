@@ -1,0 +1,46 @@
+.route-error-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
+  background: var(--color-bg);
+}
+
+.route-error-card {
+  width: min(560px, 100%);
+  padding: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
+  box-shadow: 0 24px 80px rgba(1, 4, 9, 0.38);
+}
+
+.route-error-card__eyebrow {
+  margin: 0 0 12px;
+  color: var(--color-red);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-error-card h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.route-error-card p {
+  margin: 16px 0 0;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.route-error-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}

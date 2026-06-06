@@ -6,6 +6,7 @@ import { DashboardPage } from "../pages/DashboardPage/DashboardPage";
 import { ProfilePage } from "../pages/ProfilePage/ProfilePage";
 import { ReportsPage } from "../pages/ReportsPage/ReportsPage";
 import { isAuthenticated } from "../shared/api/auth";
+import { RouteErrorPage } from "./RouteErrorPage";
 
 function RootRedirect() {
   return <Navigate to={isAuthenticated() ? "/dashboard" : "/auth"} replace />;
@@ -14,6 +15,7 @@ function RootRedirect() {
 export const router = createBrowserRouter([
   {
     element: <App />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         path: "/",

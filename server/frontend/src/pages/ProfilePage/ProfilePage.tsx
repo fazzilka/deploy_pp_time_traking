@@ -6,12 +6,27 @@ import { StatCard } from "../../components/StatCard/StatCard";
 import { changePassword, getCurrentUser, getProfileStats, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
 import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
-import type { UserProfile, UserStats } from "../../shared/types/user";
+import { EMPTY_USER_STATS, type UserProfile, type UserStats } from "../../shared/types/user";
 import { getAvatarColor } from "../../shared/utils/avatar";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
 import "./ProfilePage.css";
 
 const currentYear = new Date().getFullYear();
+const EMPTY_ACTIVITY: ActivityResponse = {
+  days: [],
+  summary: {
+    active_days_count: 0,
+    current_streak_days: 0,
+    max_streak_days: 0,
+    total_intervals_count: 0,
+    total_time_seconds: 0,
+  },
+};
+const EMPTY_SUMMARY: SummaryResponse = {
+  total_time_seconds_all_tasks: 0,
+  tasks_with_time_count: 0,
+  top_tasks: [],
+};
 
 type PasswordFormState = {
   oldPassword: string;
@@ -48,9 +63,9 @@ export function ProfilePage() {
     try {
       const [nextUser, nextStats, nextActivity, summary] = await Promise.all([
         getCurrentUser(),
-        getProfileStats(),
-        getUserActivity(currentYear),
-        getSummary(3),
+        getProfileStats().catch(() => EMPTY_USER_STATS),
+        getUserActivity(currentYear).catch(() => EMPTY_ACTIVITY),
+        getSummary(3).catch(() => EMPTY_SUMMARY),
       ]);
       setUser(nextUser);
       setStats(nextStats);
@@ -157,7 +172,7 @@ export function ProfilePage() {
     );
   }
 
-  if (!user || !stats || !activity) {
+  if (!user) {
     return (
       <main className="profile-page app-container">
         <div className="status-message status-message--error">{error || "Нет данных профиля"}</div>
@@ -167,6 +182,8 @@ export function ProfilePage() {
 
   const displayName = user.full_name || user.username;
   const avatarColor = getAvatarColor(user.username || user.email);
+  const safeStats = stats ?? user.stats ?? EMPTY_USER_STATS;
+  const safeActivity = activity ?? EMPTY_ACTIVITY;
   const topThreeTasks = topTasks.slice(0, 3);
   const maxTopTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
 
@@ -234,17 +251,17 @@ export function ProfilePage() {
 
           {error && <div className="status-message status-message--error profile-error">{error}</div>}
 
-          <ActivityGrid days={activity.days} year={currentYear} />
+          <ActivityGrid days={safeActivity.days} year={currentYear} />
 
           <div className="profile-stats">
             <StatCard
               title="Текущая серия"
-              value={`${activity.summary.current_streak_days} дней`}
+              value={`${safeStats.current_streak_days} дней`}
               subtitle="без перерыва"
               accent="green"
             />
-            <StatCard title="Максимальная серия" value={`${activity.summary.max_streak_days} дней`} subtitle="лучший результат" accent="blue" />
-            <StatCard title="Всего времени" value={formatHumanDuration(stats.total_time_seconds)} subtitle="по всем задачам" accent="yellow" />
+            <StatCard title="Максимальная серия" value={`${safeStats.max_streak_days} дней`} subtitle="лучший результат" accent="blue" />
+            <StatCard title="Всего времени" value={formatHumanDuration(safeStats.total_time_seconds)} subtitle="по всем задачам" accent="yellow" />
           </div>
 
           <section className="profile-top-tasks" aria-label="Топ задач">

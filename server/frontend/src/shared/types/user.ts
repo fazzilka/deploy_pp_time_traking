@@ -8,6 +8,14 @@ export type UserStats = {
   max_streak_days: number;
 };
 
+export const EMPTY_USER_STATS: UserStats = {
+  tasks_count: 0,
+  tasks_with_time_count: 0,
+  total_time_seconds: 0,
+  current_streak_days: 0,
+  max_streak_days: 0,
+};
+
 export type UserPublic = {
   id: number;
   email: string;
@@ -20,11 +28,10 @@ export type UserPublic = {
 
 export type UserProfile = UserPublic & {
   created_at: string;
+  stats?: UserStats;
 };
 
-export type User = UserProfile & {
-  stats: UserStats;
-};
+export type User = UserProfile;
 
 export type UpdateUserRequest = {
   username: string;

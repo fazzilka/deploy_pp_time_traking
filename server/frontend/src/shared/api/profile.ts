@@ -9,8 +9,9 @@ import type {
   UserProfile,
   UserStats,
 } from "../types/user";
+import { EMPTY_USER_STATS } from "../types/user";
 
-let userStore: User = { ...mockUser, stats: { ...mockUser.stats } };
+let userStore: User = { ...mockUser, stats: { ...(mockUser.stats ?? EMPTY_USER_STATS) } };
 let profileCache: UserProfile | null = null;
 let profileCacheTime = 0;
 let currentUserRequest: Promise<UserProfile> | null = null;
@@ -65,7 +66,7 @@ export async function getCurrentUser(options: CacheOptions = {}): Promise<UserPr
 
 export async function getProfileStats(options: CacheOptions = {}): Promise<UserStats> {
   if (USE_MOCKS) {
-    return { ...userStore.stats };
+    return { ...(userStore.stats ?? EMPTY_USER_STATS) };
   }
 
   if (!options.force && profileStatsCache && isFresh(profileStatsCacheTime, PROFILE_STATS_TTL_MS)) {
@@ -186,6 +187,6 @@ export function clearUserCaches(): void {
 export function hydrateUserCachesFromAuth(user: User): void {
   profileCache = toUserProfile(user);
   profileCacheTime = Date.now();
-  profileStatsCache = { ...user.stats };
+  profileStatsCache = { ...(user.stats ?? EMPTY_USER_STATS) };
   profileStatsCacheTime = Date.now();
 }

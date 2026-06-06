@@ -33,8 +33,11 @@ class ProfileStats(BaseModel):
     max_streak_days: int
 
 
-class UserProfile(UserPublic):
+class UserProfileBase(UserPublic):
     created_at: datetime
+
+
+class UserProfile(UserProfileBase):
     stats: ProfileStats
 
 

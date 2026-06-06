@@ -503,6 +503,70 @@ async def test_users_me_rejects_invalid_token(test_client) -> None:
 
 
 @pytest.mark.asyncio
+async def test_users_me_returns_lightweight_profile(test_client) -> None:
+    async def override_user():
+        return make_user()
+
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/users/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == 1
+    assert payload["email"] == "user@example.com"
+    assert payload["created_at"] == "2026-05-18T00:00:00Z"
+    assert "stats" not in payload
+    assert response.headers["cache-control"] == "private, max-age=60"
+
+
+@pytest.mark.asyncio
+async def test_users_me_stats_returns_profile_stats(
+    test_client,
+    dummy_session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dummy_session.execute_results = [
+        DummyResult(scalar_one=(5, 3, 7200)),
+        DummyResult(scalar_one=[]),
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return make_user()
+
+    monkeypatch.setattr(
+        user_service,
+        "datetime",
+        SimpleNamespace(
+            now=lambda _tz: datetime(2026, 1, 3, tzinfo=UTC),
+            combine=datetime.combine,
+        ),
+    )
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/users/me/stats")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "tasks_count": 5,
+        "tasks_with_time_count": 3,
+        "total_time_seconds": 7200,
+        "current_streak_days": 0,
+        "max_streak_days": 0,
+    }
+    assert response.headers["cache-control"] == "private, max-age=15"
+    assert dummy_session.execute_count == 2
+
+
+@pytest.mark.asyncio
 async def test_regular_user_cannot_open_admin_routes(test_client) -> None:
     async def override_user():
         return make_user(role=UserRole.USER)

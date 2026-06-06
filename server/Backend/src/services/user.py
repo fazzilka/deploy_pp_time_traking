@@ -16,6 +16,7 @@ from src.schemas.user import (
     ActivitySummary,
     ProfileStats,
     UserProfile,
+    UserProfileBase,
     UserUpdate,
 )
 
@@ -34,9 +35,8 @@ def get_avatar_letter(user: User) -> str:
     return source[:1].upper()
 
 
-async def get_user_profile(session: AsyncSession, user: User) -> UserProfile:
-    stats = await get_profile_stats(session, user.id)
-    public_user = UserProfile.model_validate(
+def get_user_base_profile(user: User) -> UserProfileBase:
+    return UserProfileBase.model_validate(
         {
             "id": user.id,
             "email": user.email,
@@ -45,15 +45,19 @@ async def get_user_profile(session: AsyncSession, user: User) -> UserProfile:
             "role": user.role,
             "is_active": user.is_active,
             "created_at": user.created_at,
-            "stats": stats,
         }
     )
-    return public_user
+
+
+async def get_user_profile(session: AsyncSession, user: User) -> UserProfile:
+    stats = await get_profile_stats(session, user.id)
+    base_profile = get_user_base_profile(user)
+    return UserProfile.model_validate({**base_profile.model_dump(), "stats": stats})
 
 
 async def update_user_profile(
     session: AsyncSession, user: User, payload: UserUpdate
-) -> UserProfile:
+) -> UserProfileBase:
     values = payload.model_dump(exclude_unset=True)
     username = values.get("username")
     if username is not None and username != user.username:
@@ -68,7 +72,7 @@ async def update_user_profile(
         user.full_name = values["full_name"]
     await session.commit()
     await session.refresh(user)
-    return await get_user_profile(session, user)
+    return get_user_base_profile(user)
 
 
 async def change_password(

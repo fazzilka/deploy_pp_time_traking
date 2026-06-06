@@ -8,7 +8,7 @@ export type UserStats = {
   max_streak_days: number;
 };
 
-export type User = {
+export type UserPublic = {
   id: number;
   email: string;
   username: string;
@@ -16,7 +16,13 @@ export type User = {
   role: UserRole;
   is_active: boolean;
   avatar_letter: string;
+};
+
+export type UserProfile = UserPublic & {
   created_at: string;
+};
+
+export type User = UserProfile & {
   stats: UserStats;
 };
 

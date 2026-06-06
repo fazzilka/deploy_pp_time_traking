@@ -1,4 +1,4 @@
-import type { User } from "./user";
+import type { User, UserPublic } from "./user";
 
 export type LoginRequest = {
   email: string;
@@ -18,4 +18,4 @@ export type AuthResponse = {
   user?: User;
 };
 
-export type RegisterResponse = User;
+export type RegisterResponse = UserPublic;

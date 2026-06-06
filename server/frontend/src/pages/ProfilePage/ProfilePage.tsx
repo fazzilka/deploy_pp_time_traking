@@ -3,10 +3,10 @@ import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
-import { changePassword, getCurrentUser, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
+import { changePassword, getCurrentUser, getProfileStats, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
 import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
-import type { User } from "../../shared/types/user";
+import type { UserProfile, UserStats } from "../../shared/types/user";
 import { getAvatarColor } from "../../shared/utils/avatar";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
 import "./ProfilePage.css";
@@ -26,7 +26,8 @@ const initialPasswordForm: PasswordFormState = {
 };
 
 export function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
   const [topTasks, setTopTasks] = useState<SummaryResponse["top_tasks"]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,12 +46,14 @@ export function ProfilePage() {
     setError(null);
 
     try {
-      const [nextUser, nextActivity, summary] = await Promise.all([
+      const [nextUser, nextStats, nextActivity, summary] = await Promise.all([
         getCurrentUser(),
+        getProfileStats(),
         getUserActivity(currentYear),
         getSummary(3),
       ]);
       setUser(nextUser);
+      setStats(nextStats);
       setActivity(nextActivity);
       setTopTasks(summary.top_tasks);
       setUsername(nextUser.username);
@@ -154,7 +157,7 @@ export function ProfilePage() {
     );
   }
 
-  if (!user || !activity) {
+  if (!user || !stats || !activity) {
     return (
       <main className="profile-page app-container">
         <div className="status-message status-message--error">{error || "Нет данных профиля"}</div>
@@ -241,7 +244,7 @@ export function ProfilePage() {
               accent="green"
             />
             <StatCard title="Максимальная серия" value={`${activity.summary.max_streak_days} дней`} subtitle="лучший результат" accent="blue" />
-            <StatCard title="Всего времени" value={formatHumanDuration(user.stats.total_time_seconds)} subtitle="по всем задачам" accent="yellow" />
+            <StatCard title="Всего времени" value={formatHumanDuration(stats.total_time_seconds)} subtitle="по всем задачам" accent="yellow" />
           </div>
 
           <section className="profile-top-tasks" aria-label="Топ задач">

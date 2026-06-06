@@ -1,11 +1,24 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { getTasks } from "./tasks";
 import { getUserActivity } from "./profile";
+import { onTaskDataChanged } from "./cacheEvents";
 import type { ActivityResponse, SummaryResponse } from "../types/reports";
 
 const pendingSummaryRequests = new Map<string, Promise<SummaryResponse>>();
+const summaryCache = new Map<string, { value: SummaryResponse; time: number }>();
+const SUMMARY_TTL_MS = 15_000;
 
-export async function getSummary(limit?: number): Promise<SummaryResponse> {
+type CacheOptions = {
+  force?: boolean;
+};
+
+function isFresh(cacheTime: number, ttlMs: number): boolean {
+  return Date.now() - cacheTime < ttlMs;
+}
+
+export async function getSummary(limit?: number, options: CacheOptions = {}): Promise<SummaryResponse> {
+  const path = `/api/v1/summary${limit ? `?limit=${limit}` : ""}`;
+
   if (USE_MOCKS) {
     const tasks = await getTasks();
     const topTasksLimit = limit ?? 5;
@@ -28,28 +41,44 @@ export async function getSummary(limit?: number): Promise<SummaryResponse> {
     };
   }
 
-  const path = `/api/v1/summary${limit ? `?limit=${limit}` : ""}`;
+  const cachedSummary = summaryCache.get(path);
+  if (!options.force && cachedSummary && isFresh(cachedSummary.time, SUMMARY_TTL_MS)) {
+    return cachedSummary.value;
+  }
+
   const pendingRequest = pendingSummaryRequests.get(path);
 
-  if (pendingRequest) {
+  if (!options.force && pendingRequest) {
     return pendingRequest;
   }
 
-  const request = apiRequest<SummaryResponse>(path).finally(() => {
-    pendingSummaryRequests.delete(path);
-  });
+  const request = apiRequest<SummaryResponse>(path)
+    .then((summary) => {
+      summaryCache.set(path, { value: summary, time: Date.now() });
+      return summary;
+    })
+    .finally(() => {
+      pendingSummaryRequests.delete(path);
+    });
   pendingSummaryRequests.set(path, request);
   return request;
 }
 
-export async function getReportsData(year: number): Promise<{
+export async function getReportsData(year: number, options: CacheOptions = {}): Promise<{
   summary: SummaryResponse;
   activity: ActivityResponse;
 }> {
-  const [summary, activity] = await Promise.all([getSummary(3), getUserActivity(year)]);
+  const [summary, activity] = await Promise.all([getSummary(3, options), getUserActivity(year, options)]);
 
   return {
     summary,
     activity,
   };
 }
+
+export function invalidateReportsCache(): void {
+  summaryCache.clear();
+  pendingSummaryRequests.clear();
+}
+
+onTaskDataChanged(invalidateReportsCache);

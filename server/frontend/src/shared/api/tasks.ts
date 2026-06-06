@@ -1,5 +1,7 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { mockTasks } from "./mockData";
+import { notifyTaskDataChanged } from "./cacheEvents";
+import { invalidateActivityCache, invalidateProfileStatsCache } from "./profile";
 import type { CreateTaskRequest, Task, TaskQuery, UpdateTaskRequest } from "../types/task";
 
 const tasksStore: Task[] = mockTasks.map((task) => ({ ...task, time_intervals: [...(task.time_intervals ?? [])] }));
@@ -38,6 +40,22 @@ function serializeQuery(query: TaskQuery = {}): string {
 
   const search = params.toString();
   return search ? `?${search}` : "";
+}
+
+function invalidateTaskDependentCaches(options: { stats?: boolean; activity?: boolean; reports?: boolean } = {}): void {
+  pendingTaskRequests.clear();
+
+  if (options.stats) {
+    invalidateProfileStatsCache();
+  }
+
+  if (options.activity) {
+    invalidateActivityCache();
+  }
+
+  if (options.reports) {
+    notifyTaskDataChanged();
+  }
 }
 
 export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
@@ -84,13 +102,16 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
     };
 
     tasksStore.unshift(task);
+    invalidateTaskDependentCaches({ stats: true, reports: true });
     return task;
   }
 
-  return apiRequest<Task>("/api/v1/tasks", {
+  const task = await apiRequest<Task>("/api/v1/tasks", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateTaskDependentCaches({ stats: true, reports: true });
+  return task;
 }
 
 export async function startTaskTimer(taskId: number): Promise<Task> {
@@ -115,12 +136,15 @@ export async function startTaskTimer(taskId: number): Promise<Task> {
       },
     ];
 
+    invalidateTaskDependentCaches();
     return task;
   }
 
-  return apiRequest<Task>(`/api/v1/tasks/${taskId}/timer/start`, {
+  const task = await apiRequest<Task>(`/api/v1/tasks/${taskId}/timer/start`, {
     method: "POST",
   });
+  invalidateTaskDependentCaches();
+  return task;
 }
 
 export async function deleteTask(taskId: number): Promise<void> {
@@ -132,12 +156,14 @@ export async function deleteTask(taskId: number): Promise<void> {
     }
 
     tasksStore.splice(taskIndex, 1);
+    invalidateTaskDependentCaches({ stats: true, activity: true, reports: true });
     return;
   }
 
-  return apiRequest<void>(`/api/v1/tasks/${taskId}`, {
+  await apiRequest<void>(`/api/v1/tasks/${taskId}`, {
     method: "DELETE",
   });
+  invalidateTaskDependentCaches({ stats: true, activity: true, reports: true });
 }
 
 export async function updateTask(taskId: number, payload: UpdateTaskRequest): Promise<Task> {
@@ -164,13 +190,16 @@ export async function updateTask(taskId: number, payload: UpdateTaskRequest): Pr
       task.priority = payload.priority;
     }
 
+    invalidateTaskDependentCaches({ reports: true });
     return task;
   }
 
-  return apiRequest<Task>(`/api/v1/tasks/${taskId}`, {
+  const task = await apiRequest<Task>(`/api/v1/tasks/${taskId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateTaskDependentCaches({ reports: true });
+  return task;
 }
 
 export async function stopTaskTimer(taskId: number): Promise<Task> {
@@ -187,10 +216,13 @@ export async function stopTaskTimer(taskId: number): Promise<Task> {
       (new Date(activeInterval.ended_at).getTime() - new Date(activeInterval.started_at).getTime()) / 1000,
     );
 
+    invalidateTaskDependentCaches({ stats: true, activity: true, reports: true });
     return task;
   }
 
-  return apiRequest<Task>(`/api/v1/tasks/${taskId}/timer/stop`, {
+  const task = await apiRequest<Task>(`/api/v1/tasks/${taskId}/timer/stop`, {
     method: "POST",
   });
+  invalidateTaskDependentCaches({ stats: true, activity: true, reports: true });
+  return task;
 }

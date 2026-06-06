@@ -1,4 +1,6 @@
 import { apiRequest, USE_MOCKS } from "./client";
+import { clearUserCaches, hydrateUserCachesFromAuth } from "./profile";
+import { invalidateReportsCache } from "./reports";
 import { mockUser } from "./mockData";
 import type { AuthResponse, LoginRequest, RegisterRequest, RegisterResponse } from "../types/auth";
 
@@ -22,6 +24,8 @@ export function saveAccessToken(token: string): void {
 
 export function logout(): void {
   localStorage.removeItem(tokenKey);
+  clearUserCaches();
+  invalidateReportsCache();
 }
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
@@ -30,17 +34,25 @@ export async function login(payload: LoginRequest): Promise<AuthResponse> {
       throw new Error("Проверьте email и пароль");
     }
 
-    return {
+    const response: AuthResponse = {
       access_token: createMockToken(payload.email),
       token_type: "bearer",
       user: mockUser,
     };
+    if (response.user) {
+      hydrateUserCachesFromAuth(response.user);
+    }
+    return response;
   }
 
-  return apiRequest<AuthResponse>("/api/v1/auth/login", {
+  const response = await apiRequest<AuthResponse>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  if (response.user) {
+    hydrateUserCachesFromAuth(response.user);
+  }
+  return response;
 }
 
 export async function register(payload: RegisterRequest): Promise<AuthResponse | RegisterResponse> {
@@ -57,7 +69,7 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse |
       throw new Error("Пароль должен быть не короче 6 символов");
     }
 
-    return {
+    const response: AuthResponse = {
       access_token: createMockToken(payload.email),
       token_type: "bearer",
       user: {
@@ -68,6 +80,10 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse |
         avatar_letter: payload.username.slice(0, 1).toUpperCase(),
       },
     };
+    if (response.user) {
+      hydrateUserCachesFromAuth(response.user);
+    }
+    return response;
   }
 
   return apiRequest<RegisterResponse>("/api/v1/auth/register", {

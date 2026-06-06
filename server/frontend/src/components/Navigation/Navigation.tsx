@@ -3,12 +3,12 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { getCurrentUser } from "../../shared/api/profile";
 import { logout } from "../../shared/api/auth";
 import { getAvatarColor } from "../../shared/utils/avatar";
-import type { User } from "../../shared/types/user";
+import type { UserProfile } from "../../shared/types/user";
 import "./Navigation.css";
 
 export function Navigation() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     let isMounted = true;

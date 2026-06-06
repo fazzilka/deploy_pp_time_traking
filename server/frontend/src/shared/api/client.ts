@@ -5,6 +5,7 @@ export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("access_token");
   const headers = new Headers(options.headers);
+  const isAuthRequest = path.startsWith("/api/v1/auth/login") || path.startsWith("/api/v1/auth/register");
 
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -19,7 +20,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && !isAuthRequest) {
     localStorage.removeItem("access_token");
     window.location.href = "/auth";
     throw new Error("Сессия истекла, войдите снова");

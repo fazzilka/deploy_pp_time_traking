@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { isAuthenticated, login, register, saveAccessToken } from "../../shared/api/auth";
@@ -29,6 +29,7 @@ export function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -92,8 +93,17 @@ export function AuthPage() {
       setMode("login");
       setMessage("Аккаунт создан, теперь войдите");
     } catch (caughtError) {
-      const nextError = caughtError instanceof Error ? caughtError.message : "Не удалось выполнить запрос";
-      setError(nextError);
+      if (isLogin) {
+        setForm((current) => ({
+          ...current,
+          password: "",
+        }));
+        setError("Неверный логин или пароль");
+        passwordInputRef.current?.focus();
+      } else {
+        const nextError = caughtError instanceof Error ? caughtError.message : "Не удалось выполнить запрос";
+        setError(nextError);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -147,6 +157,7 @@ export function AuthPage() {
         )}
 
         <PasswordInput
+          ref={passwordInputRef}
           id="password"
           name="password"
           label="Password"

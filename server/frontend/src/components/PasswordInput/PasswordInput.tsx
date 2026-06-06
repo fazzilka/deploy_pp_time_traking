@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import "./PasswordInput.css";
 
 type PasswordInputProps = {
@@ -14,18 +14,21 @@ type PasswordInputProps = {
   onChange: (value: string) => void;
 };
 
-export function PasswordInput({
-  id,
-  name,
-  label,
-  value,
-  placeholder,
-  autoComplete,
-  error,
-  required,
-  minLength,
-  onChange,
-}: PasswordInputProps) {
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(function PasswordInput(
+  {
+    id,
+    name,
+    label,
+    value,
+    placeholder,
+    autoComplete,
+    error,
+    required,
+    minLength,
+    onChange,
+  },
+  ref,
+) {
   const [isVisible, setIsVisible] = useState(false);
   const inputId = id ?? name;
   const toggleLabel = isVisible ? "Скрыть пароль" : "Показать пароль";
@@ -44,6 +47,7 @@ export function PasswordInput({
       )}
       <div className="password-input__field">
         <input
+          ref={ref}
           id={inputId}
           name={name}
           type={isVisible ? "text" : "password"}
@@ -66,4 +70,4 @@ export function PasswordInput({
       {error && <div className="password-input__error">{error}</div>}
     </div>
   );
-}
+});

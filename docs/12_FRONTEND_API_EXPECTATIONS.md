@@ -96,18 +96,29 @@ Frontend ожидает:
   "role": "user",
   "is_active": true,
   "avatar_letter": "Д",
-  "created_at": "2026-05-18T10:00:00Z",
-  "stats": {
-    "tasks_count": 12,
-    "tasks_with_time_count": 7,
-    "total_time_seconds": 18420,
-    "current_streak_days": 4,
-    "max_streak_days": 16
-  }
+  "created_at": "2026-05-18T10:00:00Z"
 }
 ```
 
 Где используется: `server/frontend/src/shared/api/profile.ts`, `Navigation`, `ProfilePage`.
+
+### GET /api/v1/users/me/stats
+
+JWT: требуется.
+
+Frontend ожидает:
+
+```json
+{
+  "tasks_count": 12,
+  "tasks_with_time_count": 7,
+  "total_time_seconds": 18420,
+  "current_streak_days": 4,
+  "max_streak_days": 16
+}
+```
+
+Где используется: `server/frontend/src/shared/api/profile.ts`, `ProfilePage`.
 
 ### PATCH /api/v1/users/me
 

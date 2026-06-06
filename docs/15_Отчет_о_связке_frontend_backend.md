@@ -61,6 +61,7 @@ Backend был адаптирован под frontend-контракты. Fronte
 - У задач добавлены `deadline` и `priority`; summary top tasks также возвращают эти поля.
 - `GET /api/v1/tasks` поддерживает фильтры `priority`, `deadline_before`, `deadline_after`.
 - `POST /api/v1/auth/login` теперь возвращает полный `UserProfile` в поле `user`, включая `created_at` и `stats`.
+- `GET /api/v1/users/me` возвращает лёгкий профиль без `stats`; статистика вынесена в `GET /api/v1/users/me/stats`.
 - Добавлен CORS middleware для `http://localhost:5173` и `http://127.0.0.1:5173`.
 - Backend default port и docker compose default host port изменены на `8000`.
 - Dockerfile и entrypoint приведены к fallback-порту `8000`.

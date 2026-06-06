@@ -109,7 +109,7 @@ Response model: `TokenResponse`.
 
 JWT: требуется.
 
-Response model: `UserProfile`.
+Response model: `UserProfileBase`.
 
 ```json
 {
@@ -120,18 +120,29 @@ Response model: `UserProfile`.
   "role": "user",
   "is_active": true,
   "avatar_letter": "Д",
-  "created_at": "2026-05-18T10:00:00Z",
-  "stats": {
-    "tasks_count": 12,
-    "tasks_with_time_count": 7,
-    "total_time_seconds": 18420,
-    "current_streak_days": 4,
-    "max_streak_days": 16
-  }
+  "created_at": "2026-05-18T10:00:00Z"
 }
 ```
 
-Источник: `server/Backend/src/api/v1/users.py`, `get_me`; `server/Backend/src/services/user.py`, `get_user_profile`.
+Источник: `server/Backend/src/api/v1/users.py`, `get_me`; `server/Backend/src/services/user.py`, `get_user_base_profile`.
+
+### GET /api/v1/users/me/stats
+
+JWT: требуется.
+
+Response model: `ProfileStats`.
+
+```json
+{
+  "tasks_count": 12,
+  "tasks_with_time_count": 7,
+  "total_time_seconds": 18420,
+  "current_streak_days": 4,
+  "max_streak_days": 16
+}
+```
+
+Источник: `server/Backend/src/api/v1/users.py`, `get_my_stats`; `server/Backend/src/services/user.py`, `get_profile_stats`.
 
 ### PATCH /api/v1/users/me
 
@@ -139,7 +150,7 @@ JWT: требуется.
 
 Request schema: `UserUpdate`, допускает `username`, `full_name`.
 
-Response model: `UserProfile`.
+Response model: `UserProfileBase`.
 
 Источник: `server/Backend/src/api/v1/users.py`, `update_me`.
 

@@ -32,6 +32,10 @@ Content-Type: application/json
 GET {{host}}/api/v1/users/me
 Authorization: Bearer {{token}}
 
+### Получение статистики профиля
+GET {{host}}/api/v1/users/me/stats
+Authorization: Bearer {{token}}
+
 ### Обновление профиля
 PATCH {{host}}/api/v1/users/me
 Authorization: Bearer {{token}}

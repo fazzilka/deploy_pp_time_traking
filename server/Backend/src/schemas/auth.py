@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from src.schemas.user import UserProfile
+from src.schemas.user import UserProfileBase
 
 
 class RegisterRequest(BaseModel):
@@ -20,4 +20,4 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user: UserProfile
+    user: UserProfileBase

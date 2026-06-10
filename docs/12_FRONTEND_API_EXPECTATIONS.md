@@ -63,19 +63,13 @@ Frontend ожидает:
     "role": "user",
     "is_active": true,
     "avatar_letter": "Д",
-    "created_at": "2026-05-18T10:00:00Z",
-    "stats": {
-      "tasks_count": 0,
-      "tasks_with_time_count": 0,
-      "total_time_seconds": 0,
-      "current_streak_days": 0,
-      "max_streak_days": 0
-    }
+    "created_at": "2026-05-18T10:00:00Z"
   }
 }
 ```
 
 Поле `user` опционально для frontend, но если оно есть, форма авторизации его принимает.
+`user` в ответе login является лёгким профилем без `stats`; статистика запрашивается отдельно только на страницах, где она нужна.
 
 Где используется: `server/frontend/src/shared/api/auth.ts`, `server/frontend/src/pages/AuthPage/AuthPage.tsx`.
 

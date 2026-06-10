@@ -60,7 +60,7 @@ Backend был адаптирован под frontend-контракты. Fronte
 - `top_tasks` в summary фильтруются по `total_time_seconds > 0`.
 - У задач добавлены `deadline` и `priority`; summary top tasks также возвращают эти поля.
 - `GET /api/v1/tasks` поддерживает фильтры `priority`, `deadline_before`, `deadline_after`.
-- `POST /api/v1/auth/login` теперь возвращает полный `UserProfile` в поле `user`, включая `created_at` и `stats`.
+- `POST /api/v1/auth/login` возвращает лёгкий `UserProfileBase` в поле `user`, включая `created_at`, но без `stats`.
 - `GET /api/v1/users/me` возвращает лёгкий профиль без `stats`; статистика вынесена в `GET /api/v1/users/me/stats`.
 - Добавлен CORS middleware для `http://localhost:5173` и `http://127.0.0.1:5173`.
 - Backend default port и docker compose default host port изменены на `8000`.
@@ -160,7 +160,7 @@ Backend был адаптирован под frontend-контракты. Fronte
 | Summary total | `total_time_seconds` | `total_time_seconds_all_tasks` |
 | Summary top tasks | Полный `TaskRead` | Минимальный `SummaryTask` |
 | Summary zero tasks | В top могли попасть задачи с 0 секунд | Top содержит только задачи с временем |
-| Login user object | `UserPublic` без статистики | `UserProfile` со `created_at` и `stats` |
+| Login user object | `UserPublic` без `created_at` | `UserProfileBase` со `created_at`, без `stats` |
 | CORS | Не был настроен | Настроен через `CORS_ALLOW_ORIGINS` |
 | Backend port | 8080 по умолчанию | 8000 по умолчанию |
 | Frontend env | Mock mode по умолчанию | Real mode по умолчанию |

@@ -187,6 +187,12 @@ export function clearUserCaches(): void {
 export function hydrateUserCachesFromAuth(user: User): void {
   profileCache = toUserProfile(user);
   profileCacheTime = Date.now();
-  profileStatsCache = { ...(user.stats ?? EMPTY_USER_STATS) };
-  profileStatsCacheTime = Date.now();
+
+  if (user.stats) {
+    profileStatsCache = { ...user.stats };
+    profileStatsCacheTime = Date.now();
+    return;
+  }
+
+  invalidateProfileStatsCache();
 }

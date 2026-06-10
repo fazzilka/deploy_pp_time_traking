@@ -56,10 +56,7 @@ def make_user(
 @pytest.mark.asyncio
 async def test_register_user_creates_regular_user() -> None:
     session = DummySession()
-    session.execute_results = [
-        DummyResult(scalar_one_or_none=None),
-        DummyResult(scalar_one_or_none=None),
-    ]
+    session.execute_results = [DummyResult(scalar_one=[])]
 
     user = await register_user(
         session,
@@ -75,6 +72,7 @@ async def test_register_user_creates_regular_user() -> None:
     assert user.role == UserRole.USER
     assert user.hashed_password != "password123"
     assert session.committed is True
+    assert session.execute_count == 1
 
 
 def test_register_schema_rejects_admin_role() -> None:
@@ -92,7 +90,7 @@ def test_register_schema_rejects_admin_role() -> None:
 @pytest.mark.asyncio
 async def test_register_duplicate_email_returns_409() -> None:
     session = DummySession()
-    session.execute_results = [DummyResult(scalar_one_or_none=make_user())]
+    session.execute_results = [DummyResult(scalar_one=[make_user()])]
 
     with pytest.raises(HTTPException) as exc:
         await register_user(
@@ -101,15 +99,14 @@ async def test_register_duplicate_email_returns_409() -> None:
         )
 
     assert exc.value.status_code == 409
+    assert exc.value.detail == "Email уже занят"
+    assert session.execute_count == 1
 
 
 @pytest.mark.asyncio
 async def test_register_duplicate_username_returns_409() -> None:
     session = DummySession()
-    session.execute_results = [
-        DummyResult(scalar_one_or_none=None),
-        DummyResult(scalar_one_or_none=make_user()),
-    ]
+    session.execute_results = [DummyResult(scalar_one=[make_user()])]
 
     with pytest.raises(HTTPException) as exc:
         await register_user(
@@ -118,17 +115,15 @@ async def test_register_duplicate_username_returns_409() -> None:
         )
 
     assert exc.value.status_code == 409
+    assert exc.value.detail == "Username уже занят"
+    assert session.execute_count == 1
 
 
 @pytest.mark.asyncio
 async def test_login_user_returns_bearer_token() -> None:
     session = DummySession()
     user = make_user()
-    session.execute_results = [
-        DummyResult(scalar_one_or_none=user),
-        DummyResult(scalar_one=(0, 0, 0)),
-        DummyResult(scalar_one=[]),
-    ]
+    session.execute_results = [DummyResult(scalar_one_or_none=user)]
 
     response = await login_user(
         session,
@@ -138,8 +133,8 @@ async def test_login_user_returns_bearer_token() -> None:
     assert response.token_type == "bearer"
     assert response.access_token
     assert response.user.id == user.id
-    assert response.user.stats.tasks_count == 0
-    assert session.execute_count == 3
+    assert "stats" not in response.user.model_dump()
+    assert session.execute_count == 1
 
 
 @pytest.mark.asyncio
@@ -202,11 +197,7 @@ async def test_change_password_updates_hash_and_allows_login_with_new_password()
     assert exc.value.status_code == 401
 
     new_login_session = DummySession()
-    new_login_session.execute_results = [
-        DummyResult(scalar_one_or_none=user),
-        DummyResult(scalar_one=(0, 0, 0)),
-        DummyResult(scalar_one=[]),
-    ]
+    new_login_session.execute_results = [DummyResult(scalar_one_or_none=user)]
     response = await login_user(
         new_login_session,
         LoginRequest(email="user@example.com", password="newpass456"),

@@ -16,7 +16,7 @@
 | 204 frontend | Нужно не читать JSON на `204` | Уже обработано | Оставить и проверить |
 | JWT | `Authorization: Bearer <access_token>` | Backend требует JWT на защищенных endpoint | Совместимо |
 | Auth endpoints | `/api/v1/auth/register`, `/api/v1/auth/login` | Такие endpoint есть | Совместимо |
-| Login user object | Если `user` есть, frontend-тип ожидает полный `User` со `stats` | Был `UserPublic` без `created_at/stats` | Исправлено: login возвращает `UserProfile` |
+| Login user object | Если `user` есть, frontend использует лёгкий профиль без обязательных `stats` | Backend возвращает `UserProfileBase` | Совместимо |
 | Profile endpoints | `/api/v1/users/me`, `/api/v1/users/me/stats`, `/api/v1/users/me/activity` | Такие endpoint есть | Совместимо |
 | Multiple timers | Разные задачи могут иметь активные таймеры одновременно | Проверка идет только по `task_id` | Совместимо, добавлен тест |
 | Timer start/stop under JWT | Endpoint должен работать после auth dependency | На реальном HTTP был `500` из-за вложенного `session.begin()` после auth-запроса | Исправлено: timer service использует текущую session и явный `commit()` |

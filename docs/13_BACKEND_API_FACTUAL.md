@@ -87,17 +87,12 @@ Response model: `TokenResponse`.
     "role": "user",
     "is_active": true,
     "avatar_letter": "Д",
-    "created_at": "2026-05-18T10:00:00Z",
-    "stats": {
-      "tasks_count": 0,
-      "tasks_with_time_count": 0,
-      "total_time_seconds": 0,
-      "current_streak_days": 0,
-      "max_streak_days": 0
-    }
+    "created_at": "2026-05-18T10:00:00Z"
   }
 }
 ```
+
+`TokenResponse.user` использует `UserProfileBase`: auth endpoint не считает `stats` и `activity`.
 
 Ошибки: `401` при неверных учетных данных, `403` если пользователь неактивен.
 

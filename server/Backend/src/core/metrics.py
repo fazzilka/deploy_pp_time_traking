@@ -24,6 +24,18 @@ DB_QUERY_ERRORS = Counter(
     "Total number of failed database queries.",
     labelnames=("operation", "database"),
 )
+AUTH_LOGIN_DURATION = Histogram(
+    "auth_login_duration_seconds",
+    "Authentication login duration in seconds by stage.",
+    labelnames=("stage", "result"),
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+)
+AUTH_REGISTER_DURATION = Histogram(
+    "auth_register_duration_seconds",
+    "Authentication register duration in seconds by stage.",
+    labelnames=("stage", "result"),
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+)
 
 _DATABASE_LABEL = "postgres"
 _CONFIGURED_ENGINE_IDS: set[int] = set()
@@ -39,6 +51,14 @@ def configure_db_metrics(engine: Engine) -> None:
     event.listen(engine, "after_cursor_execute", _after_cursor_execute)
     event.listen(engine, "handle_error", _handle_error)
     _CONFIGURED_ENGINE_IDS.add(engine_id)
+
+
+def observe_auth_login_duration(stage: str, result: str, duration_seconds: float) -> None:
+    AUTH_LOGIN_DURATION.labels(stage=stage, result=result).observe(max(duration_seconds, 0.0))
+
+
+def observe_auth_register_duration(stage: str, result: str, duration_seconds: float) -> None:
+    AUTH_REGISTER_DURATION.labels(stage=stage, result=result).observe(max(duration_seconds, 0.0))
 
 
 def _before_cursor_execute(

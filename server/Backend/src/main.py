@@ -19,6 +19,25 @@ from src.middleware.request_id import RequestIdMiddleware
 
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
+HTTP_LATENCY_BUCKETS = (
+    0.01,
+    0.025,
+    0.05,
+    0.075,
+    0.1,
+    0.15,
+    0.2,
+    0.25,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.75,
+    1,
+    1.5,
+    2.5,
+    5,
+)
 
 
 @asynccontextmanager
@@ -38,7 +57,10 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(api_v1_router)
-Instrumentator().instrument(app).expose(app, include_in_schema=False)
+Instrumentator().instrument(app, latency_lowr_buckets=HTTP_LATENCY_BUCKETS).expose(
+    app,
+    include_in_schema=False,
+)
 
 
 @app.get("/health")

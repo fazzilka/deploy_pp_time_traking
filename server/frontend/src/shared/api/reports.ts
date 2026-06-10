@@ -5,15 +5,35 @@ import { onTaskDataChanged } from "./cacheEvents";
 import type { ActivityResponse, SummaryResponse } from "../types/reports";
 
 const pendingSummaryRequests = new Map<string, Promise<SummaryResponse>>();
-const summaryCache = new Map<string, { value: SummaryResponse; time: number }>();
-const SUMMARY_TTL_MS = 15_000;
+const summaryCache = new Map<
+  string,
+  {
+    value: SummaryResponse | null;
+    loaded: boolean;
+    dirty: boolean;
+    version: number;
+  }
+>();
 
 type CacheOptions = {
   force?: boolean;
 };
 
-function isFresh(cacheTime: number, ttlMs: number): boolean {
-  return Date.now() - cacheTime < ttlMs;
+function getSummaryCacheState(path: string) {
+  const cachedSummary = summaryCache.get(path);
+
+  if (cachedSummary) {
+    return cachedSummary;
+  }
+
+  const nextCache = {
+    value: null,
+    loaded: false,
+    dirty: false,
+    version: 0,
+  };
+  summaryCache.set(path, nextCache);
+  return nextCache;
 }
 
 export async function getSummary(limit?: number, options: CacheOptions = {}): Promise<SummaryResponse> {
@@ -41,8 +61,8 @@ export async function getSummary(limit?: number, options: CacheOptions = {}): Pr
     };
   }
 
-  const cachedSummary = summaryCache.get(path);
-  if (!options.force && cachedSummary && isFresh(cachedSummary.time, SUMMARY_TTL_MS)) {
+  const cachedSummary = getSummaryCacheState(path);
+  if (!options.force && cachedSummary.loaded && !cachedSummary.dirty && cachedSummary.value) {
     return cachedSummary.value;
   }
 
@@ -52,9 +72,14 @@ export async function getSummary(limit?: number, options: CacheOptions = {}): Pr
     return pendingRequest;
   }
 
+  const requestVersion = cachedSummary.version;
   const request = apiRequest<SummaryResponse>(path)
     .then((summary) => {
-      summaryCache.set(path, { value: summary, time: Date.now() });
+      cachedSummary.value = summary;
+      cachedSummary.loaded = true;
+      if (cachedSummary.version === requestVersion) {
+        cachedSummary.dirty = false;
+      }
       return summary;
     })
     .finally(() => {
@@ -77,6 +102,14 @@ export async function getReportsData(year: number, options: CacheOptions = {}): 
 }
 
 export function invalidateReportsCache(): void {
+  summaryCache.forEach((cachedSummary) => {
+    cachedSummary.version += 1;
+    cachedSummary.dirty = true;
+  });
+  pendingSummaryRequests.clear();
+}
+
+export function clearReportsCache(): void {
   summaryCache.clear();
   pendingSummaryRequests.clear();
 }

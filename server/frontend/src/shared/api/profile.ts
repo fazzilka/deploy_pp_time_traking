@@ -12,30 +12,48 @@ import type {
 import { EMPTY_USER_STATS } from "../types/user";
 
 let userStore: User = { ...mockUser, stats: { ...(mockUser.stats ?? EMPTY_USER_STATS) } };
-let profileCache: UserProfile | null = null;
-let profileCacheTime = 0;
-let currentUserRequest: Promise<UserProfile> | null = null;
-let profileStatsCache: UserStats | null = null;
-let profileStatsCacheTime = 0;
-let profileStatsRequest: Promise<UserStats> | null = null;
-const pendingActivityRequests = new Map<number, Promise<ActivityResponse>>();
-const activityCache = new Map<number, { value: ActivityResponse; time: number }>();
 
-const PROFILE_TTL_MS = 60_000;
-const PROFILE_STATS_TTL_MS = 15_000;
-const ACTIVITY_TTL_MS = 60_000;
+type CacheState<T> = {
+  data: T | null;
+  loaded: boolean;
+  dirty: boolean;
+  pending: Promise<T> | null;
+  version: number;
+};
 
 type CacheOptions = {
   force?: boolean;
 };
 
-function isFresh(cacheTime: number, ttlMs: number): boolean {
-  return Date.now() - cacheTime < ttlMs;
+function createCacheState<T>(): CacheState<T> {
+  return {
+    data: null,
+    loaded: false,
+    dirty: false,
+    pending: null,
+    version: 0,
+  };
 }
+
+const profileCache = createCacheState<UserProfile>();
+const profileStatsCache = createCacheState<UserStats>();
+const activityCaches = new Map<number, CacheState<ActivityResponse>>();
 
 function toUserProfile(user: User): UserProfile {
   const { stats: _stats, ...profile } = user;
   return profile;
+}
+
+function getActivityCache(year: number): CacheState<ActivityResponse> {
+  const cachedActivity = activityCaches.get(year);
+
+  if (cachedActivity) {
+    return cachedActivity;
+  }
+
+  const nextCache = createCacheState<ActivityResponse>();
+  activityCaches.set(year, nextCache);
+  return nextCache;
 }
 
 export async function getCurrentUser(options: CacheOptions = {}): Promise<UserProfile> {
@@ -43,25 +61,29 @@ export async function getCurrentUser(options: CacheOptions = {}): Promise<UserPr
     return toUserProfile(userStore);
   }
 
-  if (!options.force && profileCache && isFresh(profileCacheTime, PROFILE_TTL_MS)) {
-    return profileCache;
+  if (!options.force && profileCache.loaded && !profileCache.dirty && profileCache.data) {
+    return profileCache.data;
   }
 
-  if (!options.force && currentUserRequest) {
-    return currentUserRequest;
+  if (!options.force && profileCache.pending) {
+    return profileCache.pending;
   }
 
-  currentUserRequest = apiRequest<UserProfile>("/api/v1/users/me")
+  const requestVersion = profileCache.version;
+  profileCache.pending = apiRequest<UserProfile>("/api/v1/users/me")
     .then((profile) => {
-      profileCache = profile;
-      profileCacheTime = Date.now();
+      profileCache.data = profile;
+      profileCache.loaded = true;
+      if (profileCache.version === requestVersion) {
+        profileCache.dirty = false;
+      }
       return profile;
     })
     .finally(() => {
-      currentUserRequest = null;
+      profileCache.pending = null;
     });
 
-  return currentUserRequest;
+  return profileCache.pending;
 }
 
 export async function getProfileStats(options: CacheOptions = {}): Promise<UserStats> {
@@ -69,25 +91,29 @@ export async function getProfileStats(options: CacheOptions = {}): Promise<UserS
     return { ...(userStore.stats ?? EMPTY_USER_STATS) };
   }
 
-  if (!options.force && profileStatsCache && isFresh(profileStatsCacheTime, PROFILE_STATS_TTL_MS)) {
-    return profileStatsCache;
+  if (!options.force && profileStatsCache.loaded && !profileStatsCache.dirty && profileStatsCache.data) {
+    return profileStatsCache.data;
   }
 
-  if (!options.force && profileStatsRequest) {
-    return profileStatsRequest;
+  if (!options.force && profileStatsCache.pending) {
+    return profileStatsCache.pending;
   }
 
-  profileStatsRequest = apiRequest<UserStats>("/api/v1/users/me/stats")
+  const requestVersion = profileStatsCache.version;
+  profileStatsCache.pending = apiRequest<UserStats>("/api/v1/users/me/stats")
     .then((stats) => {
-      profileStatsCache = stats;
-      profileStatsCacheTime = Date.now();
+      profileStatsCache.data = stats;
+      profileStatsCache.loaded = true;
+      if (profileStatsCache.version === requestVersion) {
+        profileStatsCache.dirty = false;
+      }
       return stats;
     })
     .finally(() => {
-      profileStatsRequest = null;
+      profileStatsCache.pending = null;
     });
 
-  return profileStatsRequest;
+  return profileStatsCache.pending;
 }
 
 export async function updateCurrentUser(payload: UpdateUserRequest): Promise<UserProfile> {
@@ -99,16 +125,24 @@ export async function updateCurrentUser(payload: UpdateUserRequest): Promise<Use
       avatar_letter: payload.username.trim().slice(0, 1).toUpperCase(),
     };
 
-    return toUserProfile(userStore);
+    const updatedProfile = toUserProfile(userStore);
+    profileCache.data = updatedProfile;
+    profileCache.loaded = true;
+    profileCache.dirty = false;
+    profileCache.version += 1;
+    profileCache.pending = null;
+    return updatedProfile;
   }
 
-  currentUserRequest = null;
+  profileCache.pending = null;
   const updatedProfile = await apiRequest<UserProfile>("/api/v1/users/me", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
-  profileCache = updatedProfile;
-  profileCacheTime = Date.now();
+  profileCache.data = updatedProfile;
+  profileCache.loaded = true;
+  profileCache.dirty = false;
+  profileCache.version += 1;
   return updatedProfile;
 }
 
@@ -132,67 +166,112 @@ export async function getUserActivity(year: number, options: CacheOptions = {}):
     return getMockActivity(year);
   }
 
-  const cachedActivity = activityCache.get(year);
-  if (!options.force && cachedActivity && isFresh(cachedActivity.time, ACTIVITY_TTL_MS)) {
-    return cachedActivity.value;
+  const activityCache = getActivityCache(year);
+  if (!options.force && activityCache.loaded && !activityCache.dirty && activityCache.data) {
+    return activityCache.data;
   }
 
-  const pendingRequest = pendingActivityRequests.get(year);
-
-  if (!options.force && pendingRequest) {
-    return pendingRequest;
+  if (!options.force && activityCache.pending) {
+    return activityCache.pending;
   }
 
-  const request = apiRequest<ActivityResponse>(`/api/v1/users/me/activity?year=${year}`)
+  const requestVersion = activityCache.version;
+  activityCache.pending = apiRequest<ActivityResponse>(`/api/v1/users/me/activity?year=${year}`)
     .then((activity) => {
-      activityCache.set(year, { value: activity, time: Date.now() });
+      activityCache.data = activity;
+      activityCache.loaded = true;
+      if (activityCache.version === requestVersion) {
+        activityCache.dirty = false;
+      }
       return activity;
     })
     .finally(() => {
-      pendingActivityRequests.delete(year);
+      activityCache.pending = null;
     });
-  pendingActivityRequests.set(year, request);
-  return request;
+  return activityCache.pending;
+}
+
+export function invalidateProfile(): void {
+  profileCache.version += 1;
+  profileCache.dirty = true;
+  profileCache.pending = null;
+}
+
+export function invalidateUserStats(): void {
+  profileStatsCache.version += 1;
+  profileStatsCache.dirty = true;
+  profileStatsCache.pending = null;
+}
+
+export function invalidateUserActivity(year?: number): void {
+  if (year === undefined) {
+    activityCaches.forEach((activityCache) => {
+      activityCache.version += 1;
+      activityCache.dirty = true;
+      activityCache.pending = null;
+    });
+    return;
+  }
+
+  const activityCache = getActivityCache(year);
+  activityCache.version += 1;
+  activityCache.dirty = true;
+  activityCache.pending = null;
+}
+
+export function invalidateUserDerivedData(): void {
+  invalidateUserStats();
+  invalidateUserActivity();
+}
+
+export function resetUserCache(): void {
+  profileCache.data = null;
+  profileCache.loaded = false;
+  profileCache.dirty = false;
+  profileCache.pending = null;
+  profileCache.version += 1;
+
+  profileStatsCache.data = null;
+  profileStatsCache.loaded = false;
+  profileStatsCache.dirty = false;
+  profileStatsCache.pending = null;
+  profileStatsCache.version += 1;
+
+  activityCaches.clear();
 }
 
 export function invalidateProfileCache(): void {
-  profileCache = null;
-  profileCacheTime = 0;
-  currentUserRequest = null;
+  invalidateProfile();
 }
 
 export function invalidateProfileStatsCache(): void {
-  profileStatsCache = null;
-  profileStatsCacheTime = 0;
-  profileStatsRequest = null;
+  invalidateUserStats();
 }
 
 export function invalidateActivityCache(year?: number): void {
-  if (year === undefined) {
-    activityCache.clear();
-    pendingActivityRequests.clear();
-    return;
-  }
-
-  activityCache.delete(year);
-  pendingActivityRequests.delete(year);
+  invalidateUserActivity(year);
 }
 
 export function clearUserCaches(): void {
-  invalidateProfileCache();
-  invalidateProfileStatsCache();
-  invalidateActivityCache();
+  resetUserCache();
 }
 
 export function hydrateUserCachesFromAuth(user: User): void {
-  profileCache = toUserProfile(user);
-  profileCacheTime = Date.now();
+  profileCache.data = toUserProfile(user);
+  profileCache.loaded = true;
+  profileCache.dirty = false;
+  profileCache.pending = null;
+  profileCache.version += 1;
+
+  profileStatsCache.data = null;
+  profileStatsCache.loaded = false;
+  profileStatsCache.dirty = false;
+  profileStatsCache.pending = null;
+  profileStatsCache.version += 1;
+  activityCaches.clear();
 
   if (user.stats) {
-    profileStatsCache = { ...user.stats };
-    profileStatsCacheTime = Date.now();
-    return;
+    profileStatsCache.data = { ...user.stats };
+    profileStatsCache.loaded = true;
   }
-
-  invalidateProfileStatsCache();
 }

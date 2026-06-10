@@ -1,7 +1,7 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { mockTasks } from "./mockData";
 import { notifyTaskDataChanged } from "./cacheEvents";
-import { invalidateActivityCache, invalidateProfileStatsCache } from "./profile";
+import { invalidateUserActivity, invalidateUserStats } from "./profile";
 import type { CreateTaskRequest, Task, TaskQuery, UpdateTaskRequest } from "../types/task";
 
 const tasksStore: Task[] = mockTasks.map((task) => ({ ...task, time_intervals: [...(task.time_intervals ?? [])] }));
@@ -46,11 +46,11 @@ function invalidateTaskDependentCaches(options: { stats?: boolean; activity?: bo
   pendingTaskRequests.clear();
 
   if (options.stats) {
-    invalidateProfileStatsCache();
+    invalidateUserStats();
   }
 
   if (options.activity) {
-    invalidateActivityCache();
+    invalidateUserActivity();
   }
 
   if (options.reports) {

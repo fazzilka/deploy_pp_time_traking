@@ -1,6 +1,6 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { clearUserCaches, hydrateUserCachesFromAuth } from "./profile";
-import { invalidateReportsCache } from "./reports";
+import { clearReportsCache } from "./reports";
 import { mockUser } from "./mockData";
 import type { AuthResponse, LoginRequest, RegisterRequest, RegisterResponse } from "../types/auth";
 
@@ -25,7 +25,7 @@ export function saveAccessToken(token: string): void {
 export function logout(): void {
   localStorage.removeItem(tokenKey);
   clearUserCaches();
-  invalidateReportsCache();
+  clearReportsCache();
 }
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
@@ -42,6 +42,7 @@ export async function login(payload: LoginRequest): Promise<AuthResponse> {
     if (response.user) {
       hydrateUserCachesFromAuth(response.user);
     }
+    clearReportsCache();
     return response;
   }
 
@@ -52,6 +53,7 @@ export async function login(payload: LoginRequest): Promise<AuthResponse> {
   if (response.user) {
     hydrateUserCachesFromAuth(response.user);
   }
+  clearReportsCache();
   return response;
 }
 
@@ -83,6 +85,7 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse |
     if (response.user) {
       hydrateUserCachesFromAuth(response.user);
     }
+    clearReportsCache();
     return response;
   }
 

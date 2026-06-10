@@ -30,6 +30,7 @@ export function AuthPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -54,6 +55,11 @@ export function AuthPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     setError(null);
     setMessage(null);
 
@@ -69,6 +75,7 @@ export function AuthPage() {
       }
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -105,6 +112,7 @@ export function AuthPage() {
         setError(nextError);
       }
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }

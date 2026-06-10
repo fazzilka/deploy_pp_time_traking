@@ -5,7 +5,6 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.concurrency import run_in_threadpool
 
 from src.core.metrics import observe_auth_login_duration, observe_auth_register_duration
 from src.core.security import create_access_token, get_password_hash, verify_password
@@ -38,7 +37,7 @@ async def register_user(session: AsyncSession, payload: RegisterRequest) -> User
                 )
 
         stage_started_at = perf_counter()
-        hashed_password = await run_in_threadpool(get_password_hash, payload.password)
+        hashed_password = get_password_hash(payload.password)
         stage_durations.append(("password_hash", perf_counter() - stage_started_at))
 
         user = User(
@@ -91,11 +90,7 @@ async def login_user(session: AsyncSession, payload: LoginRequest) -> TokenRespo
             )
 
         stage_started_at = perf_counter()
-        is_valid_password = await run_in_threadpool(
-            verify_password,
-            payload.password,
-            user.hashed_password,
-        )
+        is_valid_password = verify_password(payload.password, user.hashed_password)
         stage_durations.append(("password_verify", perf_counter() - stage_started_at))
 
         if not is_valid_password:

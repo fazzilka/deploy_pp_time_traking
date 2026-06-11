@@ -3,6 +3,8 @@ import { App } from "../App";
 import { ProtectedRoute } from "../components/ProtectedRoute/ProtectedRoute";
 import { AuthPage } from "../pages/AuthPage/AuthPage";
 import { DashboardPage } from "../pages/DashboardPage/DashboardPage";
+import { ProjectDetailPage } from "../pages/ProjectDetailPage/ProjectDetailPage";
+import { ProjectsPage } from "../pages/ProjectsPage/ProjectsPage";
 import { ProfilePage } from "../pages/ProfilePage/ProfilePage";
 import { ReportsPage } from "../pages/ReportsPage/ReportsPage";
 import { isAuthenticated } from "../shared/api/auth";
@@ -31,6 +33,14 @@ export const router = createBrowserRouter([
           {
             path: "/dashboard",
             element: <DashboardPage />,
+          },
+          {
+            path: "/projects",
+            element: <ProjectsPage />,
+          },
+          {
+            path: "/projects/:projectId",
+            element: <ProjectDetailPage />,
           },
           {
             path: "/profile",

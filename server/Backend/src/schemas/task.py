@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.models.enums import TaskPriority
+from src.schemas.project import ProjectBadge
 from src.schemas.time_interval import TimeIntervalRead
 
 
@@ -12,6 +13,7 @@ class TaskBase(BaseModel):
     description: str | None = None
     deadline: date | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
+    project_id: int | None = None
 
 
 class TaskCreate(TaskBase):
@@ -23,6 +25,7 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     deadline: date | None = None
     priority: TaskPriority | None = None
+    project_id: int | None = None
 
 
 class TaskRead(BaseModel):
@@ -34,6 +37,8 @@ class TaskRead(BaseModel):
     total_time_seconds: int
     deadline: date | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
+    project_id: int | None = None
+    project: ProjectBadge | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     time_intervals: list[TimeIntervalRead] = Field(default_factory=list)
@@ -54,6 +59,8 @@ class TaskRead(BaseModel):
                 "total_time_seconds": data.total_time_seconds,
                 "deadline": getattr(data, "deadline", None),
                 "priority": getattr(data, "priority", TaskPriority.MEDIUM),
+                "project_id": getattr(data, "project_id", None),
+                "project": getattr(data, "__dict__", {}).get("project"),
                 "created_at": getattr(data, "created_at", None),
                 "updated_at": getattr(data, "updated_at", None),
                 "time_intervals": data.intervals,

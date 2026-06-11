@@ -1,0 +1,31 @@
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--project-color) 52%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--project-color) 12%, transparent);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.project-badge__dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--project-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--project-color) 16%, transparent);
+}
+
+.project-badge__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

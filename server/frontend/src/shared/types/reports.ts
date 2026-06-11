@@ -1,4 +1,5 @@
 import type { TaskPriority } from "./task";
+import type { ProjectsTimeSummaryResponse, ProjectTimeSummaryItem } from "./project";
 
 export type ActivityLevel = 0 | 1 | 2 | 3 | 4;
 
@@ -32,3 +33,5 @@ export type SummaryResponse = {
     priority: TaskPriority;
   }>;
 };
+
+export type { ProjectsTimeSummaryResponse, ProjectTimeSummaryItem };

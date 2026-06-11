@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getReportsData } from "../../shared/api/reports";
-import type { ActivityDay, SummaryResponse } from "../../shared/types/reports";
+import type { ActivityDay, ProjectsTimeSummaryResponse, SummaryResponse } from "../../shared/types/reports";
 import { getBestActivityDay } from "../../shared/utils/activity";
 import { formatDuration, formatHumanDuration } from "../../shared/utils/time";
 import "./ReportsPage.css";
@@ -13,6 +13,7 @@ const weekdayLabels = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 type ReportsState = {
   summary: SummaryResponse;
   days: ActivityDay[];
+  projectsSummary: ProjectsTimeSummaryResponse;
 };
 
 type ReportPeriod = 7 | 30;
@@ -89,6 +90,24 @@ function buildTimeByDays(days: ActivityDay[], period: ReportPeriod): TimeByDay[]
   });
 }
 
+function buildProjectConicGradient(projectsSummary: ProjectsTimeSummaryResponse): string {
+  if (projectsSummary.total_time_seconds <= 0) {
+    return "var(--color-panel-soft)";
+  }
+
+  let cursor = 0;
+  const segments = projectsSummary.items
+    .filter((item) => item.total_time_seconds > 0)
+    .map((item) => {
+      const size = (item.total_time_seconds / projectsSummary.total_time_seconds) * 100;
+      const start = cursor;
+      cursor += size;
+      return `${item.color} ${start}% ${cursor}%`;
+    });
+
+  return `conic-gradient(${segments.join(", ")})`;
+}
+
 export function ReportsPage() {
   const [reports, setReports] = useState<ReportsState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,6 +124,7 @@ export function ReportsPage() {
         setReports({
           summary: data.summary,
           days: data.activity.days,
+          projectsSummary: data.projectsSummary,
         });
       } catch {
         setError("Не удалось загрузить отчёты");
@@ -151,8 +171,11 @@ export function ReportsPage() {
   const timeByDays = buildTimeByDays(reports.days, period);
   const hasAnyTimeInPeriod = timeByDays.some((day) => day.totalSeconds > 0);
   const topThreeTasks = reports.summary.top_tasks.slice(0, 3);
+  const topProjects = reports.projectsSummary.items.filter((item) => item.total_time_seconds > 0).slice(0, 5);
   const maxTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
+  const maxProjectTime = Math.max(...topProjects.map((project) => project.total_time_seconds), 1);
   const periodLabel = period === 7 ? "Последние 7 дней" : "Последние 30 дней";
+  const hasProjectTime = reports.projectsSummary.total_time_seconds > 0;
 
   return (
     <main className="reports-page app-container">
@@ -229,6 +252,62 @@ export function ReportsPage() {
             ))
           ) : (
             <div className="status-message">Недостаточно данных для отчёта</div>
+          )}
+        </aside>
+      </section>
+
+      <section className="projects-report">
+        <div className="projects-report__chart">
+          <div>
+            <h2>Время по проектам</h2>
+            <p>Распределение общего времени по направлениям работы</p>
+          </div>
+          {hasProjectTime ? (
+            <div className="projects-report__donut-wrap">
+              <div
+                className="projects-report__donut"
+                style={{ background: buildProjectConicGradient(reports.projectsSummary) }}
+                aria-hidden="true"
+              />
+              <div className="projects-report__legend">
+                {reports.projectsSummary.items.slice(0, 6).map((project) => (
+                  <div className="projects-report__legend-item" key={project.project_id ?? "none"}>
+                    <span style={{ backgroundColor: project.color }} />
+                    <strong>{project.name}</strong>
+                    <em>{project.percentage.toFixed(1)}%</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="status-message">Пока нет времени по проектам</div>
+          )}
+        </div>
+
+        <aside className="top-projects">
+          <h2>Топ проектов</h2>
+          {topProjects.length > 0 ? (
+            topProjects.map((project, index) => (
+              <article className="top-project" key={project.project_id ?? "none"}>
+                <span className="top-project__place">{index + 1}</span>
+                <strong className="top-project__title">
+                  <span style={{ backgroundColor: project.color }} aria-hidden="true" />
+                  <span>{project.name}</span>
+                </strong>
+                <span>{formatHumanDuration(project.total_time_seconds)}</span>
+                <div className="top-project__progress">
+                  <div
+                    className="top-project__progress-fill"
+                    style={{
+                      width: `${Math.max(8, (project.total_time_seconds / maxProjectTime) * 100)}%`,
+                      backgroundColor: project.color,
+                    }}
+                  />
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="status-message">Недостаточно данных по проектам</div>
           )}
         </aside>
       </section>

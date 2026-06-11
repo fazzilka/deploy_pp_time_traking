@@ -12,6 +12,7 @@ from src.models.enums import TaskPriority
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
 from src.schemas.task import TaskCreate, TaskRead, TaskUpdate
+from src.services.project import get_active_project_or_404, get_project_or_404
 from src.services.timer import start_timer, stop_timer
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -22,7 +23,7 @@ def _task_detail_stmt(task_id: int, user_id: int) -> Select[tuple[Task]]:
     return (
         select(Task)
         .where(Task.id == task_id, Task.user_id == user_id)
-        .options(selectinload(Task.intervals))
+        .options(selectinload(Task.intervals), selectinload(Task.project))
     )
 
 
@@ -42,22 +43,35 @@ async def _load_owned_task_or_404(session: AsyncSession, task_id: int, user_id: 
     return task
 
 
-@router.get("", response_model=list[TaskRead])
-async def list_tasks(
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    search: Annotated[str | None, Query()] = None,
-    has_time: Annotated[bool | None, Query()] = None,
-    priority: Annotated[TaskPriority | None, Query()] = None,
-    deadline_before: Annotated[date | None, Query()] = None,
-    deadline_after: Annotated[date | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
+async def fetch_tasks(
+    session: AsyncSession,
+    user_id: int,
+    *,
+    search: str | None = None,
+    has_time: bool | None = None,
+    priority: TaskPriority | None = None,
+    deadline_before: date | None = None,
+    deadline_after: date | None = None,
+    project_id: int | None = None,
+    without_project: bool = False,
+    limit: int = 50,
+    offset: int = 0,
 ) -> list[Task]:
+    if project_id is not None and without_project:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="project_id и without_project нельзя использовать вместе",
+        )
+    if project_id is not None:
+        await get_project_or_404(session, user_id, project_id)
+
     stmt = (
         select(Task)
-        .where(Task.user_id == current_user.id)
-        .options(selectinload(Task.intervals.and_(TimeInterval.finished_at.is_(None))))
+        .where(Task.user_id == user_id)
+        .options(
+            selectinload(Task.intervals.and_(TimeInterval.finished_at.is_(None))),
+            selectinload(Task.project),
+        )
         .order_by(Task.created_at.desc(), Task.id.desc())
         .limit(limit)
         .offset(offset)
@@ -72,8 +86,42 @@ async def list_tasks(
         stmt = stmt.where(Task.deadline <= deadline_before)
     if deadline_after is not None:
         stmt = stmt.where(Task.deadline >= deadline_after)
+    if project_id is not None:
+        stmt = stmt.where(Task.project_id == project_id)
+    if without_project:
+        stmt = stmt.where(Task.project_id.is_(None))
+
     result = await session.execute(stmt)
     return list(result.scalars().unique().all())
+
+
+@router.get("", response_model=list[TaskRead])
+async def list_tasks(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    search: Annotated[str | None, Query()] = None,
+    has_time: Annotated[bool | None, Query()] = None,
+    priority: Annotated[TaskPriority | None, Query()] = None,
+    deadline_before: Annotated[date | None, Query()] = None,
+    deadline_after: Annotated[date | None, Query()] = None,
+    project_id: Annotated[int | None, Query()] = None,
+    without_project: Annotated[bool, Query()] = False,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[Task]:
+    return await fetch_tasks(
+        session,
+        current_user.id,
+        search=search,
+        has_time=has_time,
+        priority=priority,
+        deadline_before=deadline_before,
+        deadline_after=deadline_after,
+        project_id=project_id,
+        without_project=without_project,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{task_id}", response_model=TaskRead)
@@ -89,11 +137,15 @@ async def get_task(task_id: int, session: SessionDep, current_user: CurrentUserD
 async def create_task(
     payload: TaskCreate, session: SessionDep, current_user: CurrentUserDep
 ) -> Task:
+    if payload.project_id is not None:
+        await get_active_project_or_404(session, current_user.id, payload.project_id)
+
     task = Task(
         title=payload.title,
         description=payload.description or "",
         deadline=payload.deadline,
         priority=payload.priority,
+        project_id=payload.project_id,
         user_id=current_user.id,
     )
     session.add(task)
@@ -112,6 +164,8 @@ async def update_task(
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key == "description" and value is None:
             value = ""
+        if key == "project_id" and value is not None:
+            await get_active_project_or_404(session, current_user.id, value)
         setattr(task, key, value)
     await session.commit()
     return await _load_task_or_404(session, task_id, current_user.id)

@@ -43,6 +43,10 @@
   -webkit-line-clamp: 2;
 }
 
+.timer-card__project {
+  margin-top: 14px;
+}
+
 .timer-card__count {
   margin: 12px 0 0;
   color: var(--color-subtle);

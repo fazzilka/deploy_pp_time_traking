@@ -1,6 +1,8 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
+import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import { PriorityIcon, priorityMeta } from "../PriorityIcon/PriorityIcon";
 import { updateTask } from "../../shared/api/tasks";
+import type { ProjectListItem } from "../../shared/types/project";
 import type { Task } from "../../shared/types/task";
 import { formatDeadline, getDeadlineLabel, getDeadlineStatus } from "../../shared/utils/date";
 import { formatDate, formatDuration, formatHumanDuration } from "../../shared/utils/time";
@@ -16,6 +18,7 @@ type TaskDetailsModalProps = {
   onStop: (taskId: number) => void;
   onDelete: (taskId: number) => void;
   onTaskUpdated: (task: Task) => void;
+  projects?: ProjectListItem[];
 };
 
 export function TaskDetailsModal({
@@ -28,11 +31,14 @@ export function TaskDetailsModal({
   onStop,
   onDelete,
   onTaskUpdated,
+  projects = [],
 }: TaskDetailsModalProps) {
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(task.description ?? "");
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
   const deadlineStatus = getDeadlineStatus(task.deadline);
   const deadlineHintClass =
     deadlineStatus === "upcoming"
@@ -95,6 +101,23 @@ export function TaskDetailsModal({
     }
   }
 
+  async function handleProjectChange(nextValue: string) {
+    const nextProjectId = nextValue === "none" ? null : Number(nextValue);
+
+    try {
+      setIsSavingProject(true);
+      setProjectError(null);
+      const updatedTask = await updateTask(task.id, {
+        project_id: nextProjectId,
+      });
+      onTaskUpdated(updatedTask);
+    } catch (caughtError) {
+      setProjectError(caughtError instanceof Error ? caughtError.message : "Не удалось изменить проект");
+    } finally {
+      setIsSavingProject(false);
+    }
+  }
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="task-details-modal" role="dialog" aria-modal="true" aria-labelledby="task-details-title" onClick={(event) => event.stopPropagation()}>
@@ -107,6 +130,9 @@ export function TaskDetailsModal({
           <h2 className="task-details-modal__title" id="task-details-title">
             {task.title}
           </h2>
+          <div className="task-details-modal__project">
+            <ProjectBadge project={task.project} fallback />
+          </div>
 
           <section className={`task-description${isDescriptionEditing ? " task-description--editing" : ""}`}>
             <h3 className="task-description__title">Описание</h3>
@@ -178,6 +204,24 @@ export function TaskDetailsModal({
                 <PriorityIcon priority={task.priority} />
                 <span>{priorityMeta[task.priority].label}</span>
               </div>
+            </div>
+
+            <div className="task-info-card">
+              <span className="task-info-card__label">Проект</span>
+              <select
+                className="task-info-card__select"
+                value={task.project_id == null ? "none" : String(task.project_id)}
+                onChange={(event) => void handleProjectChange(event.target.value)}
+                disabled={isSavingProject}
+              >
+                <option value="none">Без проекта</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={String(project.id)}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              {projectError && <span className="task-info-card__hint task-info-card__hint--danger">{projectError}</span>}
             </div>
           </div>
 

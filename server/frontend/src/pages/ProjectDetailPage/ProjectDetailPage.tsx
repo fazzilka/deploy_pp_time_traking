@@ -12,7 +12,7 @@ import {
   updateProject,
 } from "../../shared/api/projects";
 import { createTask, deleteTask, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
-import type { Project, ProjectListItem, ProjectSummary } from "../../shared/types/project";
+import type { Project, ProjectListItem, ProjectSummary, ProjectSummaryTask } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./ProjectDetailPage.css";
@@ -22,6 +22,8 @@ type ActiveTimerState = {
   startedAt: string;
   order: number;
 };
+
+type ProjectTab = "tasks" | "statistics" | "reports";
 
 const PROJECT_COLORS = [
   "#8957e5",
@@ -45,6 +47,70 @@ function keepActiveIntervalsOnly(task: Task): Task {
   };
 }
 
+function isTaskActive(task: Task): boolean {
+  return Boolean(getActiveInterval(task));
+}
+
+function toProjectSummaryTask(task: Task): ProjectSummaryTask {
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    total_time_seconds: task.total_time_seconds,
+    deadline: task.deadline,
+    priority: task.priority,
+  };
+}
+
+function sortTopTasks(tasks: ProjectSummaryTask[]): ProjectSummaryTask[] {
+  return tasks
+    .filter((task) => task.total_time_seconds > 0)
+    .sort((firstTask, secondTask) => secondTask.total_time_seconds - firstTask.total_time_seconds)
+    .slice(0, 5);
+}
+
+function applyProjectSummaryTaskMutation(
+  currentSummary: ProjectSummary | null,
+  previousTask: Task | null,
+  nextTask: Task | null,
+): ProjectSummary | null {
+  if (!currentSummary) {
+    return currentSummary;
+  }
+
+  const previousBelongs = previousTask?.project_id === currentSummary.id;
+  const nextBelongs = nextTask?.project_id === currentSummary.id;
+  const previousTime = previousBelongs ? previousTask.total_time_seconds : 0;
+  const nextTime = nextBelongs ? nextTask.total_time_seconds : 0;
+  const previousActive = previousBelongs && previousTask ? isTaskActive(previousTask) : false;
+  const nextActive = nextBelongs && nextTask ? isTaskActive(nextTask) : false;
+  const previousHasTime = previousTime > 0;
+  const nextHasTime = nextTime > 0;
+
+  const topTasks = currentSummary.top_tasks.filter((task) => task.id !== previousTask?.id);
+  if (nextBelongs && nextTask && nextTask.total_time_seconds > 0) {
+    topTasks.push(toProjectSummaryTask(nextTask));
+  }
+
+  return {
+    ...currentSummary,
+    tasks_count: Math.max(
+      0,
+      currentSummary.tasks_count + (nextBelongs ? 1 : 0) - (previousBelongs ? 1 : 0),
+    ),
+    active_tasks_count: Math.max(
+      0,
+      currentSummary.active_tasks_count + (nextActive ? 1 : 0) - (previousActive ? 1 : 0),
+    ),
+    tasks_with_time_count: Math.max(
+      0,
+      currentSummary.tasks_with_time_count + (nextHasTime ? 1 : 0) - (previousHasTime ? 1 : 0),
+    ),
+    total_time_seconds: Math.max(0, currentSummary.total_time_seconds + nextTime - previousTime),
+    top_tasks: sortTopTasks(topTasks),
+  };
+}
+
 export function ProjectDetailPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -57,11 +123,13 @@ export function ProjectDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hasTimeOnly, setHasTimeOnly] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTasksLoading, setIsTasksLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
   const [activeTimers, setActiveTimers] = useState<Record<number, ActiveTimerState>>({});
   const [tick, setTick] = useState(Date.now());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [activeTab, setActiveTab] = useState<ProjectTab>("tasks");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
@@ -117,21 +185,37 @@ export function ProjectDetailPage() {
     setError(null);
 
     try {
-      const [nextProject, nextSummary, nextTasks, nextProjects] = await Promise.all([
+      const [nextProject, nextSummary, nextProjects] = await Promise.all([
         getProject(numericProjectId),
         getProjectSummary(numericProjectId),
-        getProjectTasks(numericProjectId, {
-          search: searchQuery,
-          hasTime: hasTimeOnly,
-          limit: 50,
-          offset: 0,
-        }),
         getProjects(),
       ]);
       setProject(nextProject);
       setSummary(nextSummary);
-      setTasks(nextTasks);
       setProjects(nextProjects);
+    } catch {
+      setError("Не удалось загрузить проект");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadProjectTasks() {
+    if (!Number.isFinite(numericProjectId)) {
+      return;
+    }
+
+    setIsTasksLoading(true);
+    setError(null);
+
+    try {
+      const nextTasks = await getProjectTasks(numericProjectId, {
+        search: searchQuery,
+        hasTime: hasTimeOnly,
+        limit: 50,
+        offset: 0,
+      });
+      setTasks(nextTasks);
       syncActiveTimers(nextTasks);
       setSelectedTask((currentTask) => {
         if (!currentTask) {
@@ -140,9 +224,9 @@ export function ProjectDetailPage() {
         return nextTasks.find((task) => task.id === currentTask.id) ?? null;
       });
     } catch {
-      setError("Не удалось загрузить проект");
+      setError("Не удалось загрузить задачи проекта");
     } finally {
-      setIsLoading(false);
+      setIsTasksLoading(false);
     }
   }
 
@@ -159,12 +243,35 @@ export function ProjectDetailPage() {
 
   function replaceTask(updatedTask: Task) {
     const listTask = keepActiveIntervalsOnly(updatedTask);
-    setTasks((currentTasks) =>
-      currentTasks
+    const shouldKeepTask = taskMatchesFilters(listTask);
+
+    setTasks((currentTasks) => {
+      const previousTask = currentTasks.find((task) => task.id === listTask.id) ?? null;
+      const nextTasks = currentTasks
         .map((task) => (task.id === listTask.id ? listTask : task))
-        .filter((task) => taskMatchesFilters(task)),
-    );
-    setSelectedTask((currentTask) => (currentTask?.id === listTask.id ? listTask : currentTask));
+        .filter((task) => taskMatchesFilters(task));
+
+      setSummary((currentSummary) =>
+        applyProjectSummaryTaskMutation(currentSummary, previousTask, shouldKeepTask ? listTask : null),
+      );
+      return nextTasks;
+    });
+
+    if (!shouldKeepTask) {
+      setActiveTimers((currentTimers) => {
+        const nextTimers = { ...currentTimers };
+        delete nextTimers[listTask.id];
+        return nextTimers;
+      });
+    }
+
+    setSelectedTask((currentTask) => {
+      if (currentTask?.id !== listTask.id) {
+        return currentTask;
+      }
+
+      return shouldKeepTask ? listTask : null;
+    });
   }
 
   useEffect(() => {
@@ -177,7 +284,15 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     void loadProjectData();
-  }, [numericProjectId, searchQuery, hasTimeOnly]);
+  }, [numericProjectId]);
+
+  useEffect(() => {
+    if (!project) {
+      return;
+    }
+
+    void loadProjectTasks();
+  }, [numericProjectId, searchQuery, hasTimeOnly, project?.id]);
 
   useEffect(() => {
     if (project) {
@@ -247,7 +362,6 @@ export function ProjectDetailPage() {
         return nextTimers;
       });
       replaceTask(updatedTask);
-      void loadProjectData();
     } catch {
       setError("Не удалось остановить таймер");
     } finally {
@@ -265,10 +379,18 @@ export function ProjectDetailPage() {
     setError(null);
 
     try {
+      const taskToDelete = tasks.find((task) => task.id === taskId) ?? null;
       await deleteTask(taskId);
       setSelectedTask((currentTask) => (currentTask?.id === taskId ? null : currentTask));
       setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
-      void loadProjectData();
+      setSummary((currentSummary) =>
+        applyProjectSummaryTaskMutation(currentSummary, taskToDelete, null),
+      );
+      setActiveTimers((currentTimers) => {
+        const nextTimers = { ...currentTimers };
+        delete nextTimers[taskId];
+        return nextTimers;
+      });
     } catch {
       setError("Не удалось удалить задачу");
     } finally {
@@ -295,13 +417,17 @@ export function ProjectDetailPage() {
           project_id: numericProjectId,
         }),
       );
-      setTasks((currentTasks) => [createdTask, ...currentTasks].slice(0, 50));
+      setTasks((currentTasks) =>
+        taskMatchesFilters(createdTask) ? [createdTask, ...currentTasks].slice(0, 50) : currentTasks,
+      );
+      setSummary((currentSummary) =>
+        applyProjectSummaryTaskMutation(currentSummary, null, createdTask),
+      );
       setTaskTitle("");
       setTaskDescription("");
       setTaskDeadline("");
       setTaskPriority("medium");
       setIsCreateOpen(false);
-      void loadProjectData();
     } catch {
       setTaskError("Не удалось создать задачу");
     }
@@ -323,8 +449,24 @@ export function ProjectDetailPage() {
         color: projectColor,
       });
       setProject(updatedProject);
+      setSummary((currentSummary) =>
+        currentSummary
+          ? {
+              ...currentSummary,
+              name: updatedProject.name,
+              description: updatedProject.description,
+              color: updatedProject.color,
+              is_archived: updatedProject.is_archived,
+              updated_at: updatedProject.updated_at,
+            }
+          : currentSummary,
+      );
+      setProjects((currentProjects) =>
+        currentProjects.map((projectItem) =>
+          projectItem.id === updatedProject.id ? { ...projectItem, ...updatedProject } : projectItem,
+        ),
+      );
       setIsEditOpen(false);
-      void loadProjectData();
     } catch (caughtError) {
       setProjectError(caughtError instanceof Error ? caughtError.message : "Не удалось обновить проект");
     }
@@ -362,6 +504,16 @@ export function ProjectDetailPage() {
       </main>
     );
   }
+
+  const tasksWithTimePercent =
+    summary.tasks_count > 0 ? Math.round((summary.tasks_with_time_count / summary.tasks_count) * 100) : 0;
+  const activeTasksPercent =
+    summary.tasks_count > 0 ? Math.round((summary.active_tasks_count / summary.tasks_count) * 100) : 0;
+  const averageTrackedTaskTime =
+    summary.tasks_with_time_count > 0
+      ? Math.floor(summary.total_time_seconds / summary.tasks_with_time_count)
+      : 0;
+  const topTaskMaxTime = Math.max(...summary.top_tasks.map((task) => task.total_time_seconds), 1);
 
   return (
     <main className="project-detail-page app-container">
@@ -414,19 +566,41 @@ export function ProjectDetailPage() {
         </article>
       </section>
 
-      <section className="project-tabs" aria-label="Разделы проекта">
-        <button className="project-tabs__button project-tabs__button--active" type="button">
+      <section className="project-tabs" role="tablist" aria-label="Разделы проекта">
+        <button
+          className={`project-tabs__button${activeTab === "tasks" ? " project-tabs__button--active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "tasks"}
+          aria-controls="project-tab-tasks"
+          onClick={() => setActiveTab("tasks")}
+        >
           Задачи
         </button>
-        <button className="project-tabs__button" type="button">
+        <button
+          className={`project-tabs__button${activeTab === "statistics" ? " project-tabs__button--active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "statistics"}
+          aria-controls="project-tab-statistics"
+          onClick={() => setActiveTab("statistics")}
+        >
           Статистика
         </button>
-        <button className="project-tabs__button" type="button">
+        <button
+          className={`project-tabs__button${activeTab === "reports" ? " project-tabs__button--active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "reports"}
+          aria-controls="project-tab-reports"
+          onClick={() => setActiveTab("reports")}
+        >
           Отчёты
         </button>
       </section>
 
-      <section className="project-detail-grid">
+      {activeTab === "tasks" && (
+      <section className="project-detail-grid" id="project-tab-tasks" role="tabpanel">
         <section className="project-tasks-panel">
           <div className="project-tasks-panel__tools">
             <input
@@ -484,7 +658,9 @@ export function ProjectDetailPage() {
           )}
 
           <div className="project-tasks-list">
-            {tasks.length > 0 ? (
+            {isTasksLoading ? (
+              <div className="status-message">Загружаем задачи проекта...</div>
+            ) : tasks.length > 0 ? (
               tasks.map((task) => {
                 const isActive = Boolean(activeTimers[task.id]);
                 return (
@@ -528,6 +704,101 @@ export function ProjectDetailPage() {
           )}
         </aside>
       </section>
+      )}
+
+      {activeTab === "statistics" && (
+        <section className="project-analytics-grid" id="project-tab-statistics" role="tabpanel">
+          <article className="project-analytics-card project-analytics-card--wide">
+            <div>
+              <h2>Активность проекта</h2>
+              <p>Сводка по текущим задачам и закрытым интервалам.</p>
+            </div>
+            <div className="project-distribution">
+              <div className="project-distribution__item">
+                <span>Задач с временем</span>
+                <strong>{tasksWithTimePercent}%</strong>
+                <div>
+                  <i style={{ width: `${tasksWithTimePercent}%`, backgroundColor: project.color }} />
+                </div>
+              </div>
+              <div className="project-distribution__item">
+                <span>Активных задач</span>
+                <strong>{activeTasksPercent}%</strong>
+                <div>
+                  <i style={{ width: `${activeTasksPercent}%`, backgroundColor: "var(--color-yellow)" }} />
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article className="project-analytics-card">
+            <h2>Время по дням</h2>
+            <p className="project-analytics-card__empty">
+              Подробная дневная аналитика появится после накопления закрытых интервалов по проекту.
+            </p>
+          </article>
+
+          <article className="project-analytics-card project-analytics-card--wide">
+            <h2>Топ задач проекта</h2>
+            {summary.top_tasks.length > 0 ? (
+              <div className="project-top-bars">
+                {summary.top_tasks.map((task) => (
+                  <div className="project-top-bar" key={task.id}>
+                    <span>{task.title}</span>
+                    <strong>{formatHumanDuration(task.total_time_seconds)}</strong>
+                    <div>
+                      <i
+                        style={{
+                          width: `${Math.max(8, (task.total_time_seconds / topTaskMaxTime) * 100)}%`,
+                          backgroundColor: project.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="status-message">Недостаточно данных для статистики</div>
+            )}
+          </article>
+        </section>
+      )}
+
+      {activeTab === "reports" && (
+        <section className="project-report-grid" id="project-tab-reports" role="tabpanel">
+          <article className="project-report-card">
+            <span>Всего времени</span>
+            <strong>{formatHumanDuration(summary.total_time_seconds)}</strong>
+            <p>Сумма времени всех задач проекта.</p>
+          </article>
+          <article className="project-report-card">
+            <span>Среднее по задачам с временем</span>
+            <strong>{formatHumanDuration(averageTrackedTaskTime)}</strong>
+            <p>Среднее значение среди задач, где есть закрытые интервалы.</p>
+          </article>
+          <article className="project-report-card">
+            <span>Задач с временем</span>
+            <strong>{summary.tasks_with_time_count}</strong>
+            <p>Из {summary.tasks_count} задач проекта.</p>
+          </article>
+          <article className="project-report-card project-report-card--wide">
+            <h2>Мини-отчёт по проекту</h2>
+            {summary.top_tasks.length > 0 ? (
+              <div className="project-report-list">
+                {summary.top_tasks.map((task, index) => (
+                  <div className="project-report-list__item" key={task.id}>
+                    <span>{index + 1}</span>
+                    <strong>{task.title}</strong>
+                    <em>{formatHumanDuration(task.total_time_seconds)}</em>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="status-message">По проекту пока нет задач с временем</div>
+            )}
+          </article>
+        </section>
+      )}
 
       {isEditOpen && (
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsEditOpen(false)}>

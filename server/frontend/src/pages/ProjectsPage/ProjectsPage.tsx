@@ -122,34 +122,51 @@ export function ProjectsPage() {
         <div className="status-message projects-status">Загружаем проекты...</div>
       ) : projects.length > 0 || unassignedProject ? (
         <section className="projects-grid" aria-label="Список проектов">
-          {projects.map((project) => (
-            <Link className="project-card" to={`/projects/${project.id}`} key={project.id}>
-              <div className="project-card__header">
-                <span className="project-card__icon" style={{ backgroundColor: project.color }}>
-                  {project.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="project-card__menu" aria-hidden="true">
-                  ...
-                </span>
-              </div>
-              <h2>{project.name}</h2>
-              <p>{project.description || "Без описания"}</p>
-              <div className="project-card__metrics">
-                <span>{project.tasks_count} задач</span>
-                <strong>{formatHumanDuration(project.total_time_seconds)}</strong>
-                <span>{project.active_tasks_count} активных</span>
-              </div>
-              <div className="project-card__progress" aria-hidden="true">
-                <div
-                  className="project-card__progress-fill"
-                  style={{
-                    width: `${getProgressWidth(project.total_time_seconds, maxProjectSeconds)}%`,
-                    backgroundColor: project.color,
-                  }}
-                />
-              </div>
-            </Link>
-          ))}
+          {projects.map((project) => {
+            const progressWidth = getProgressWidth(project.total_time_seconds, maxProjectSeconds);
+
+            return (
+              <Link className="project-card" to={`/projects/${project.id}`} key={project.id}>
+                <div className="project-card__header">
+                  <span className="project-card__icon" style={{ backgroundColor: project.color }}>
+                    {project.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="project-card__menu" aria-hidden="true">
+                    ...
+                  </span>
+                </div>
+                <h2>{project.name}</h2>
+                <p>{project.description || "Без описания"}</p>
+                <div className="project-card__divider" />
+                <div className="project-card__metrics">
+                  <span>
+                    Задач
+                    <strong>{project.tasks_count}</strong>
+                  </span>
+                  <span>
+                    Всего времени
+                    <strong>{formatHumanDuration(project.total_time_seconds)}</strong>
+                  </span>
+                  <span>
+                    Активных задач
+                    <strong>{project.active_tasks_count}</strong>
+                  </span>
+                </div>
+                <div className="project-card__progress-row">
+                  <div className="project-card__progress" aria-hidden="true">
+                    <div
+                      className="project-card__progress-fill"
+                      style={{
+                        width: `${progressWidth}%`,
+                        backgroundColor: project.color,
+                      }}
+                    />
+                  </div>
+                  <span>{progressWidth}%</span>
+                </div>
+              </Link>
+            );
+          })}
 
           {unassignedProject && (
             <button
@@ -164,19 +181,32 @@ export function ProjectsPage() {
               </div>
               <h2>Без проекта</h2>
               <p>Задачи без привязки к проекту</p>
+              <div className="project-card__divider" />
               <div className="project-card__metrics">
-                <span>{unassignedProject.tasks_count} задач</span>
-                <strong>{formatHumanDuration(unassignedProject.total_time_seconds)}</strong>
-                <span>{unassignedProject.active_tasks_count} активных</span>
+                <span>
+                  Задач
+                  <strong>{unassignedProject.tasks_count}</strong>
+                </span>
+                <span>
+                  Всего времени
+                  <strong>{formatHumanDuration(unassignedProject.total_time_seconds)}</strong>
+                </span>
+                <span>
+                  Активных задач
+                  <strong>{unassignedProject.active_tasks_count}</strong>
+                </span>
               </div>
-              <div className="project-card__progress" aria-hidden="true">
-                <div
-                  className="project-card__progress-fill"
-                  style={{
-                    width: `${getProgressWidth(unassignedProject.total_time_seconds, maxProjectSeconds)}%`,
-                    backgroundColor: unassignedProject.color,
-                  }}
-                />
+              <div className="project-card__progress-row">
+                <div className="project-card__progress" aria-hidden="true">
+                  <div
+                    className="project-card__progress-fill"
+                    style={{
+                      width: `${getProgressWidth(unassignedProject.total_time_seconds, maxProjectSeconds)}%`,
+                      backgroundColor: unassignedProject.color,
+                    }}
+                  />
+                </div>
+                <span>{getProgressWidth(unassignedProject.total_time_seconds, maxProjectSeconds)}%</span>
               </div>
             </button>
           )}

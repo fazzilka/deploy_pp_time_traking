@@ -8,6 +8,7 @@ from src.db.session import Base
 from src.models.enums import TaskPriority
 
 if TYPE_CHECKING:
+    from src.models.project import Project
     from src.models.time_interval import TimeInterval
     from src.models.user import User
 
@@ -18,6 +19,7 @@ class Task(Base):
         Index("ix_tasks_user_id_created_at", "user_id", "created_at"),
         Index("ix_tasks_user_id_deadline", "user_id", "deadline"),
         Index("ix_tasks_user_id_priority", "user_id", "priority"),
+        Index("ix_tasks_user_id_project_id", "user_id", "project_id"),
         Index("ix_tasks_user_id_total_time_seconds", "user_id", "total_time_seconds"),
     )
 
@@ -41,6 +43,9 @@ class Task(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -56,6 +61,7 @@ class Task(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="tasks")
+    project: Mapped[Project | None] = relationship(back_populates="tasks")
 
     intervals: Mapped[list[TimeInterval]] = relationship(
         back_populates="task",

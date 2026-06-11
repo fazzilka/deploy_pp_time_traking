@@ -1,8 +1,9 @@
 import { apiRequest, USE_MOCKS } from "./client";
+import { getProjectsTimeSummary } from "./projects";
 import { getTasks } from "./tasks";
 import { getUserActivity } from "./profile";
 import { onTaskDataChanged } from "./cacheEvents";
-import type { ActivityResponse, SummaryResponse } from "../types/reports";
+import type { ActivityResponse, ProjectsTimeSummaryResponse, SummaryResponse } from "../types/reports";
 
 const pendingSummaryRequests = new Map<string, Promise<SummaryResponse>>();
 const summaryCache = new Map<
@@ -92,12 +93,18 @@ export async function getSummary(limit?: number, options: CacheOptions = {}): Pr
 export async function getReportsData(year: number, options: CacheOptions = {}): Promise<{
   summary: SummaryResponse;
   activity: ActivityResponse;
+  projectsSummary: ProjectsTimeSummaryResponse;
 }> {
-  const [summary, activity] = await Promise.all([getSummary(3, options), getUserActivity(year, options)]);
+  const [summary, activity, projectsSummary] = await Promise.all([
+    getSummary(3, options),
+    getUserActivity(year, options),
+    getProjectsTimeSummary(),
+  ]);
 
   return {
     summary,
     activity,
+    projectsSummary,
   };
 }
 

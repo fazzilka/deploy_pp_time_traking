@@ -1,4 +1,5 @@
 import type { Task } from "../types/task";
+import type { ProjectListItem } from "../types/project";
 import type { ActivityDay, ActivityResponse, SummaryResponse } from "../types/reports";
 import type { User } from "../types/user";
 import { getActivityLevel } from "../utils/activity";
@@ -24,6 +25,48 @@ export const mockUser: User = {
   },
 };
 
+export const mockProjects: ProjectListItem[] = [
+  {
+    id: 1,
+    name: "Разработка backend",
+    description: "API, база данных и инфраструктурные задачи",
+    color: "#1f6feb",
+    is_archived: false,
+    created_at: "2026-05-20T08:00:00.000Z",
+    updated_at: "2026-05-20T08:00:00.000Z",
+    tasks_count: 2,
+    active_tasks_count: 1,
+    tasks_with_time_count: 2,
+    total_time_seconds: 46020,
+  },
+  {
+    id: 2,
+    name: "Интерфейс",
+    description: "Экран таймера, отчёты и адаптация",
+    color: "#2ea043",
+    is_archived: false,
+    created_at: "2026-05-21T09:15:00.000Z",
+    updated_at: "2026-05-21T09:15:00.000Z",
+    tasks_count: 2,
+    active_tasks_count: 0,
+    tasks_with_time_count: 1,
+    total_time_seconds: 18420,
+  },
+  {
+    id: 3,
+    name: "Деплой проекта",
+    description: "Production, мониторинг и проверка релизов",
+    color: "#f0883e",
+    is_archived: false,
+    created_at: "2026-05-22T10:30:00.000Z",
+    updated_at: "2026-05-22T10:30:00.000Z",
+    tasks_count: 1,
+    active_tasks_count: 0,
+    tasks_with_time_count: 1,
+    total_time_seconds: 8520,
+  },
+];
+
 export const mockTasks: Task[] = [
   {
     id: 1,
@@ -32,6 +75,12 @@ export const mockTasks: Task[] = [
     total_time_seconds: 18420,
     deadline: "2026-05-30",
     priority: "high",
+    project_id: 2,
+    project: {
+      id: 2,
+      name: "Интерфейс",
+      color: "#2ea043",
+    },
     created_at: "2026-05-24T08:30:00.000Z",
     time_intervals: [
       {
@@ -48,6 +97,12 @@ export const mockTasks: Task[] = [
     total_time_seconds: 27600,
     deadline: "2026-06-02",
     priority: "highest",
+    project_id: 1,
+    project: {
+      id: 1,
+      name: "Разработка backend",
+      color: "#1f6feb",
+    },
     created_at: "2026-05-24T10:10:00.000Z",
     time_intervals: [],
   },
@@ -58,6 +113,12 @@ export const mockTasks: Task[] = [
     total_time_seconds: 13480,
     deadline: null,
     priority: "medium",
+    project_id: 1,
+    project: {
+      id: 1,
+      name: "Разработка backend",
+      color: "#1f6feb",
+    },
     created_at: "2026-05-25T13:40:00.000Z",
     time_intervals: [],
   },
@@ -68,6 +129,8 @@ export const mockTasks: Task[] = [
     total_time_seconds: 0,
     deadline: "2026-06-07",
     priority: "low",
+    project_id: null,
+    project: null,
     created_at: "2026-05-26T11:15:00.000Z",
     time_intervals: [],
   },
@@ -78,6 +141,12 @@ export const mockTasks: Task[] = [
     total_time_seconds: 8520,
     deadline: null,
     priority: "lowest",
+    project_id: 3,
+    project: {
+      id: 3,
+      name: "Деплой проекта",
+      color: "#f0883e",
+    },
     created_at: "2026-05-27T16:25:00.000Z",
     time_intervals: [],
   },

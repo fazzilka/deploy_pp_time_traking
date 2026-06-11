@@ -1,11 +1,20 @@
 import { apiRequest, USE_MOCKS } from "./client";
-import { mockTasks } from "./mockData";
+import { mockProjects, mockTasks } from "./mockData";
 import { notifyTaskDataChanged } from "./cacheEvents";
 import { invalidateUserActivity, invalidateUserStats } from "./profile";
 import type { CreateTaskRequest, Task, TaskQuery, UpdateTaskRequest } from "../types/task";
 
 const tasksStore: Task[] = mockTasks.map((task) => ({ ...task, time_intervals: [...(task.time_intervals ?? [])] }));
 const pendingTaskRequests = new Map<string, Promise<Task[]>>();
+
+function getMockProjectBadge(projectId: number | null | undefined) {
+  if (projectId == null) {
+    return null;
+  }
+
+  const project = mockProjects.find((item) => item.id === projectId);
+  return project ? { id: project.id, name: project.name, color: project.color } : null;
+}
 
 function serializeQuery(query: TaskQuery = {}): string {
   const params = new URLSearchParams();
@@ -28,6 +37,14 @@ function serializeQuery(query: TaskQuery = {}): string {
 
   if (query.deadlineAfter) {
     params.set("deadline_after", query.deadlineAfter);
+  }
+
+  if (query.projectId !== undefined) {
+    params.set("project_id", String(query.projectId));
+  }
+
+  if (query.withoutProject) {
+    params.set("without_project", "true");
   }
 
   if (query.limit !== undefined) {
@@ -70,7 +87,17 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
         !query.deadlineBefore || Boolean(task.deadline && task.deadline <= query.deadlineBefore);
       const matchesDeadlineAfter =
         !query.deadlineAfter || Boolean(task.deadline && task.deadline >= query.deadlineAfter);
-      return matchesSearch && matchesTime && matchesPriority && matchesDeadlineBefore && matchesDeadlineAfter;
+      const matchesProject = query.projectId === undefined || task.project_id === query.projectId;
+      const matchesWithoutProject = !query.withoutProject || task.project_id == null;
+      return (
+        matchesSearch &&
+        matchesTime &&
+        matchesPriority &&
+        matchesDeadlineBefore &&
+        matchesDeadlineAfter &&
+        matchesProject &&
+        matchesWithoutProject
+      );
     });
   }
 
@@ -97,6 +124,8 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
       total_time_seconds: 0,
       deadline: payload.deadline || null,
       priority: payload.priority ?? "medium",
+      project_id: payload.project_id ?? null,
+      project: getMockProjectBadge(payload.project_id),
       created_at: new Date().toISOString(),
       time_intervals: [],
     };
@@ -188,6 +217,11 @@ export async function updateTask(taskId: number, payload: UpdateTaskRequest): Pr
 
     if (payload.priority !== undefined) {
       task.priority = payload.priority;
+    }
+
+    if (payload.project_id !== undefined) {
+      task.project_id = payload.project_id;
+      task.project = getMockProjectBadge(payload.project_id);
     }
 
     invalidateTaskDependentCaches({ reports: true });

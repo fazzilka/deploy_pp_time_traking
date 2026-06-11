@@ -1,9 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
+import { getProjects } from "../../shared/api/projects";
 import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
+import type { ProjectListItem } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
 import "./DashboardPage.css";
 
@@ -14,6 +17,7 @@ type ActiveTimerState = {
 };
 
 const TASKS_PAGE_LIMIT = 50;
+type ProjectFilter = "all" | "none" | string;
 
 function getActiveInterval(task: Task) {
   return task.time_intervals?.find((interval) => interval.ended_at === null) ?? null;
@@ -27,10 +31,15 @@ function keepActiveIntervalsOnly(task: Task): Task {
 }
 
 export function DashboardPage() {
+  const [searchParams] = useSearchParams();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [hasTimeOnly, setHasTimeOnly] = useState(false);
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<ProjectFilter>(
+    searchParams.get("withoutProject") === "true" ? "none" : searchParams.get("projectId") || "all",
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
@@ -42,6 +51,7 @@ export function DashboardPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newDeadline, setNewDeadline] = useState("");
   const [newPriority, setNewPriority] = useState<TaskPriority>("medium");
+  const [newProjectId, setNewProjectId] = useState<ProjectFilter>("none");
   const [createError, setCreateError] = useState<string | null>(null);
 
   const activeTimerEntries = useMemo(
@@ -90,6 +100,8 @@ export function DashboardPage() {
       const nextTasks = await getTasks({
         search: searchQuery,
         hasTime: hasTimeOnly,
+        projectId: selectedProjectFilter !== "all" && selectedProjectFilter !== "none" ? Number(selectedProjectFilter) : undefined,
+        withoutProject: selectedProjectFilter === "none",
         limit: TASKS_PAGE_LIMIT,
         offset: 0,
       });
@@ -116,7 +128,36 @@ export function DashboardPage() {
       return false;
     }
 
-    return !hasTimeOnly || task.total_time_seconds > 0;
+    if (hasTimeOnly && task.total_time_seconds <= 0) {
+      return false;
+    }
+
+    if (selectedProjectFilter === "none") {
+      return task.project_id == null;
+    }
+
+    if (selectedProjectFilter !== "all") {
+      return task.project_id === Number(selectedProjectFilter);
+    }
+
+    return true;
+  }
+
+  async function loadProjects() {
+    try {
+      setProjects(await getProjects());
+    } catch {
+      setProjects([]);
+    }
+  }
+
+  function getDefaultProjectForCreate(): ProjectFilter {
+    return selectedProjectFilter === "all" ? "none" : selectedProjectFilter;
+  }
+
+  function openCreateTask() {
+    setNewProjectId(getDefaultProjectForCreate());
+    setIsCreateOpen(true);
   }
 
   function replaceTask(updatedTask: Task) {
@@ -140,7 +181,11 @@ export function DashboardPage() {
 
   useEffect(() => {
     void loadTasks();
-  }, [searchQuery, hasTimeOnly]);
+  }, [searchQuery, hasTimeOnly, selectedProjectFilter]);
+
+  useEffect(() => {
+    void loadProjects();
+  }, []);
 
   useEffect(() => {
     if (activeTimerEntries.length === 0) {
@@ -253,6 +298,7 @@ export function DashboardPage() {
           description: newDescription || null,
           deadline: newDeadline || null,
           priority: newPriority,
+          project_id: newProjectId === "none" ? null : Number(newProjectId),
         }),
       );
       if (taskMatchesCurrentFilters(createdTask)) {
@@ -262,6 +308,7 @@ export function DashboardPage() {
       setNewDescription("");
       setNewDeadline("");
       setNewPriority("medium");
+      setNewProjectId(getDefaultProjectForCreate());
       setIsCreateOpen(false);
     } catch {
       setCreateError("Не удалось создать задачу");
@@ -276,7 +323,7 @@ export function DashboardPage() {
           <h1 className="page-heading">Focus Timer First</h1>
           <p className="page-copy">Запускайте таймер на задаче, держите очередь под рукой и сохраняйте ровный темп работы.</p>
         </div>
-        <button className="button button--green dashboard-hero__button" type="button" onClick={() => setIsCreateOpen(true)}>
+        <button className="button button--green dashboard-hero__button" type="button" onClick={openCreateTask}>
           Создать задачу
         </button>
       </section>
@@ -312,6 +359,20 @@ export function DashboardPage() {
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Поиск по названию"
             />
+            <select
+              className="text-field tasks-queue__project-filter"
+              value={selectedProjectFilter}
+              onChange={(event) => setSelectedProjectFilter(event.target.value)}
+              aria-label="Фильтр по проекту"
+            >
+              <option value="all">Все проекты</option>
+              <option value="none">Без проекта</option>
+              {projects.map((project) => (
+                <option key={project.id} value={String(project.id)}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {isCreateOpen && (
@@ -348,6 +409,21 @@ export function DashboardPage() {
                 <label className="task-create__field">
                   <span>Приоритет</span>
                   <PrioritySelect value={newPriority} onChange={setNewPriority} />
+                </label>
+                <label className="task-create__field">
+                  <span>Проект</span>
+                  <select
+                    className="text-field"
+                    value={newProjectId}
+                    onChange={(event) => setNewProjectId(event.target.value)}
+                  >
+                    <option value="none">Без проекта</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={String(project.id)}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
               {createError && <p className="task-create__error">{createError}</p>}
@@ -387,7 +463,7 @@ export function DashboardPage() {
               <div className="tasks-empty">
                 <h3>Задач пока нет</h3>
                 <p>Создайте первую задачу, чтобы запустить таймер.</p>
-                <button className="button button--green" type="button" onClick={() => setIsCreateOpen(true)}>
+                <button className="button button--green" type="button" onClick={openCreateTask}>
                   Создать первую задачу
                 </button>
               </div>
@@ -407,6 +483,7 @@ export function DashboardPage() {
           onStop={(taskId) => void handleStop(taskId)}
           onDelete={(taskId) => void handleDelete(taskId)}
           onTaskUpdated={replaceTask}
+          projects={projects}
         />
       )}
     </main>

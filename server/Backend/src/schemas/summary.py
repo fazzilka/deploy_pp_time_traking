@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict
 
 from src.models.enums import TaskPriority
+from src.schemas.project import ProjectTimeSummaryItem
 
 
 class SummaryTask(BaseModel):
@@ -20,3 +21,8 @@ class SummaryResponse(BaseModel):
     total_time_seconds_all_tasks: int
     tasks_with_time_count: int
     top_tasks: list[SummaryTask]
+
+
+class ProjectsTimeSummaryResponse(BaseModel):
+    items: list[ProjectTimeSummaryItem]
+    total_time_seconds: int

@@ -1,3 +1,5 @@
+import type { ProjectBadge } from "./project";
+
 export type TimeInterval = {
   id: number;
   started_at: string;
@@ -13,6 +15,8 @@ export type Task = {
   total_time_seconds: number;
   deadline: string | null;
   priority: TaskPriority;
+  project_id?: number | null;
+  project?: ProjectBadge | null;
   created_at?: string;
   updated_at?: string;
   time_intervals?: TimeInterval[];
@@ -23,6 +27,7 @@ export type CreateTaskRequest = {
   description?: string | null;
   deadline?: string | null;
   priority?: TaskPriority;
+  project_id?: number | null;
 };
 
 export type UpdateTaskRequest = {
@@ -30,6 +35,7 @@ export type UpdateTaskRequest = {
   description?: string | null;
   deadline?: string | null;
   priority?: TaskPriority;
+  project_id?: number | null;
 };
 
 export type TaskQuery = {
@@ -38,6 +44,8 @@ export type TaskQuery = {
   priority?: TaskPriority;
   deadlineBefore?: string;
   deadlineAfter?: string;
+  projectId?: number;
+  withoutProject?: boolean;
   limit?: number;
   offset?: number;
 };

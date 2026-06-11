@@ -74,7 +74,14 @@
 }
 
 .tasks-queue__tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 12px;
   margin-top: 18px;
+}
+
+.tasks-queue__project-filter {
+  min-width: 0;
 }
 
 .task-create {
@@ -98,7 +105,7 @@
 
 .task-create__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 190px 190px;
   gap: 14px;
 }
 
@@ -163,6 +170,10 @@
 
   .tasks-queue__header {
     flex-direction: column;
+  }
+
+  .tasks-queue__tools {
+    grid-template-columns: 1fr;
   }
 
   .task-create__actions {

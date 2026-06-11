@@ -87,7 +87,9 @@
 }
 
 .week-chart h2,
-.top-tasks h2 {
+.top-tasks h2,
+.projects-report h2,
+.top-projects h2 {
   margin: 0;
   color: var(--color-text);
   font-size: 20px;
@@ -241,12 +243,161 @@
   background: var(--color-green);
 }
 
+.projects-report {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 28px;
+  margin-top: 28px;
+}
+
+.projects-report__chart,
+.top-projects {
+  min-height: 328px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-panel);
+}
+
+.projects-report__chart p {
+  margin: 8px 0 0;
+  color: var(--color-muted);
+}
+
+.projects-report__donut-wrap {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.projects-report__donut {
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 34px var(--color-panel);
+}
+
+.projects-report__legend {
+  display: grid;
+  gap: 10px;
+}
+
+.projects-report__legend-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.projects-report__legend-item span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.projects-report__legend-item strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projects-report__legend-item em {
+  font-style: normal;
+}
+
+.top-projects h2 {
+  margin-bottom: 18px;
+}
+
+.top-project {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.top-project + .top-project {
+  margin-top: 10px;
+}
+
+.top-project__place {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-panel-soft);
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.top-project__title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  color: var(--color-text);
+}
+
+.top-project__title span:first-child {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+}
+
+.top-project__title span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-project > span:last-of-type {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.top-project__progress {
+  grid-column: 2 / 4;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-panel-soft);
+}
+
+.top-project__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
 @media (max-width: 1180px) {
   .reports-stats {
     grid-template-columns: repeat(2, 1fr);
   }
 
   .reports-main {
+    grid-template-columns: 1fr;
+  }
+
+  .projects-report {
     grid-template-columns: 1fr;
   }
 }
@@ -263,9 +414,20 @@
   }
 
   .week-chart,
-  .top-tasks {
+  .top-tasks,
+  .projects-report__chart,
+  .top-projects {
     height: auto;
     padding: 22px 18px;
+  }
+
+  .projects-report__donut-wrap {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .projects-report__legend {
+    width: 100%;
   }
 
   .week-chart__bars {

@@ -1,3 +1,4 @@
+import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import type { Task } from "../../shared/types/task";
 import { formatDuration } from "../../shared/utils/time";
 import "./TimerCard.css";
@@ -19,6 +20,9 @@ export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, on
         {activeTask ? (
           <>
             <h2 className="timer-card__title">{activeTask.title}</h2>
+            <div className="timer-card__project">
+              <ProjectBadge project={activeTask.project} fallback />
+            </div>
             <p className="timer-card__description">{activeTask.description || "Описание не указано"}</p>
             <p className="timer-card__count">Активно таймеров: {activeCount}</p>
           </>

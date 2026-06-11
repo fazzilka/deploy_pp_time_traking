@@ -8,6 +8,7 @@ from src.db.session import Base
 from src.models.enums import UserRole
 
 if TYPE_CHECKING:
+    from src.models.project import Project
     from src.models.task import Task
 
 
@@ -46,3 +47,6 @@ class User(Base):
     )
 
     tasks: Mapped[list[Task]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    projects: Mapped[list[Project]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )

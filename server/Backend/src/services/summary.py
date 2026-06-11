@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.enums import TaskPriority
 from src.models.task import Task
+from src.schemas.project import ProjectTimeSummaryItem
+from src.services.project import build_projects_time_summary
 
 
 @dataclass(frozen=True)
@@ -23,6 +25,12 @@ class SummaryData:
     total_time_seconds_all_tasks: int
     tasks_with_time_count: int
     top_tasks: list[SummaryTaskData]
+
+
+@dataclass(frozen=True)
+class ProjectsSummaryData:
+    items: list[ProjectTimeSummaryItem]
+    total_time_seconds: int
 
 
 async def build_summary(session: AsyncSession, user_id: int, limit: int = 10) -> SummaryData:
@@ -66,4 +74,12 @@ async def build_summary(session: AsyncSession, user_id: int, limit: int = 10) ->
         total_time_seconds_all_tasks=int(total_time),
         tasks_with_time_count=int(tasks_with_time_count),
         top_tasks=top_tasks,
+    )
+
+
+async def build_projects_summary(session: AsyncSession, user_id: int) -> ProjectsSummaryData:
+    items = await build_projects_time_summary(session, user_id)
+    return ProjectsSummaryData(
+        items=items,
+        total_time_seconds=sum(item.total_time_seconds for item in items),
     )

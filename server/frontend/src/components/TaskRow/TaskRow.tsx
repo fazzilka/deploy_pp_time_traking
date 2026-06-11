@@ -1,3 +1,4 @@
+import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
 import type { Task } from "../../shared/types/task";
 import { formatDeadline } from "../../shared/utils/date";
@@ -34,6 +35,7 @@ export function TaskRow({ task, isActive, displaySeconds, isBusy, onOpen, onStar
         <h3 className="task-row__title">{task.title}</h3>
         <p className="task-row__description">{task.description || "Без описания"}</p>
         <div className="task-row__meta">
+          <ProjectBadge project={task.project} fallback />
           <PriorityIcon priority={task.priority} />
           <span>{formatDeadline(task.deadline)}</span>
         </div>

@@ -45,6 +45,7 @@ export function Navigation() {
 
         <nav className="navigation__links" aria-label="Основная навигация">
           <NavLink to="/dashboard">Таймер</NavLink>
+          <NavLink to="/projects">Проекты</NavLink>
           <NavLink to="/reports">Отчёты</NavLink>
           <NavLink to="/profile">Профиль</NavLink>
         </nav>

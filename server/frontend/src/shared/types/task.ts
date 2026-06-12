@@ -17,6 +17,7 @@ export type Task = {
   priority: TaskPriority;
   project_id?: number | null;
   project?: ProjectBadge | null;
+  is_completed: boolean;
   created_at?: string;
   updated_at?: string;
   time_intervals?: TimeInterval[];
@@ -36,6 +37,7 @@ export type UpdateTaskRequest = {
   deadline?: string | null;
   priority?: TaskPriority;
   project_id?: number | null;
+  is_completed?: boolean;
 };
 
 export type TaskQuery = {
@@ -46,6 +48,7 @@ export type TaskQuery = {
   deadlineAfter?: string;
   projectId?: number;
   withoutProject?: boolean;
+  isCompleted?: boolean;
   limit?: number;
   offset?: number;
 };

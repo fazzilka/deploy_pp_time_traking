@@ -14,12 +14,25 @@ type TaskRowProps = {
   onStart: (taskId: number) => void;
   onStop: (taskId: number) => void;
   onDelete: (taskId: number) => void;
+  onToggleCompleted: (task: Task) => void;
 };
 
-export function TaskRow({ task, isActive, displaySeconds, isBusy, onOpen, onStart, onStop, onDelete }: TaskRowProps) {
+export function TaskRow({
+  task,
+  isActive,
+  displaySeconds,
+  isBusy,
+  onOpen,
+  onStart,
+  onStop,
+  onDelete,
+  onToggleCompleted,
+}: TaskRowProps) {
+  const isCompleted = task.is_completed;
+
   return (
     <article
-      className={`task-row${isActive ? " task-row--active" : ""}`}
+      className={`task-row${isActive ? " task-row--active" : ""}${isCompleted ? " task-row--completed" : ""}`}
       onClick={() => onOpen(task)}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -29,7 +42,18 @@ export function TaskRow({ task, isActive, displaySeconds, isBusy, onOpen, onStar
       role="button"
       tabIndex={0}
     >
-      <span className="task-row__dot" aria-hidden="true" />
+      <button
+        className={`task-row__complete-button${isCompleted ? " task-row__complete-button--completed" : ""}`}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleCompleted(task);
+        }}
+        disabled={isBusy}
+        aria-label={isCompleted ? "Вернуть задачу в работу" : "Отметить задачу как выполненную"}
+      >
+        <span aria-hidden="true">✓</span>
+      </button>
 
       <div className="task-row__content">
         <h3 className="task-row__title">{task.title}</h3>
@@ -37,7 +61,7 @@ export function TaskRow({ task, isActive, displaySeconds, isBusy, onOpen, onStar
         <div className="task-row__meta">
           <ProjectBadge project={task.project} fallback />
           <PriorityIcon priority={task.priority} />
-          <span>{formatDeadline(task.deadline)}</span>
+          <span className="task-row__deadline">{formatDeadline(task.deadline)}</span>
         </div>
       </div>
 
@@ -50,9 +74,9 @@ export function TaskRow({ task, isActive, displaySeconds, isBusy, onOpen, onStar
           event.stopPropagation();
           isActive ? onStop(task.id) : onStart(task.id);
         }}
-        disabled={isBusy}
+        disabled={isBusy || (isCompleted && !isActive)}
       >
-        {isActive ? "Stop" : "Start"}
+        {isActive ? "Stop" : isCompleted ? "Готово" : "Start"}
       </button>
       <button
         className="task-row__delete"

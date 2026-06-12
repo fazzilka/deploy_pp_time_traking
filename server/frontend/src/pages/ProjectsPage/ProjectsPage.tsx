@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, KeyboardEvent, type CSSProperties, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ProjectIcon, getProjectFallbackIcon } from "../../components/ProjectIcon/ProjectIcon";
 import {
   createProject,
   ensureProjectsLoaded,
@@ -29,6 +30,10 @@ function getProgressWidth(seconds: number, maxSeconds: number): number {
   }
 
   return Math.max(8, Math.round((seconds / maxSeconds) * 100));
+}
+
+function getProjectCardStyle(color: string): CSSProperties {
+  return { "--project-card-color": color } as CSSProperties;
 }
 
 export function ProjectsPage() {
@@ -101,11 +106,20 @@ export function ProjectsPage() {
     }
   }
 
+  function handleProjectCardKeyDown(event: KeyboardEvent<HTMLElement>, targetPath: string) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    navigate(targetPath);
+  }
+
   return (
     <main className="projects-page app-container">
       <section className="projects-hero">
         <div>
-          <p className="eyebrow">Проекты</p>
+          <p className="projects-hero__eyebrow">Проекты</p>
           <h1 className="page-heading">Проекты</h1>
           <p className="page-copy">
             Проекты помогают группировать задачи и отслеживать время по направлениям работы.
@@ -124,19 +138,34 @@ export function ProjectsPage() {
         <section className="projects-grid" aria-label="Список проектов">
           {projects.map((project) => {
             const progressWidth = getProgressWidth(project.total_time_seconds, maxProjectSeconds);
+            const icon = getProjectFallbackIcon(project);
 
             return (
-              <Link className="project-card" to={`/projects/${project.id}`} key={project.id}>
+              <article
+                className="project-card"
+                key={project.id}
+                role="link"
+                tabIndex={0}
+                style={getProjectCardStyle(project.color)}
+                onClick={() => navigate(`/projects/${project.id}`)}
+                onKeyDown={(event) => handleProjectCardKeyDown(event, `/projects/${project.id}`)}
+              >
                 <div className="project-card__header">
-                  <span className="project-card__icon" style={{ backgroundColor: project.color }}>
-                    {project.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="project-card__menu" aria-hidden="true">
+                  <ProjectIcon icon={icon} color={project.color} size="lg" />
+                  <button
+                    className="project-card__menu"
+                    type="button"
+                    aria-label={`Действия проекта ${project.name}`}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
                     ...
-                  </span>
+                  </button>
                 </div>
-                <h2>{project.name}</h2>
-                <p>{project.description || "Без описания"}</p>
+                <div className="project-card__body">
+                  <h2>{project.name}</h2>
+                  <p>{project.description || "Без описания"}</p>
+                </div>
                 <div className="project-card__divider" />
                 <div className="project-card__metrics">
                   <span>
@@ -164,7 +193,7 @@ export function ProjectsPage() {
                   </div>
                   <span>{progressWidth}%</span>
                 </div>
-              </Link>
+              </article>
             );
           })}
 
@@ -172,15 +201,16 @@ export function ProjectsPage() {
             <button
               className="project-card project-card--unassigned"
               type="button"
+              style={getProjectCardStyle(unassignedProject.color)}
               onClick={() => navigate("/dashboard?withoutProject=true")}
             >
               <div className="project-card__header">
-                <span className="project-card__icon" style={{ backgroundColor: unassignedProject.color }}>
-                  Б
-                </span>
+                <ProjectIcon icon="folder" color={unassignedProject.color} size="lg" />
               </div>
-              <h2>Без проекта</h2>
-              <p>Задачи без привязки к проекту</p>
+              <div className="project-card__body">
+                <h2>Без проекта</h2>
+                <p>Задачи без привязки к проекту</p>
+              </div>
               <div className="project-card__divider" />
               <div className="project-card__metrics">
                 <span>
@@ -225,6 +255,17 @@ export function ProjectsPage() {
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsCreateOpen(false)}>
           <form className="project-modal" onSubmit={handleCreateProject} onClick={(event) => event.stopPropagation()}>
             <h2>Создать проект</h2>
+            <div className="project-modal__preview">
+              <ProjectIcon
+                icon={getProjectFallbackIcon({ name: projectName })}
+                color={projectColor}
+                size="lg"
+              />
+              <div>
+                <span>Иконка проекта</span>
+                <strong>{projectName.trim() || "Новый проект"}</strong>
+              </div>
+            </div>
             <label>
               <span>Название</span>
               <input

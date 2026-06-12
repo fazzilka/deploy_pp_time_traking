@@ -14,6 +14,12 @@ def utc_now() -> datetime:
 
 async def start_timer(session: AsyncSession, task_id: int, user_id: int) -> Task:
     task = await _get_task_for_update(session, task_id, user_id)
+    if task.is_completed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя запустить таймер для завершённой задачи",
+        )
+
     active_interval = await _get_active_interval(session, task_id)
     if active_interval is not None:
         raise HTTPException(

@@ -7,9 +7,11 @@ import {
   getCachedProjectsTimeSummary,
   invalidateProjectsListCache,
   invalidateProjectsTimeSummaryCache,
+  removeCachedProject,
   resetProjectsCache,
   setCachedProjects,
   setCachedProjectsTimeSummary,
+  updateCachedProjectIdentity,
 } from "./projectsCache";
 import type {
   Project,
@@ -145,6 +147,7 @@ export function invalidateProjectsCache(): void {
 export function ensureProjectsLoaded(options: { force?: boolean } = {}): Promise<ProjectListItem[]> {
   if (options.force) {
     invalidateProjectsListCache();
+    pendingProjectRequests.delete("/api/v1/projects");
   } else {
     const cachedProjects = getCachedProjects();
     if (cachedProjects) {
@@ -249,7 +252,7 @@ export async function updateProject(projectId: number, payload: ProjectUpdateReq
         payload.description === undefined ? project.description : payload.description?.trim() || null,
       updated_at: new Date().toISOString(),
     });
-    invalidateProjectsCache();
+    updateCachedProjectIdentity(toProject(project));
     return toProject(project);
   }
 
@@ -257,7 +260,7 @@ export async function updateProject(projectId: number, payload: ProjectUpdateReq
     method: "PATCH",
     body: JSON.stringify(payload),
   });
-  invalidateProjectsCache();
+  updateCachedProjectIdentity(project);
   return project;
 }
 
@@ -266,14 +269,14 @@ export async function archiveProject(projectId: number): Promise<void> {
     const project = getProjectById(projectId);
     project.is_archived = true;
     project.updated_at = new Date().toISOString();
-    invalidateProjectsCache();
+    removeCachedProject(projectId);
     return;
   }
 
   await apiRequest<void>(`/api/v1/projects/${projectId}`, {
     method: "DELETE",
   });
-  invalidateProjectsCache();
+  removeCachedProject(projectId);
 }
 
 export async function getProjectSummary(projectId: number, limit = 5): Promise<ProjectSummary> {

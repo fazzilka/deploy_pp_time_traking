@@ -81,10 +81,12 @@ function updateSummaryItem(
 }
 
 function createSummaryItem(projectId: number | null): ProjectTimeSummaryItem {
+  const project = projectId == null ? null : getProjectListItem(projectId);
+
   return {
     project_id: projectId,
-    name: projectId === null ? "Без проекта" : "Проект",
-    color: projectId === null ? "#8b949e" : "#8b949e",
+    name: project?.name ?? (projectId === null ? "Без проекта" : "Проект"),
+    color: project?.color ?? "#8b949e",
     tasks_count: 0,
     active_tasks_count: 0,
     total_time_seconds: 0,
@@ -143,6 +145,38 @@ export function updateCachedProject(
   updater: (project: ProjectListItem) => ProjectListItem,
 ): void {
   updateProjectListItem(projectId, updater);
+}
+
+export function updateCachedProjectIdentity(project: {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string;
+  is_archived: boolean;
+  updated_at: string;
+}): void {
+  updateProjectListItem(project.id, (currentProject) => ({
+    ...currentProject,
+    ...project,
+  }));
+
+  if (!getSummaryItem(project.id)) {
+    return;
+  }
+
+  updateSummaryItem(project.id, (currentItem) => ({
+    ...currentItem,
+    name: project.name,
+    color: project.color,
+  }));
+}
+
+export function removeCachedProject(projectId: number): void {
+  if (!projectsListCache) {
+    return;
+  }
+
+  projectsListCache = projectsListCache.filter((project) => project.id !== projectId);
 }
 
 export function updateCachedUnassignedProject(

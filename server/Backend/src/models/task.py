@@ -1,7 +1,19 @@
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, Index, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    false,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.session import Base
@@ -20,6 +32,7 @@ class Task(Base):
         Index("ix_tasks_user_id_deadline", "user_id", "deadline"),
         Index("ix_tasks_user_id_priority", "user_id", "priority"),
         Index("ix_tasks_user_id_project_id", "user_id", "project_id"),
+        Index("ix_tasks_user_id_is_completed", "user_id", "is_completed"),
         Index("ix_tasks_user_id_total_time_seconds", "user_id", "total_time_seconds"),
     )
 
@@ -45,6 +58,13 @@ class Task(Base):
     )
     project_id: Mapped[int | None] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    is_completed: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=False,
+        server_default=false(),
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -4,7 +4,7 @@ import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
-import { getProjects } from "../../shared/api/projects";
+import { applyProjectsTaskChange, getProjects } from "../../shared/api/projects";
 import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
 import type { ProjectListItem } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
@@ -160,7 +160,7 @@ export function DashboardPage() {
     setIsCreateOpen(true);
   }
 
-  function replaceTask(updatedTask: Task) {
+  function replaceTask(previousTask: Task | null, updatedTask: Task) {
     const listTask = keepActiveIntervalsOnly(updatedTask);
 
     setTasks((currentTasks) =>
@@ -168,6 +168,10 @@ export function DashboardPage() {
         .map((task) => (task.id === listTask.id ? listTask : task))
         .filter((task) => taskMatchesCurrentFilters(task)),
     );
+    applyProjectsTaskChange({
+      previousTask,
+      nextTask: updatedTask,
+    });
     setSelectedTask((currentTask) => (currentTask?.id === listTask.id ? listTask : currentTask));
   }
 
@@ -218,6 +222,7 @@ export function DashboardPage() {
     setError(null);
 
     try {
+      const previousTask = tasks.find((task) => task.id === taskId) ?? null;
       const localStartedAt = new Date().toISOString();
       const updatedTask = await startTaskTimer(taskId);
       const startedAt = getActiveInterval(updatedTask)?.started_at ?? localStartedAt;
@@ -229,7 +234,7 @@ export function DashboardPage() {
           order: Date.now(),
         },
       }));
-      replaceTask(updatedTask);
+      replaceTask(previousTask, updatedTask);
     } catch {
       setError("Не удалось запустить таймер");
     } finally {
@@ -242,13 +247,14 @@ export function DashboardPage() {
     setError(null);
 
     try {
+      const previousTask = tasks.find((task) => task.id === taskId) ?? null;
       const updatedTask = await stopTaskTimer(taskId);
       setActiveTimers((currentTimers) => {
         const nextTimers = { ...currentTimers };
         delete nextTimers[taskId];
         return nextTimers;
       });
-      replaceTask(updatedTask);
+      replaceTask(previousTask, updatedTask);
     } catch {
       setError("Не удалось остановить таймер");
     } finally {
@@ -267,9 +273,16 @@ export function DashboardPage() {
     setError(null);
 
     try {
+      const previousTask = tasks.find((task) => task.id === taskId) ?? null;
       await deleteTask(taskId);
       setSelectedTask((currentTask) => (currentTask?.id === taskId ? null : currentTask));
       setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
+      if (previousTask) {
+        applyProjectsTaskChange({
+          previousTask,
+          nextTask: null,
+        });
+      }
       setActiveTimers((currentTimers) => {
         const nextTimers = { ...currentTimers };
         delete nextTimers[taskId];
@@ -304,6 +317,10 @@ export function DashboardPage() {
       if (taskMatchesCurrentFilters(createdTask)) {
         setTasks((currentTasks) => [createdTask, ...currentTasks].slice(0, TASKS_PAGE_LIMIT));
       }
+      applyProjectsTaskChange({
+        previousTask: null,
+        nextTask: createdTask,
+      });
       setNewTitle("");
       setNewDescription("");
       setNewDeadline("");
@@ -473,18 +490,18 @@ export function DashboardPage() {
       </section>
 
       {selectedTask && (
-        <TaskDetailsModal
-          task={selectedTask}
-          isActive={Boolean(activeTimers[selectedTask.id])}
-          displaySeconds={getTaskDisplaySeconds(selectedTask)}
-          isBusy={busyTaskId === selectedTask.id}
-          onClose={() => setSelectedTask(null)}
-          onStart={(taskId) => void handleStart(taskId)}
-          onStop={(taskId) => void handleStop(taskId)}
-          onDelete={(taskId) => void handleDelete(taskId)}
-          onTaskUpdated={replaceTask}
-          projects={projects}
-        />
+      <TaskDetailsModal
+        task={selectedTask}
+        isActive={Boolean(activeTimers[selectedTask.id])}
+        displaySeconds={getTaskDisplaySeconds(selectedTask)}
+        isBusy={busyTaskId === selectedTask.id}
+        onClose={() => setSelectedTask(null)}
+        onStart={(taskId) => void handleStart(taskId)}
+        onStop={(taskId) => void handleStop(taskId)}
+        onDelete={(taskId) => void handleDelete(taskId)}
+        onTaskUpdated={replaceTask}
+        projects={projects}
+      />
       )}
     </main>
   );

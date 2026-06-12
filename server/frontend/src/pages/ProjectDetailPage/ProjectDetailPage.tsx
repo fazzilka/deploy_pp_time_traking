@@ -4,9 +4,10 @@ import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import {
+  applyProjectsTaskChange,
   archiveProject,
+  ensureProjectsLoaded,
   getProject,
-  getProjects,
   getProjectSummary,
   getProjectTasks,
   updateProject,
@@ -188,7 +189,7 @@ export function ProjectDetailPage() {
       const [nextProject, nextSummary, nextProjects] = await Promise.all([
         getProject(numericProjectId),
         getProjectSummary(numericProjectId),
-        getProjects(),
+        ensureProjectsLoaded(),
       ]);
       setProject(nextProject);
       setSummary(nextSummary);
@@ -241,20 +242,25 @@ export function ProjectDetailPage() {
     return task.project_id === numericProjectId;
   }
 
-  function replaceTask(updatedTask: Task) {
+  function replaceTask(previousTask: Task | null, updatedTask: Task) {
     const listTask = keepActiveIntervalsOnly(updatedTask);
     const shouldKeepTask = taskMatchesFilters(listTask);
 
     setTasks((currentTasks) => {
-      const previousTask = currentTasks.find((task) => task.id === listTask.id) ?? null;
+      const currentPreviousTask = currentTasks.find((task) => task.id === listTask.id) ?? previousTask;
       const nextTasks = currentTasks
         .map((task) => (task.id === listTask.id ? listTask : task))
         .filter((task) => taskMatchesFilters(task));
 
       setSummary((currentSummary) =>
-        applyProjectSummaryTaskMutation(currentSummary, previousTask, shouldKeepTask ? listTask : null),
+        applyProjectSummaryTaskMutation(currentSummary, currentPreviousTask, shouldKeepTask ? listTask : null),
       );
       return nextTasks;
+    });
+
+    applyProjectsTaskChange({
+      previousTask,
+      nextTask: updatedTask,
     });
 
     if (!shouldKeepTask) {
@@ -331,6 +337,7 @@ export function ProjectDetailPage() {
     setError(null);
 
     try {
+      const previousTask = tasks.find((task) => task.id === taskId) ?? null;
       const localStartedAt = new Date().toISOString();
       const updatedTask = await startTaskTimer(taskId);
       const startedAt = getActiveInterval(updatedTask)?.started_at ?? localStartedAt;
@@ -342,7 +349,7 @@ export function ProjectDetailPage() {
           order: Date.now(),
         },
       }));
-      replaceTask(updatedTask);
+      replaceTask(previousTask, updatedTask);
     } catch {
       setError("Не удалось запустить таймер");
     } finally {
@@ -355,13 +362,14 @@ export function ProjectDetailPage() {
     setError(null);
 
     try {
+      const previousTask = tasks.find((task) => task.id === taskId) ?? null;
       const updatedTask = await stopTaskTimer(taskId);
       setActiveTimers((currentTimers) => {
         const nextTimers = { ...currentTimers };
         delete nextTimers[taskId];
         return nextTimers;
       });
-      replaceTask(updatedTask);
+      replaceTask(previousTask, updatedTask);
     } catch {
       setError("Не удалось остановить таймер");
     } finally {
@@ -386,6 +394,12 @@ export function ProjectDetailPage() {
       setSummary((currentSummary) =>
         applyProjectSummaryTaskMutation(currentSummary, taskToDelete, null),
       );
+      if (taskToDelete) {
+        applyProjectsTaskChange({
+          previousTask: taskToDelete,
+          nextTask: null,
+        });
+      }
       setActiveTimers((currentTimers) => {
         const nextTimers = { ...currentTimers };
         delete nextTimers[taskId];
@@ -423,6 +437,10 @@ export function ProjectDetailPage() {
       setSummary((currentSummary) =>
         applyProjectSummaryTaskMutation(currentSummary, null, createdTask),
       );
+      applyProjectsTaskChange({
+        previousTask: null,
+        nextTask: createdTask,
+      });
       setTaskTitle("");
       setTaskDescription("");
       setTaskDeadline("");

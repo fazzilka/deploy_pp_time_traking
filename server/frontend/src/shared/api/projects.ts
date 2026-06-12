@@ -1,7 +1,16 @@
-import { onTaskDataChanged } from "./cacheEvents";
 import { apiRequest, USE_MOCKS } from "./client";
 import { mockProjects } from "./mockData";
 import { getTasks } from "./tasks";
+import {
+  applyTaskProjectChangeToProjectsCache,
+  getCachedProjects,
+  getCachedProjectsTimeSummary,
+  invalidateProjectsListCache,
+  invalidateProjectsTimeSummaryCache,
+  resetProjectsCache,
+  setCachedProjects,
+  setCachedProjectsTimeSummary,
+} from "./projectsCache";
 import type {
   Project,
   ProjectCreateRequest,
@@ -15,8 +24,6 @@ import type { Task, TaskQuery } from "../types/task";
 
 const projectsStore: ProjectListItem[] = mockProjects.map((project) => ({ ...project }));
 const pendingProjectRequests = new Map<string, Promise<unknown>>();
-let projectsListCache: ProjectListItem[] | null = null;
-let projectsSummaryCache: ProjectsTimeSummaryResponse | null = null;
 
 function serializeProjectParams(params: { includeArchived?: boolean; search?: string } = {}): string {
   const searchParams = new URLSearchParams();
@@ -130,9 +137,22 @@ export function getMockProjectBadge(projectId: number | null | undefined) {
 }
 
 export function invalidateProjectsCache(): void {
-  projectsListCache = null;
-  projectsSummaryCache = null;
+  invalidateProjectsListCache();
+  invalidateProjectsTimeSummaryCache();
   pendingProjectRequests.clear();
+}
+
+export function ensureProjectsLoaded(options: { force?: boolean } = {}): Promise<ProjectListItem[]> {
+  if (options.force) {
+    invalidateProjectsListCache();
+  } else {
+    const cachedProjects = getCachedProjects();
+    if (cachedProjects) {
+      return Promise.resolve(cachedProjects);
+    }
+  }
+
+  return getProjects();
 }
 
 export async function getProjects(
@@ -151,8 +171,11 @@ export async function getProjects(
     });
   }
 
-  if (!query && projectsListCache) {
-    return projectsListCache;
+  if (!query) {
+    const cachedProjects = getCachedProjects();
+    if (cachedProjects) {
+      return cachedProjects;
+    }
   }
 
   const pendingRequest = getPending<ProjectListItem[]>(path);
@@ -164,7 +187,7 @@ export async function getProjects(
     path,
     apiRequest<ProjectListItem[]>(path).then((projects) => {
       if (!query) {
-        projectsListCache = projects;
+        setCachedProjects(projects);
       }
       return projects;
     }),
@@ -340,8 +363,9 @@ export async function getProjectsTimeSummary(): Promise<ProjectsTimeSummaryRespo
     };
   }
 
-  if (projectsSummaryCache) {
-    return projectsSummaryCache;
+  const cachedSummary = getCachedProjectsTimeSummary();
+  if (cachedSummary) {
+    return cachedSummary;
   }
 
   const pendingRequest = getPending<ProjectsTimeSummaryResponse>(path);
@@ -352,10 +376,20 @@ export async function getProjectsTimeSummary(): Promise<ProjectsTimeSummaryRespo
   return rememberPending(
     path,
     apiRequest<ProjectsTimeSummaryResponse>(path).then((summary) => {
-      projectsSummaryCache = summary;
+      setCachedProjectsTimeSummary(summary);
       return summary;
     }),
   );
 }
 
-onTaskDataChanged(invalidateProjectsCache);
+export function applyProjectsTaskChange(change: {
+  previousTask: Task | null;
+  nextTask: Task | null;
+}): void {
+  applyTaskProjectChangeToProjectsCache(change);
+}
+
+export function resetProjectsDataCache(): void {
+  resetProjectsCache();
+  pendingProjectRequests.clear();
+}

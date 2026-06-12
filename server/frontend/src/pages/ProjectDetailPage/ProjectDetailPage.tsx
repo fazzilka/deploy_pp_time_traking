@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ProjectIcon, getProjectFallbackIcon } from "../../components/ProjectIcon/ProjectIcon";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
@@ -25,6 +26,7 @@ type ActiveTimerState = {
 };
 
 type ProjectTab = "tasks" | "statistics" | "reports";
+type ProjectStatIcon = "time" | "tasks" | "active" | "tracked";
 
 const PROJECT_COLORS = [
   "#8957e5",
@@ -68,6 +70,41 @@ function sortTopTasks(tasks: ProjectSummaryTask[]): ProjectSummaryTask[] {
     .filter((task) => task.total_time_seconds > 0)
     .sort((firstTask, secondTask) => secondTask.total_time_seconds - firstTask.total_time_seconds)
     .slice(0, 5);
+}
+
+function StatIcon({ type }: { type: ProjectStatIcon }) {
+  if (type === "time") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
+  }
+
+  if (type === "active") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 13h4l2-6 4 10 2-5h4" />
+      </svg>
+    );
+  }
+
+  if (type === "tracked") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12l4 4L19 6" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+      <path d="M9 9h6" />
+      <path d="M9 13h6" />
+    </svg>
+  );
 }
 
 function applyProjectSummaryTaskMutation(
@@ -565,6 +602,7 @@ export function ProjectDetailPage() {
       ? Math.floor(summary.total_time_seconds / summary.tasks_with_time_count)
       : 0;
   const topTaskMaxTime = Math.max(...summary.top_tasks.map((task) => task.total_time_seconds), 1);
+  const projectIcon = getProjectFallbackIcon(project);
 
   return (
     <main className="project-detail-page app-container">
@@ -573,12 +611,10 @@ export function ProjectDetailPage() {
       </Link>
 
       <section className="project-detail-hero">
-        <div className="project-detail-hero__identity">
-          <span className="project-detail-hero__icon" style={{ backgroundColor: project.color }}>
-            {project.name.slice(0, 1).toUpperCase()}
-          </span>
+        <div className="project-detail-hero__main">
+          <ProjectIcon icon={projectIcon} color={project.color} size="xl" />
           <div>
-            <p className="eyebrow">Проект</p>
+            <p className="project-detail-hero__eyebrow">Проект</p>
             <h1 className="page-heading">{project.name}</h1>
             <p className="page-copy">{project.description || "Без описания"}</p>
           </div>
@@ -600,20 +636,40 @@ export function ProjectDetailPage() {
 
       <section className="project-stats">
         <article>
-          <span>Всего времени</span>
-          <strong>{formatHumanDuration(summary.total_time_seconds)}</strong>
+          <span className="project-stats__icon project-stats__icon--time">
+            <StatIcon type="time" />
+          </span>
+          <div>
+            <span>Всего времени</span>
+            <strong>{formatHumanDuration(summary.total_time_seconds)}</strong>
+          </div>
         </article>
         <article>
-          <span>Задач</span>
-          <strong>{summary.tasks_count}</strong>
+          <span className="project-stats__icon project-stats__icon--tasks">
+            <StatIcon type="tasks" />
+          </span>
+          <div>
+            <span>Задач</span>
+            <strong>{summary.tasks_count}</strong>
+          </div>
         </article>
         <article>
-          <span>Активных задач</span>
-          <strong>{summary.active_tasks_count}</strong>
+          <span className="project-stats__icon project-stats__icon--active">
+            <StatIcon type="active" />
+          </span>
+          <div>
+            <span>Активных задач</span>
+            <strong>{summary.active_tasks_count}</strong>
+          </div>
         </article>
         <article>
-          <span>Задач с временем</span>
-          <strong>{summary.tasks_with_time_count}</strong>
+          <span className="project-stats__icon project-stats__icon--tracked">
+            <StatIcon type="tracked" />
+          </span>
+          <div>
+            <span>Задач с временем</span>
+            <strong>{summary.tasks_with_time_count}</strong>
+          </div>
         </article>
       </section>
 
@@ -856,6 +912,13 @@ export function ProjectDetailPage() {
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsEditOpen(false)}>
           <form className="project-modal" onSubmit={handleUpdateProject} onClick={(event) => event.stopPropagation()}>
             <h2>Редактировать проект</h2>
+            <div className="project-modal__preview">
+              <ProjectIcon icon={getProjectFallbackIcon({ name: projectName })} color={projectColor} size="lg" />
+              <div>
+                <span>Иконка проекта</span>
+                <strong>{projectName.trim() || project.name}</strong>
+              </div>
+            </div>
             <label>
               <span>Название</span>
               <input

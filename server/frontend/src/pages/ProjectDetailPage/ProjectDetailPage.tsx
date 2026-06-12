@@ -1,6 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ProjectIcon, getProjectFallbackIcon } from "../../components/ProjectIcon/ProjectIcon";
+import {
+  ProjectIcon,
+  ProjectIconPicker,
+  getProjectFallbackIcon,
+  type ProjectIconName,
+} from "../../components/ProjectIcon/ProjectIcon";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
@@ -178,6 +183,7 @@ export function ProjectDetailPage() {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[1]);
+  const [projectIcon, setProjectIcon] = useState<ProjectIconName>("folder");
   const [projectError, setProjectError] = useState<string | null>(null);
 
   const activeTimerEntries = useMemo(
@@ -342,6 +348,7 @@ export function ProjectDetailPage() {
       setProjectName(project.name);
       setProjectDescription(project.description ?? "");
       setProjectColor(project.color);
+      setProjectIcon(getProjectFallbackIcon(project));
     }
   }, [project]);
 
@@ -535,6 +542,7 @@ export function ProjectDetailPage() {
         name: projectName,
         description: projectDescription || null,
         color: projectColor,
+        icon: projectIcon,
       });
       setProject(updatedProject);
       setSummary((currentSummary) =>
@@ -544,6 +552,7 @@ export function ProjectDetailPage() {
               name: updatedProject.name,
               description: updatedProject.description,
               color: updatedProject.color,
+              icon: updatedProject.icon,
               is_archived: updatedProject.is_archived,
               updated_at: updatedProject.updated_at,
             }
@@ -602,7 +611,7 @@ export function ProjectDetailPage() {
       ? Math.floor(summary.total_time_seconds / summary.tasks_with_time_count)
       : 0;
   const topTaskMaxTime = Math.max(...summary.top_tasks.map((task) => task.total_time_seconds), 1);
-  const projectIcon = getProjectFallbackIcon(project);
+  const heroProjectIcon = getProjectFallbackIcon(project);
 
   return (
     <main className="project-detail-page app-container">
@@ -612,7 +621,7 @@ export function ProjectDetailPage() {
 
       <section className="project-detail-hero">
         <div className="project-detail-hero__main">
-          <ProjectIcon icon={projectIcon} color={project.color} size="xl" />
+          <ProjectIcon icon={heroProjectIcon} color={project.color} size="xl" />
           <div>
             <p className="project-detail-hero__eyebrow">Проект</p>
             <h1 className="page-heading">{project.name}</h1>
@@ -912,11 +921,12 @@ export function ProjectDetailPage() {
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsEditOpen(false)}>
           <form className="project-modal" onSubmit={handleUpdateProject} onClick={(event) => event.stopPropagation()}>
             <h2>Редактировать проект</h2>
-            <div className="project-modal__preview">
-              <ProjectIcon icon={getProjectFallbackIcon({ name: projectName })} color={projectColor} size="lg" />
-              <div>
-                <span>Иконка проекта</span>
-                <strong>{projectName.trim() || project.name}</strong>
+            <div className="project-icon-preview">
+              <ProjectIcon icon={projectIcon} color={projectColor} size="xl" />
+              <div className="project-icon-preview__content">
+                <p className="project-icon-preview__eyebrow">Иконка проекта</p>
+                <h3>{projectName.trim() || project.name}</h3>
+                <p>Выберите иконку, которая лучше всего описывает проект.</p>
               </div>
             </div>
             <label>
@@ -946,6 +956,10 @@ export function ProjectDetailPage() {
                   aria-label={`Выбрать цвет ${color}`}
                 />
               ))}
+            </div>
+            <div className="project-icon-field">
+              <span>Иконка проекта</span>
+              <ProjectIconPicker value={projectIcon} color={projectColor} onChange={setProjectIcon} />
             </div>
             {projectError && <p className="project-modal__error">{projectError}</p>}
             <div className="project-modal__actions">

@@ -5,7 +5,7 @@ export type Project = {
   name: string;
   description: string | null;
   color: string;
-  icon?: string | null;
+  icon: string;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
@@ -15,7 +15,7 @@ export type ProjectBadge = {
   id: number;
   name: string;
   color: string;
-  icon?: string | null;
+  icon: string;
 };
 
 export type ProjectListItem = Project & {
@@ -29,12 +29,14 @@ export type ProjectCreateRequest = {
   name: string;
   description?: string | null;
   color: string;
+  icon: string;
 };
 
 export type ProjectUpdateRequest = {
   name?: string;
   description?: string | null;
   color?: string;
+  icon?: string;
   is_archived?: boolean;
 };
 
@@ -59,6 +61,7 @@ export type ProjectTimeSummaryItem = {
   project_id: number | null;
   name: string;
   color: string;
+  icon?: string | null;
   tasks_count: number;
   active_tasks_count: number;
   total_time_seconds: number;

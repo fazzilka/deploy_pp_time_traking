@@ -18,6 +18,7 @@ def _project(**overrides):
         name=overrides.get("name", "Разработка backend"),
         description=overrides.get("description", "API и база данных"),
         color=overrides.get("color", "#1f6feb"),
+        icon=overrides.get("icon", "code"),
         is_archived=overrides.get("is_archived", False),
         created_at=overrides.get("created_at", now),
         updated_at=overrides.get("updated_at", now),
@@ -38,7 +39,8 @@ async def test_create_project_returns_created_project(
     async def fake_create_project(_session, user_id, payload):
         assert user_id == 1
         assert payload.name == "Учёба"
-        return _project(name="Учёба", color="#2ea043")
+        assert payload.icon == "book"
+        return _project(name="Учёба", color="#2ea043", icon="book")
 
     monkeypatch.setattr("src.api.v1.projects.create_project", fake_create_project)
     app.dependency_overrides[get_db_session] = override_session
@@ -46,7 +48,12 @@ async def test_create_project_returns_created_project(
     try:
         response = await test_client.post(
             "/api/v1/projects",
-            json={"name": " Учёба ", "description": "Курсы", "color": "#2ea043"},
+            json={
+                "name": " Учёба ",
+                "description": "Курсы",
+                "color": "#2ea043",
+                "icon": "book",
+            },
         )
     finally:
         app.dependency_overrides.clear()
@@ -55,6 +62,7 @@ async def test_create_project_returns_created_project(
     data = response.json()
     assert data["name"] == "Учёба"
     assert data["color"] == "#2ea043"
+    assert data["icon"] == "book"
 
 
 @pytest.mark.asyncio
@@ -111,6 +119,27 @@ async def test_create_project_rejects_invalid_color(test_client) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_project_rejects_invalid_icon(test_client) -> None:
+    async def override_session():
+        yield object()
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post(
+            "/api/v1/projects",
+            json={"name": "Учёба", "color": "#2ea043", "icon": "unknown"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_list_projects_passes_archive_flag(
     test_client,
     monkeypatch: pytest.MonkeyPatch,
@@ -151,6 +180,7 @@ async def test_list_projects_passes_archive_flag(
     data = response.json()
     assert data[0]["tasks_count"] == 2
     assert data[0]["active_tasks_count"] == 1
+    assert data[0]["icon"] == "code"
 
 
 @pytest.mark.asyncio
@@ -199,7 +229,7 @@ async def test_get_project_tasks_returns_project_badge(
                 deadline=None,
                 priority="medium",
                 project_id=1,
-                project=_project(id=1, name="Учёба", color="#2ea043"),
+                project=_project(id=1, name="Учёба", color="#2ea043", icon="book"),
                 intervals=[],
             )
         ]
@@ -216,6 +246,7 @@ async def test_get_project_tasks_returns_project_badge(
     data = response.json()
     assert data[0]["project_id"] == 1
     assert data[0]["project"]["name"] == "Учёба"
+    assert data[0]["project"]["icon"] == "book"
 
 
 @pytest.mark.asyncio

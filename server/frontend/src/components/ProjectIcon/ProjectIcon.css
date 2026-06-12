@@ -50,10 +50,55 @@
   border-radius: 24px;
 }
 
+.project-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-icon-picker__option {
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgba(13, 17, 23, 0.8);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.project-icon-picker__option:hover,
+.project-icon-picker__option:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(139, 148, 158, 0.76);
+  background: rgba(139, 148, 158, 0.1);
+  outline: none;
+}
+
+.project-icon-picker__option--active {
+  border-color: color-mix(in srgb, var(--project-icon-color, var(--color-green)) 70%, #ffffff);
+  background: color-mix(in srgb, var(--project-icon-color, var(--color-green)) 16%, transparent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--project-icon-color, var(--color-green)) 28%, transparent),
+    0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+.project-icon-picker__option .project-icon {
+  box-shadow: none;
+}
+
 @media (max-width: 760px) {
   .project-icon--xl {
     width: 76px;
     height: 76px;
     border-radius: 20px;
+  }
+
+  .project-icon-picker {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

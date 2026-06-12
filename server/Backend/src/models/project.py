@@ -28,6 +28,9 @@ class Project(Base):
     color: Mapped[str] = mapped_column(
         String(16), nullable=False, default="#2ea043", server_default="#2ea043"
     )
+    icon: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="folder", server_default="folder"
+    )
     is_archived: Mapped[bool] = mapped_column(
         Boolean(), nullable=False, default=False, server_default="false", index=True
     )

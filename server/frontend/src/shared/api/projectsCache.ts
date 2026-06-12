@@ -87,6 +87,7 @@ function createSummaryItem(projectId: number | null): ProjectTimeSummaryItem {
     project_id: projectId,
     name: project?.name ?? (projectId === null ? "Без проекта" : "Проект"),
     color: project?.color ?? "#8b949e",
+    icon: project?.icon ?? (projectId === null ? "briefcase" : "folder"),
     tasks_count: 0,
     active_tasks_count: 0,
     total_time_seconds: 0,
@@ -152,6 +153,7 @@ export function updateCachedProjectIdentity(project: {
   name: string;
   description: string | null;
   color: string;
+  icon: string;
   is_archived: boolean;
   updated_at: string;
 }): void {
@@ -168,6 +170,7 @@ export function updateCachedProjectIdentity(project: {
     ...currentItem,
     name: project.name,
     color: project.color,
+    icon: project.icon,
   }));
 }
 

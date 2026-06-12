@@ -6,12 +6,45 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from src.models.enums import TaskPriority
 
 HEX_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
+PROJECT_ICON_NAMES = {
+    "folder",
+    "money",
+    "book",
+    "graduation",
+    "pencil",
+    "pen",
+    "code",
+    "terminal",
+    "music",
+    "trash",
+    "brush",
+    "palette",
+    "stethoscope",
+    "flower",
+    "lotus",
+    "briefcase",
+    "chart",
+    "kettlebell",
+    "notebook",
+    "scales",
+    "globe",
+    "plane",
+    "wrench",
+    "paw",
+    "flask",
+    "brain",
+    "heart",
+    "plant",
+    "rocket",
+    "user",
+}
 
 
 class ProjectBase(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=1000)
     color: str = Field(default="#2ea043", pattern=HEX_COLOR_PATTERN)
+    icon: str = Field(default="folder", max_length=64)
 
     @field_validator("name")
     @classmethod
@@ -25,6 +58,14 @@ class ProjectBase(BaseModel):
             return None
         value = value.strip()
         return value or None
+
+    @field_validator("icon")
+    @classmethod
+    def validate_icon(cls, value: str) -> str:
+        value = value.strip()
+        if value not in PROJECT_ICON_NAMES:
+            raise ValueError("Неизвестная иконка проекта")
+        return value
 
     @model_validator(mode="after")
     def validate_name(self) -> Self:
@@ -43,6 +84,7 @@ class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=1000)
     color: str | None = Field(default=None, pattern=HEX_COLOR_PATTERN)
+    icon: str | None = Field(default=None, max_length=64)
     is_archived: bool | None = None
 
     @field_validator("name")
@@ -63,6 +105,16 @@ class ProjectUpdate(BaseModel):
         value = value.strip()
         return value or None
 
+    @field_validator("icon")
+    @classmethod
+    def validate_optional_icon(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if value not in PROJECT_ICON_NAMES:
+            raise ValueError("Неизвестная иконка проекта")
+        return value
+
 
 class ProjectRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -71,6 +123,7 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None = None
     color: str
+    icon: str
     is_archived: bool
     created_at: datetime
     updated_at: datetime
@@ -82,6 +135,7 @@ class ProjectBadge(BaseModel):
     id: int
     name: str
     color: str
+    icon: str
 
 
 class ProjectListItem(ProjectRead):
@@ -112,6 +166,7 @@ class ProjectTimeSummaryItem(BaseModel):
     project_id: int | None
     name: str
     color: str
+    icon: str | None = None
     tasks_count: int
     active_tasks_count: int
     total_time_seconds: int

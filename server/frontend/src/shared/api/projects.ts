@@ -83,7 +83,7 @@ function toProject(project: ProjectListItem): Project {
     name: project.name,
     description: project.description,
     color: project.color,
-    icon: project.icon ?? null,
+    icon: project.icon ?? "folder",
     is_archived: project.is_archived,
     created_at: project.created_at,
     updated_at: project.updated_at,
@@ -136,7 +136,9 @@ export function getMockProjectBadge(projectId: number | null | undefined) {
   }
 
   const project = projectsStore.find((item) => item.id === projectId);
-  return project ? { id: project.id, name: project.name, color: project.color } : null;
+  return project
+    ? { id: project.id, name: project.name, color: project.color, icon: project.icon ?? "folder" }
+    : null;
 }
 
 export function invalidateProjectsCache(): void {
@@ -206,6 +208,7 @@ export async function createProject(payload: ProjectCreateRequest): Promise<Proj
       name: payload.name.trim(),
       description: payload.description?.trim() || null,
       color: payload.color,
+      icon: payload.icon,
       is_archived: false,
       created_at: now,
       updated_at: now,
@@ -339,6 +342,7 @@ export async function getProjectsTimeSummary(): Promise<ProjectsTimeSummaryRespo
         project_id: projectId,
         name: project?.name ?? "Без проекта",
         color: project?.color ?? "#8b949e",
+        icon: project?.icon ?? (projectId === null ? "briefcase" : "folder"),
         tasks_count: 0,
         active_tasks_count: 0,
         total_time_seconds: 0,

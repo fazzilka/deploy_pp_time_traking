@@ -50,6 +50,7 @@ async def create_project(
         name=payload.name,
         description=payload.description,
         color=payload.color,
+        icon=payload.icon,
     )
     session.add(project)
     try:
@@ -98,6 +99,7 @@ async def list_projects(
             Project.name,
             Project.description,
             Project.color,
+            Project.icon,
             Project.is_archived,
             Project.created_at,
             Project.updated_at,
@@ -117,6 +119,7 @@ async def list_projects(
             Project.name,
             Project.description,
             Project.color,
+            Project.icon,
             Project.is_archived,
             Project.created_at,
             Project.updated_at,
@@ -135,6 +138,7 @@ async def list_projects(
             name=name,
             description=description,
             color=color,
+            icon=icon,
             is_archived=is_archived,
             created_at=created_at,
             updated_at=updated_at,
@@ -148,6 +152,7 @@ async def list_projects(
             name,
             description,
             color,
+            icon,
             is_archived,
             created_at,
             updated_at,
@@ -243,6 +248,7 @@ async def build_project_summary(
         name=project.name,
         description=project.description,
         color=project.color,
+        icon=project.icon,
         is_archived=project.is_archived,
         created_at=project.created_at,
         updated_at=project.updated_at,
@@ -263,6 +269,7 @@ async def build_projects_time_summary(
             Project.id,
             Project.name,
             Project.color,
+            Project.icon,
             func.count(Task.id),
             _active_tasks_count_expr(),
             func.coalesce(func.sum(Task.total_time_seconds), 0),
@@ -274,7 +281,7 @@ async def build_projects_time_summary(
             and_(TimeInterval.task_id == Task.id, TimeInterval.finished_at.is_(None)),
         )
         .where(Task.user_id == user_id)
-        .group_by(Project.id, Project.name, Project.color)
+        .group_by(Project.id, Project.name, Project.color, Project.icon)
         .order_by(func.coalesce(func.sum(Task.total_time_seconds), 0).desc(), Project.name.asc())
     )
     result = await session.execute(stmt)
@@ -283,26 +290,28 @@ async def build_projects_time_summary(
             project_id,
             name or UNASSIGNED_PROJECT_NAME,
             color or UNASSIGNED_PROJECT_COLOR,
+            icon if icon is not None else ("briefcase" if project_id is None else "folder"),
             int(tasks_count or 0),
             int(active_tasks_count or 0),
             int(total_time_seconds or 0),
         )
-        for project_id, name, color, tasks_count, active_tasks_count, total_time_seconds in (
+        for project_id, name, color, icon, tasks_count, active_tasks_count, total_time_seconds in (
             result.all()
         )
     ]
-    total_time = sum(item[5] for item in raw_items)
+    total_time = sum(item[6] for item in raw_items)
     return [
         ProjectTimeSummaryItem(
             project_id=project_id,
             name=name,
             color=color,
+            icon=icon,
             tasks_count=tasks_count,
             active_tasks_count=active_tasks_count,
             total_time_seconds=total_time_seconds,
             percentage=round((total_time_seconds / total_time) * 100, 2) if total_time else 0.0,
         )
-        for project_id, name, color, tasks_count, active_tasks_count, total_time_seconds in (
+        for project_id, name, color, icon, tasks_count, active_tasks_count, total_time_seconds in (
             raw_items
         )
     ]

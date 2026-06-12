@@ -26,6 +26,7 @@ class TaskUpdate(BaseModel):
     deadline: date | None = None
     priority: TaskPriority | None = None
     project_id: int | None = None
+    is_completed: bool | None = None
 
 
 class TaskRead(BaseModel):
@@ -39,6 +40,7 @@ class TaskRead(BaseModel):
     priority: TaskPriority = TaskPriority.MEDIUM
     project_id: int | None = None
     project: ProjectBadge | None = None
+    is_completed: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
     time_intervals: list[TimeIntervalRead] = Field(default_factory=list)
@@ -61,6 +63,7 @@ class TaskRead(BaseModel):
                 "priority": getattr(data, "priority", TaskPriority.MEDIUM),
                 "project_id": getattr(data, "project_id", None),
                 "project": getattr(data, "__dict__", {}).get("project"),
+                "is_completed": getattr(data, "is_completed", False),
                 "created_at": getattr(data, "created_at", None),
                 "updated_at": getattr(data, "updated_at", None),
                 "time_intervals": data.intervals,

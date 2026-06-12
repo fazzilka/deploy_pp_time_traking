@@ -310,6 +310,163 @@ async def test_update_task_changes_deadline_and_priority(test_client, dummy_sess
 
 
 @pytest.mark.asyncio
+async def test_update_task_can_mark_completed(test_client, dummy_session) -> None:
+    task = SimpleNamespace(
+        id=13,
+        title="Задача",
+        description="",
+        total_time_seconds=0,
+        deadline=None,
+        priority="medium",
+        project_id=None,
+        project=None,
+        is_completed=False,
+        intervals=[],
+    )
+    dummy_session.execute_results = [
+        DummyResult(scalar_one_or_none=task),
+        DummyResult(scalar_one_or_none=None),
+        DummyResult(scalar_one_or_none=task),
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.patch("/api/v1/tasks/13", json={"is_completed": True})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert task.is_completed is True
+    assert response.json()["is_completed"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_task_can_reopen_completed_task(test_client, dummy_session) -> None:
+    task = SimpleNamespace(
+        id=14,
+        title="Задача",
+        description="",
+        total_time_seconds=0,
+        deadline=None,
+        priority="medium",
+        project_id=None,
+        project=None,
+        is_completed=True,
+        intervals=[],
+    )
+    dummy_session.execute_results = [
+        DummyResult(scalar_one_or_none=task),
+        DummyResult(scalar_one_or_none=task),
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.patch("/api/v1/tasks/14", json={"is_completed": False})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert task.is_completed is False
+    assert response.json()["is_completed"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_task_rejects_completion_when_timer_is_active(
+    test_client,
+    dummy_session,
+) -> None:
+    task = SimpleNamespace(
+        id=15,
+        title="Задача",
+        description="",
+        total_time_seconds=0,
+        deadline=None,
+        priority="medium",
+        project_id=None,
+        project=None,
+        is_completed=False,
+        intervals=[],
+    )
+    dummy_session.execute_results = [
+        DummyResult(scalar_one_or_none=task),
+        DummyResult(scalar_one_or_none=1),
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.patch("/api/v1/tasks/15", json={"is_completed": True})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Сначала остановите таймер"
+    assert task.is_completed is False
+    assert dummy_session.committed is False
+
+
+@pytest.mark.asyncio
+async def test_list_tasks_accepts_completed_filter(
+    test_client,
+    dummy_session,
+) -> None:
+    dummy_session.execute_results = [
+        DummyResult(
+            scalar_one=[
+                SimpleNamespace(
+                    id=1,
+                    title="Сделанная задача",
+                    description="",
+                    total_time_seconds=10,
+                    deadline=None,
+                    priority="medium",
+                    project_id=None,
+                    project=None,
+                    is_completed=True,
+                    intervals=[],
+                )
+            ]
+        )
+    ]
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return SimpleNamespace(id=1)
+
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.get("/api/v1/tasks", params={"is_completed": "true"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()[0]["is_completed"] is True
+
+
+@pytest.mark.asyncio
 async def test_list_tasks_uses_frontend_interval_field_names(
     test_client,
     dummy_session,

@@ -47,6 +47,10 @@ function serializeQuery(query: TaskQuery = {}): string {
     params.set("without_project", "true");
   }
 
+  if (query.isCompleted !== undefined) {
+    params.set("is_completed", String(query.isCompleted));
+  }
+
   if (query.limit !== undefined) {
     params.set("limit", String(query.limit));
   }
@@ -89,6 +93,7 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
         !query.deadlineAfter || Boolean(task.deadline && task.deadline >= query.deadlineAfter);
       const matchesProject = query.projectId === undefined || task.project_id === query.projectId;
       const matchesWithoutProject = !query.withoutProject || task.project_id == null;
+      const matchesCompleted = query.isCompleted === undefined || task.is_completed === query.isCompleted;
       return (
         matchesSearch &&
         matchesTime &&
@@ -96,7 +101,8 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
         matchesDeadlineBefore &&
         matchesDeadlineAfter &&
         matchesProject &&
-        matchesWithoutProject
+        matchesWithoutProject &&
+        matchesCompleted
       );
     });
   }
@@ -126,6 +132,7 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
       priority: payload.priority ?? "medium",
       project_id: payload.project_id ?? null,
       project: getMockProjectBadge(payload.project_id),
+      is_completed: false,
       created_at: new Date().toISOString(),
       time_intervals: [],
     };
@@ -150,6 +157,10 @@ export async function startTaskTimer(taskId: number): Promise<Task> {
 
     if (!task) {
       throw new Error("Задача не найдена");
+    }
+
+    if (task.is_completed) {
+      throw new Error("Нельзя запустить таймер для завершённой задачи");
     }
 
     if (task.time_intervals?.some((interval) => interval.ended_at === null)) {
@@ -224,7 +235,13 @@ export async function updateTask(taskId: number, payload: UpdateTaskRequest): Pr
       task.project = getMockProjectBadge(payload.project_id);
     }
 
-    invalidateTaskDependentCaches({ reports: true });
+    if (payload.is_completed !== undefined) {
+      task.is_completed = payload.is_completed;
+    }
+
+    invalidateTaskDependentCaches({
+      reports: payload.project_id !== undefined || payload.title !== undefined || payload.description !== undefined,
+    });
     return task;
   }
 
@@ -232,7 +249,9 @@ export async function updateTask(taskId: number, payload: UpdateTaskRequest): Pr
     method: "PATCH",
     body: JSON.stringify(payload),
   });
-  invalidateTaskDependentCaches({ reports: true });
+  invalidateTaskDependentCaches({
+    reports: payload.project_id !== undefined || payload.title !== undefined || payload.description !== undefined,
+  });
   return task;
 }
 

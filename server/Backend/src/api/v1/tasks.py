@@ -43,6 +43,15 @@ async def _load_owned_task_or_404(session: AsyncSession, task_id: int, user_id: 
     return task
 
 
+async def _has_active_interval(session: AsyncSession, task_id: int) -> bool:
+    result = await session.execute(
+        select(TimeInterval.id)
+        .where(TimeInterval.task_id == task_id, TimeInterval.finished_at.is_(None))
+        .limit(1)
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def fetch_tasks(
     session: AsyncSession,
     user_id: int,
@@ -54,6 +63,7 @@ async def fetch_tasks(
     deadline_after: date | None = None,
     project_id: int | None = None,
     without_project: bool = False,
+    is_completed: bool | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[Task]:
@@ -90,6 +100,8 @@ async def fetch_tasks(
         stmt = stmt.where(Task.project_id == project_id)
     if without_project:
         stmt = stmt.where(Task.project_id.is_(None))
+    if is_completed is not None:
+        stmt = stmt.where(Task.is_completed.is_(is_completed))
 
     result = await session.execute(stmt)
     return list(result.scalars().unique().all())
@@ -106,6 +118,7 @@ async def list_tasks(
     deadline_after: Annotated[date | None, Query()] = None,
     project_id: Annotated[int | None, Query()] = None,
     without_project: Annotated[bool, Query()] = False,
+    is_completed: Annotated[bool | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[Task]:
@@ -119,6 +132,7 @@ async def list_tasks(
         deadline_after=deadline_after,
         project_id=project_id,
         without_project=without_project,
+        is_completed=is_completed,
         limit=limit,
         offset=offset,
     )
@@ -161,7 +175,14 @@ async def update_task(
     current_user: CurrentUserDep,
 ) -> Task:
     task = await _load_owned_task_or_404(session, task_id, current_user.id)
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if update_data.get("is_completed") is True and await _has_active_interval(session, task_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сначала остановите таймер",
+        )
+
+    for key, value in update_data.items():
         if key == "description" and value is None:
             value = ""
         if key == "project_id" and value is not None:

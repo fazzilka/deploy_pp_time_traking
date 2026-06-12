@@ -71,6 +71,12 @@
   overflow-wrap: anywhere;
 }
 
+.task-details-modal__title--completed {
+  color: var(--color-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
 .task-details-modal__project {
   margin-top: 14px;
 }

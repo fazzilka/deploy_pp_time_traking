@@ -49,6 +49,8 @@ export function TaskDetailsModal({
           ? "task-info-card__hint--danger"
           : "task-info-card__hint--muted";
   const hasDescription = Boolean(task.description?.trim());
+  const isCompleted = task.is_completed;
+  const statusText = isCompleted ? "Задача завершена" : isActive ? "Таймер запущен" : "Таймер остановлен";
 
   useEffect(() => {
     setDescriptionDraft(task.description ?? "");
@@ -126,8 +128,11 @@ export function TaskDetailsModal({
         </button>
 
         <div className="task-details-modal__content">
-          <p className="task-details-modal__status">{isActive ? "Таймер запущен" : "Таймер остановлен"}</p>
-          <h2 className="task-details-modal__title" id="task-details-title">
+          <p className="task-details-modal__status">{statusText}</p>
+          <h2
+            className={`task-details-modal__title${isCompleted ? " task-details-modal__title--completed" : ""}`}
+            id="task-details-title"
+          >
             {task.title}
           </h2>
           <div className="task-details-modal__project">
@@ -232,9 +237,9 @@ export function TaskDetailsModal({
               className={`button ${isActive ? "button--red" : "button--green"}`}
               type="button"
               onClick={() => (isActive ? onStop(task.id) : onStart(task.id))}
-              disabled={isBusy}
+              disabled={isBusy || (isCompleted && !isActive)}
             >
-              {isActive ? "Остановить" : "Start"}
+              {isActive ? "Остановить" : isCompleted ? "Готово" : "Start"}
             </button>
             <button className="button button--red" type="button" onClick={() => onDelete(task.id)} disabled={isBusy}>
               Удалить

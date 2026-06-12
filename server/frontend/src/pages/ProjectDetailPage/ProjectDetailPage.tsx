@@ -12,7 +12,7 @@ import {
   getProjectTasks,
   updateProject,
 } from "../../shared/api/projects";
-import { createTask, deleteTask, startTaskTimer, stopTaskTimer } from "../../shared/api/tasks";
+import { createTask, deleteTask, startTaskTimer, stopTaskTimer, updateTask } from "../../shared/api/tasks";
 import type { Project, ProjectListItem, ProjectSummary, ProjectSummaryTask } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
 import { formatHumanDuration } from "../../shared/utils/time";
@@ -333,11 +333,16 @@ export function ProjectDetailPage() {
       return;
     }
 
+    const previousTask = tasks.find((task) => task.id === taskId) ?? null;
+    if (previousTask?.is_completed) {
+      setError("Нельзя запустить таймер для завершённой задачи");
+      return;
+    }
+
     setBusyTaskId(taskId);
     setError(null);
 
     try {
-      const previousTask = tasks.find((task) => task.id === taskId) ?? null;
       const localStartedAt = new Date().toISOString();
       const updatedTask = await startTaskTimer(taskId);
       const startedAt = getActiveInterval(updatedTask)?.started_at ?? localStartedAt;
@@ -372,6 +377,34 @@ export function ProjectDetailPage() {
       replaceTask(previousTask, updatedTask);
     } catch {
       setError("Не удалось остановить таймер");
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  async function handleToggleCompleted(task: Task) {
+    if (activeTimers[task.id] || getActiveInterval(task)) {
+      setError("Сначала остановите таймер");
+      return;
+    }
+
+    const optimisticTask = {
+      ...task,
+      is_completed: !task.is_completed,
+    };
+
+    setBusyTaskId(task.id);
+    setError(null);
+    replaceTask(task, optimisticTask);
+
+    try {
+      const updatedTask = await updateTask(task.id, {
+        is_completed: optimisticTask.is_completed,
+      });
+      replaceTask(optimisticTask, updatedTask);
+    } catch (caughtError) {
+      replaceTask(optimisticTask, task);
+      setError(caughtError instanceof Error ? caughtError.message : "Не удалось обновить задачу");
     } finally {
       setBusyTaskId(null);
     }
@@ -692,6 +725,7 @@ export function ProjectDetailPage() {
                     onStart={(taskId) => void handleStart(taskId)}
                     onStop={(taskId) => void handleStop(taskId)}
                     onDelete={(taskId) => void handleDelete(taskId)}
+                    onToggleCompleted={(task) => void handleToggleCompleted(task)}
                   />
                 );
               })

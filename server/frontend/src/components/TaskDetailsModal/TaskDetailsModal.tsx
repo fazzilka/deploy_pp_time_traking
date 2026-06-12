@@ -17,7 +17,7 @@ type TaskDetailsModalProps = {
   onStart: (taskId: number) => void;
   onStop: (taskId: number) => void;
   onDelete: (taskId: number) => void;
-  onTaskUpdated: (task: Task) => void;
+  onTaskUpdated: (previousTask: Task, task: Task) => void;
   projects?: ProjectListItem[];
 };
 
@@ -79,7 +79,7 @@ export function TaskDetailsModal({
         description: nextDescription || null,
       });
 
-      onTaskUpdated(updatedTask);
+      onTaskUpdated(task, updatedTask);
       setIsDescriptionEditing(false);
     } catch (caughtError) {
       setDescriptionError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить описание");
@@ -110,7 +110,7 @@ export function TaskDetailsModal({
       const updatedTask = await updateTask(task.id, {
         project_id: nextProjectId,
       });
-      onTaskUpdated(updatedTask);
+      onTaskUpdated(task, updatedTask);
     } catch (caughtError) {
       setProjectError(caughtError instanceof Error ? caughtError.message : "Не удалось изменить проект");
     } finally {

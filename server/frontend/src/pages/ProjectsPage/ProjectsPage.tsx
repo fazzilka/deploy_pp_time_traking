@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   createProject,
-  getProjects,
+  ensureProjectsLoaded,
   getProjectsTimeSummary,
 } from "../../shared/api/projects";
 import type {
@@ -50,7 +50,7 @@ export function ProjectsPage() {
 
     try {
       const [nextProjects, nextSummary] = await Promise.all([
-        getProjects(),
+        ensureProjectsLoaded(),
         getProjectsTimeSummary(),
       ]);
       setProjects(nextProjects);

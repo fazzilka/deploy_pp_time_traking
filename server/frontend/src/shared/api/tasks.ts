@@ -13,7 +13,9 @@ function getMockProjectBadge(projectId: number | null | undefined) {
   }
 
   const project = mockProjects.find((item) => item.id === projectId);
-  return project ? { id: project.id, name: project.name, color: project.color } : null;
+  return project
+    ? { id: project.id, name: project.name, color: project.color, icon: project.icon ?? "folder" }
+    : null;
 }
 
 function serializeQuery(query: TaskQuery = {}): string {

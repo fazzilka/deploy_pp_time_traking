@@ -1,6 +1,11 @@
 import { FormEvent, KeyboardEvent, type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ProjectIcon, getProjectFallbackIcon } from "../../components/ProjectIcon/ProjectIcon";
+import {
+  ProjectIcon,
+  ProjectIconPicker,
+  getProjectFallbackIcon,
+  type ProjectIconName,
+} from "../../components/ProjectIcon/ProjectIcon";
 import {
   createProject,
   ensureProjectsLoaded,
@@ -36,6 +41,33 @@ function getProjectCardStyle(color: string): CSSProperties {
   return { "--project-card-color": color } as CSSProperties;
 }
 
+function ProjectMetricIcon({ type }: { type: "tasks" | "time" | "active" }) {
+  if (type === "time") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="7" />
+        <path d="M12 8v4l3 2" />
+      </svg>
+    );
+  }
+
+  if (type === "active") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 13h4l2-6 4 10 2-5h2" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="6" y="5" width="12" height="14" rx="2" />
+      <path d="M9 9h6" />
+      <path d="M9 13h6" />
+    </svg>
+  );
+}
+
 export function ProjectsPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
@@ -46,6 +78,7 @@ export function ProjectsPage() {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[1]);
+  const [projectIcon, setProjectIcon] = useState<ProjectIconName>("folder");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -92,10 +125,12 @@ export function ProjectsPage() {
         name: projectName,
         description: projectDescription || null,
         color: projectColor,
+        icon: projectIcon,
       });
       setProjectName("");
       setProjectDescription("");
       setProjectColor(PROJECT_COLORS[1]);
+      setProjectIcon("folder");
       setIsCreateOpen(false);
       await loadProjects();
       navigate(`/projects/${createdProject.id}`);
@@ -169,15 +204,24 @@ export function ProjectsPage() {
                 <div className="project-card__divider" />
                 <div className="project-card__metrics">
                   <span>
-                    Задач
+                    <em>
+                      <ProjectMetricIcon type="tasks" />
+                      Задач
+                    </em>
                     <strong>{project.tasks_count}</strong>
                   </span>
                   <span>
-                    Всего времени
+                    <em>
+                      <ProjectMetricIcon type="time" />
+                      Всего времени
+                    </em>
                     <strong>{formatHumanDuration(project.total_time_seconds)}</strong>
                   </span>
                   <span>
-                    Активных задач
+                    <em>
+                      <ProjectMetricIcon type="active" />
+                      Активных задач
+                    </em>
                     <strong>{project.active_tasks_count}</strong>
                   </span>
                 </div>
@@ -205,7 +249,7 @@ export function ProjectsPage() {
               onClick={() => navigate("/dashboard?withoutProject=true")}
             >
               <div className="project-card__header">
-                <ProjectIcon icon="folder" color={unassignedProject.color} size="lg" />
+                <ProjectIcon icon="briefcase" color={unassignedProject.color} size="lg" />
               </div>
               <div className="project-card__body">
                 <h2>Без проекта</h2>
@@ -214,15 +258,24 @@ export function ProjectsPage() {
               <div className="project-card__divider" />
               <div className="project-card__metrics">
                 <span>
-                  Задач
+                  <em>
+                    <ProjectMetricIcon type="tasks" />
+                    Задач
+                  </em>
                   <strong>{unassignedProject.tasks_count}</strong>
                 </span>
                 <span>
-                  Всего времени
+                  <em>
+                    <ProjectMetricIcon type="time" />
+                    Всего времени
+                  </em>
                   <strong>{formatHumanDuration(unassignedProject.total_time_seconds)}</strong>
                 </span>
                 <span>
-                  Активных задач
+                  <em>
+                    <ProjectMetricIcon type="active" />
+                    Активных задач
+                  </em>
                   <strong>{unassignedProject.active_tasks_count}</strong>
                 </span>
               </div>
@@ -255,15 +308,12 @@ export function ProjectsPage() {
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsCreateOpen(false)}>
           <form className="project-modal" onSubmit={handleCreateProject} onClick={(event) => event.stopPropagation()}>
             <h2>Создать проект</h2>
-            <div className="project-modal__preview">
-              <ProjectIcon
-                icon={getProjectFallbackIcon({ name: projectName })}
-                color={projectColor}
-                size="lg"
-              />
-              <div>
-                <span>Иконка проекта</span>
-                <strong>{projectName.trim() || "Новый проект"}</strong>
+            <div className="project-icon-preview">
+              <ProjectIcon icon={projectIcon} color={projectColor} size="xl" />
+              <div className="project-icon-preview__content">
+                <p className="project-icon-preview__eyebrow">Иконка проекта</p>
+                <h3>{projectName.trim() || "Новый проект"}</h3>
+                <p>Выберите иконку, которая лучше всего описывает проект.</p>
               </div>
             </div>
             <label>
@@ -295,6 +345,10 @@ export function ProjectsPage() {
                   aria-label={`Выбрать цвет ${color}`}
                 />
               ))}
+            </div>
+            <div className="project-icon-field">
+              <span>Иконка проекта</span>
+              <ProjectIconPicker value={projectIcon} color={projectColor} onChange={setProjectIcon} />
             </div>
             {createError && <p className="project-modal__error">{createError}</p>}
             <div className="project-modal__actions">

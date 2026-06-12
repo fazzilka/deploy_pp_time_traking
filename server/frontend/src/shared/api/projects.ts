@@ -83,6 +83,7 @@ function toProject(project: ProjectListItem): Project {
     name: project.name,
     description: project.description,
     color: project.color,
+    icon: project.icon ?? null,
     is_archived: project.is_archived,
     created_at: project.created_at,
     updated_at: project.updated_at,

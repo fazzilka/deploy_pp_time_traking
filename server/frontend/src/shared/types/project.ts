@@ -5,6 +5,7 @@ export type Project = {
   name: string;
   description: string | null;
   color: string;
+  icon?: string | null;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
@@ -14,6 +15,7 @@ export type ProjectBadge = {
   id: number;
   name: string;
   color: string;
+  icon?: string | null;
 };
 
 export type ProjectListItem = Project & {

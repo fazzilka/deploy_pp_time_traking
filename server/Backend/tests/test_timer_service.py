@@ -38,7 +38,7 @@ class DummySession:
 @pytest.mark.asyncio
 async def test_start_timer_creates_interval(monkeypatch: pytest.MonkeyPatch) -> None:
     session = DummySession()
-    task = SimpleNamespace(id=1)
+    task = SimpleNamespace(id=1, is_completed=False)
 
     async def fake_get_task_for_update(_session, _task_id, _user_id):
         return task
@@ -65,7 +65,7 @@ async def test_start_timer_conflict(monkeypatch: pytest.MonkeyPatch) -> None:
     session = DummySession()
 
     async def fake_get_task_for_update(_session, _task_id, _user_id):
-        return SimpleNamespace(id=1)
+        return SimpleNamespace(id=1, is_completed=False)
 
     async def fake_get_active_interval(_session, _task_id):
         return SimpleNamespace(id=10)
@@ -87,7 +87,7 @@ async def test_start_timer_checks_active_interval_only_for_requested_task(
     checked_task_ids: list[int] = []
 
     async def fake_get_task_for_update(_session, _task_id, _user_id):
-        return SimpleNamespace(id=_task_id)
+        return SimpleNamespace(id=_task_id, is_completed=False)
 
     async def fake_get_active_interval(_session, task_id):
         checked_task_ids.append(task_id)
@@ -102,6 +102,27 @@ async def test_start_timer_checks_active_interval_only_for_requested_task(
     assert checked_task_ids == [2]
     assert len(session.added) == 1
     assert session.committed is True
+
+
+@pytest.mark.asyncio
+async def test_start_timer_rejects_completed_task(monkeypatch: pytest.MonkeyPatch) -> None:
+    session = DummySession()
+
+    async def fake_get_task_for_update(_session, _task_id, _user_id):
+        return SimpleNamespace(id=1, is_completed=True)
+
+    async def fake_get_active_interval(_session, _task_id):
+        raise AssertionError("completed task should be rejected before interval lookup")
+
+    monkeypatch.setattr(timer_service, "_get_task_for_update", fake_get_task_for_update)
+    monkeypatch.setattr(timer_service, "_get_active_interval", fake_get_active_interval)
+
+    with pytest.raises(HTTPException) as exc:
+        await timer_service.start_timer(session, 1, 10)
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "Нельзя запустить таймер для завершённой задачи"
+    assert session.added == []
 
 
 @pytest.mark.asyncio

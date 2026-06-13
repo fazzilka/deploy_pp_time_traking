@@ -189,12 +189,20 @@
 }
 
 .task-row__button--completed {
-  min-width: 88px;
-  padding: 0 16px;
+  min-width: 66px;
+  padding: 0 14px;
 }
 
 .task-row__button:disabled {
   cursor: not-allowed;
+}
+
+.task-row__button--completed:disabled {
+  border-color: rgba(46, 160, 67, 0.75);
+  background: var(--color-green);
+  color: var(--color-text);
+  cursor: default;
+  opacity: 0.78;
 }
 
 .task-row__delete {

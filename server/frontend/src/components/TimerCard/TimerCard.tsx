@@ -24,39 +24,41 @@ export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, on
 
   return (
     <section className={`timer-card${activeTask ? "" : " timer-card--empty"}`} aria-label="Активный таймер">
-      <p className="timer-card__label">Активная задача</p>
+      <div className="timer-card__main">
+        <p className="timer-card__label">Активная задача</p>
 
-      <div className="timer-card__content">
-        {activeTask ? (
-          <>
-            <h2 className="timer-card__title">{activeTask.title}</h2>
-            <div className="timer-card__project">
-              <ProjectBadge project={activeTask.project} fallback />
-            </div>
-            <p className="timer-card__description">{activeTask.description || "Описание не указано"}</p>
-          </>
-        ) : (
-          <>
-            <h2 className="timer-card__title">Нет активной задачи</h2>
-            <p className="timer-card__description">Запустите таймер у любой задачи из очереди.</p>
-          </>
-        )}
-      </div>
+        <div className="timer-card__content">
+          {activeTask ? (
+            <>
+              <h2 className="timer-card__title">{activeTask.title}</h2>
+              <div className="timer-card__project">
+                <ProjectBadge project={activeTask.project} fallback />
+              </div>
+              <p className="timer-card__description">{activeTask.description || "Описание не указано"}</p>
+            </>
+          ) : (
+            <>
+              <h2 className="timer-card__title">Нет активной задачи</h2>
+              <p className="timer-card__description">Запустите таймер у любой задачи из очереди.</p>
+            </>
+          )}
+        </div>
 
-      <div className="timer-card__deadline" aria-live="polite">
-        <span className="timer-card__deadline-label">До дедлайна</span>
-        <strong
-          className={`timer-card__deadline-countdown timer-card__deadline-countdown--${deadlineCountdown.status}`}
-        >
-          {deadlineCountdown.label}
-        </strong>
-        <span className="timer-card__deadline-hint">{deadlineHint}</span>
-      </div>
+        <div className="timer-card__deadline" aria-live="polite">
+          <span className="timer-card__deadline-label">До дедлайна</span>
+          <strong
+            className={`timer-card__deadline-countdown timer-card__deadline-countdown--${deadlineCountdown.status}`}
+          >
+            {deadlineCountdown.label}
+          </strong>
+          <span className="timer-card__deadline-hint">{deadlineHint}</span>
+        </div>
 
-      <div className="timer-card__session-time">
-        <span>В работе</span>
-        <strong className="timer-card__session-time-value">{formatDuration(activeTask ? elapsedTime : 0)}</strong>
-        <em>Активно таймеров: {activeTask ? activeCount : 0}</em>
+        <div className="timer-card__session-time">
+          <span>В работе</span>
+          <strong className="timer-card__session-time-value">{formatDuration(activeTask ? elapsedTime : 0)}</strong>
+          <em>Активно таймеров: {activeTask ? activeCount : 0}</em>
+        </div>
       </div>
 
       {activeTask ? (

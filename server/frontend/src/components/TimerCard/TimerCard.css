@@ -1,12 +1,35 @@
 .timer-card {
+  max-height: max(360px, calc(100vh - 260px));
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
   align-self: start;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 18px;
   background: var(--color-panel);
   padding: 28px;
+}
+
+.timer-card__main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.timer-card--empty {
+  max-height: none;
+}
+
+.timer-card--empty .timer-card__main {
+  overflow: visible;
+  padding-right: 0;
 }
 
 .timer-card__label {
@@ -40,7 +63,7 @@
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
 }
 
 .timer-card__project {
@@ -133,6 +156,7 @@
 }
 
 .timer-card__actions {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   margin-top: 0;
@@ -145,7 +169,13 @@
 
 @media (max-width: 760px) {
   .timer-card {
+    max-height: none;
     padding: 24px 18px;
+  }
+
+  .timer-card__main {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .timer-card__title {

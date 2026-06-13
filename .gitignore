@@ -17,6 +17,7 @@ venv/
 .env.prod
 *.env.local
 *.log
+backups/
 
 # Frontend
 node_modules/

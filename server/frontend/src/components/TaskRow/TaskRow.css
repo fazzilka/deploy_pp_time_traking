@@ -107,10 +107,54 @@
   white-space: nowrap;
 }
 
-.task-row__meta span:last-child {
+.task-row__meta > span:last-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.task-row__deadline {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.task-row__deadline--safe {
+  color: rgba(57, 211, 83, 0.86);
+}
+
+.task-row__deadline--warning {
+  color: var(--color-yellow);
+}
+
+.task-row__deadline--danger {
+  color: #f0883e;
+}
+
+.task-row__deadline--overdue {
+  color: var(--color-red);
+}
+
+.task-row__deadline--none,
+.task-row__deadline--completed {
+  color: var(--color-muted);
+}
+
+.task-row__deadline-date,
+.task-row__deadline-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-row__deadline-detail {
+  color: inherit;
+  font-style: normal;
+  opacity: 0.86;
 }
 
 .task-row__time {
@@ -172,5 +216,9 @@
   .task-row__delete {
     grid-column: 4;
     grid-row: 1 / span 2;
+  }
+
+  .task-row__deadline-detail {
+    display: none;
   }
 }

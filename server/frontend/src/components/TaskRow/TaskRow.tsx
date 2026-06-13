@@ -85,7 +85,7 @@ export function TaskRow({
         }}
         disabled={isBusy || (isCompleted && !isActive)}
       >
-        {isActive ? "Stop" : isCompleted ? "Completed" : "Start"}
+        {isActive ? "Stop" : isCompleted ? "Done" : "Start"}
       </button>
       <button
         className="task-row__delete"

@@ -189,8 +189,8 @@
 }
 
 .task-row__button--completed {
-  min-width: 112px;
-  padding: 0 18px;
+  min-width: 88px;
+  padding: 0 16px;
 }
 
 .task-row__button:disabled {

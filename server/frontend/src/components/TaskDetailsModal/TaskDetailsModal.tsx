@@ -239,7 +239,7 @@ export function TaskDetailsModal({
               onClick={() => (isActive ? onStop(task.id) : onStart(task.id))}
               disabled={isBusy || (isCompleted && !isActive)}
             >
-              {isActive ? "Остановить" : isCompleted ? "Completed" : "Start"}
+              {isActive ? "Остановить" : isCompleted ? "Done" : "Start"}
             </button>
             <button className="button button--red" type="button" onClick={() => onDelete(task.id)} disabled={isBusy}>
               Удалить

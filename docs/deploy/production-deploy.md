@@ -189,14 +189,34 @@ docker compose -f docker-compose.prod.yml --env-file .env logs -f frontend
 
 ## 11. Перезапуск и обновление
 
-Обновление с пересборкой:
+Production-обновление выполняется rollback-aware скриптом:
 
 ```bash
 cd /opt/time-tracking
-git pull --ff-only
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-docker image prune -f
+bash scripts/deploy.sh
 ```
+
+Скрипт:
+- запоминает текущий commit перед изменениями;
+- создаёт backup PostgreSQL перед миграциями;
+- подтягивает новую версию через `git pull --ff-only`;
+- валидирует `docker compose config`;
+- собирает сервисы;
+- запускает миграции, если `RUN_MIGRATIONS=true`;
+- поднимает контейнеры через `docker compose up -d --remove-orphans`;
+- проверяет critical services `postgres`, `backend`, `frontend`;
+- проверяет backend `/health` и frontend page;
+- выполняет `docker image prune -f` только после успешного healthcheck.
+
+Если новая версия не собирается, миграции падают, контейнеры не становятся healthy или smoke-checks не проходят, скрипт делает:
+
+```bash
+git reset --hard "$PREVIOUS_COMMIT"
+docker compose -f docker-compose.prod.yml --env-file .env build
+docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+```
+
+После rollback скрипт снова проверяет health предыдущей версии и завершается с non-zero кодом. Это означает, что CI/CD job будет failed, но production должен быть восстановлен на предыдущем рабочем commit.
 
 Остановка:
 
@@ -206,7 +226,38 @@ docker compose -f docker-compose.prod.yml --env-file .env down
 
 Остановка без удаления volume не удаляет данные PostgreSQL.
 
-## 12. Backup PostgreSQL
+## 12. Production rollback и backup
+
+Backup создаётся перед миграциями в каталог:
+
+```text
+/opt/time-tracking/backups
+```
+
+Имя файла содержит timestamp и commit, например:
+
+```text
+postgres_20260613T120000Z_abcdef12.sql.gz
+```
+
+Автоматический restore базы данных по умолчанию не выполняется. Это сделано намеренно: если новая версия частично работала и пользователи успели записать данные, автоматический restore может удалить эти записи.
+
+Если rollback старого backend не поднимается из-за несовместимой схемы БД, восстановление выполняется вручную:
+
+```bash
+gzip -dc /opt/time-tracking/backups/postgres_YYYYMMDDTHHMMSSZ_COMMIT.sql.gz \
+  | docker compose -f docker-compose.prod.yml --env-file .env exec -T postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+```
+
+Rollback можно проверить на staging или отдельном сервере через тестовый fail hook:
+
+```bash
+FORCE_DEPLOY_FAIL_AFTER_UP=true bash scripts/deploy.sh
+```
+
+Не включай `FORCE_DEPLOY_FAIL_AFTER_UP=true` на production без отдельного решения.
+
+## 13. Backup PostgreSQL
 
 Создать backup:
 
@@ -222,7 +273,7 @@ docker compose -f docker-compose.prod.yml --env-file .env exec -T postgres pg_du
 gzip backup_time_tracking.sql
 ```
 
-## 13. Restore PostgreSQL
+## 14. Restore PostgreSQL
 
 Перед восстановлением останови backend, чтобы не было параллельных записей:
 
@@ -242,7 +293,7 @@ cat backup_time_tracking.sql | docker compose -f docker-compose.prod.yml --env-f
 docker compose -f docker-compose.prod.yml --env-file .env start backend
 ```
 
-## 14. CI/CD GitHub Actions
+## 15. CI/CD GitHub Actions
 
 Workflow находится в:
 
@@ -254,9 +305,7 @@ Workflow находится в:
 
 ```bash
 cd /opt/time-tracking
-git pull --ff-only
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-docker image prune -f
+bash scripts/deploy.sh
 ```
 
 Добавь secrets:
@@ -265,7 +314,7 @@ docker image prune -f
 - `SERVER_SSH_KEY` — приватный SSH key для доступа к серверу;
 - `SERVER_PORT` — SSH port, обычно `22`.
 
-## 15. CI/CD GitFlic
+## 16. CI/CD GitFlic
 
 Файл:
 
@@ -283,12 +332,10 @@ gitflic-ci.yaml
 
 ```bash
 cd /opt/time-tracking
-git pull --ff-only
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-docker image prune -f
+bash scripts/deploy.sh
 ```
 
-## 16. Локальная проверка production config
+## 17. Локальная проверка production config
 
 Из корня проекта:
 

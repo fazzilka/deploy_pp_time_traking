@@ -8,6 +8,10 @@
 
 ## Ссылка на развёрнутый проект: https://time-tracking.online/
 
+## Production deploy
+
+Production deploy выполняется через `scripts/deploy.sh`. Скрипт сохраняет текущий commit, создаёт backup PostgreSQL перед миграциями, поднимает новую версию и проверяет `postgres`, `backend`, `frontend`, backend `/health` и frontend page. Если новая версия не проходит build, migrations, compose up или healthchecks, скрипт откатывает репозиторий на предыдущий commit, пересобирает и поднимает предыдущую рабочую версию. Автоматический restore базы данных по умолчанию не выполняется; инструкция восстановления backup описана в `docs/deploy/production-deploy.md`.
+
 ## Документация
 
 Документы находятся в каталоге `docs/`.

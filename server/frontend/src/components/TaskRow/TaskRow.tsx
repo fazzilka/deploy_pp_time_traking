@@ -77,7 +77,7 @@ export function TaskRow({
       <div className="task-row__time">{formatDuration(displaySeconds)}</div>
 
       <button
-        className={`task-row__button button ${isActive ? "button--red" : "button--green"}`}
+        className={`task-row__button button ${isActive ? "button--red" : "button--green"}${isCompleted && !isActive ? " task-row__button--completed" : ""}`}
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -85,7 +85,7 @@ export function TaskRow({
         }}
         disabled={isBusy || (isCompleted && !isActive)}
       >
-        {isActive ? "Stop" : isCompleted ? "Готово" : "Start"}
+        {isActive ? "Stop" : isCompleted ? "Completed" : "Start"}
       </button>
       <button
         className="task-row__delete"

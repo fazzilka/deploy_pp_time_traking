@@ -23,7 +23,7 @@ export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, on
     : "Запустите таймер у задачи из очереди";
 
   return (
-    <section className="timer-card" aria-label="Активный таймер">
+    <section className={`timer-card${activeTask ? "" : " timer-card--empty"}`} aria-label="Активный таймер">
       <p className="timer-card__label">Активная задача</p>
 
       <div className="timer-card__content">
@@ -59,15 +59,13 @@ export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, on
         <em>Активно таймеров: {activeTask ? activeCount : 0}</em>
       </div>
 
-      <div className="timer-card__actions">
-        {activeTask ? (
+      {activeTask ? (
+        <div className="timer-card__actions">
           <button className="timer-card__stop button button--red" type="button" onClick={onStop} disabled={isStopping}>
             {isStopping ? "Стоп..." : "Остановить"}
           </button>
-        ) : (
-          <span aria-hidden="true" />
-        )}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }

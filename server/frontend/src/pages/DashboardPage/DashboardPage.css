@@ -22,10 +22,10 @@
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
-  align-items: stretch;
-  margin-top: 34px;
+  grid-template-columns: minmax(340px, 0.82fr) minmax(620px, 1.45fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 28px;
 }
 
 .tasks-queue {

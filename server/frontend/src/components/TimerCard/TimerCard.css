@@ -1,30 +1,31 @@
 .timer-card {
-  min-height: 430px;
   display: flex;
   flex-direction: column;
+  gap: 18px;
+  align-self: start;
   border: 1px solid var(--color-border);
   border-radius: 18px;
   background: var(--color-panel);
-  padding: 38px;
+  padding: 28px;
 }
 
 .timer-card__label {
-  margin: 0 0 22px;
+  margin: 0;
   color: var(--color-muted);
   font-size: 16px;
   font-weight: 700;
 }
 
 .timer-card__content {
-  min-height: 132px;
+  display: grid;
+  gap: 10px;
 }
 
 .timer-card__title {
   max-width: 460px;
-  min-height: 68px;
   margin: 0;
   color: var(--color-text);
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1.2;
   font-weight: 800;
   overflow-wrap: anywhere;
@@ -32,8 +33,7 @@
 
 .timer-card__description {
   max-width: 520px;
-  min-height: 28px;
-  margin: 14px 0 0;
+  margin: 0;
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.45;
@@ -44,7 +44,7 @@
 }
 
 .timer-card__project {
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .timer-card__count {
@@ -55,10 +55,9 @@
 }
 
 .timer-card__deadline {
-  margin-top: auto;
   display: grid;
-  gap: 10px;
-  padding: 22px;
+  gap: 8px;
+  padding: 18px;
   border: 1px solid rgba(139, 148, 158, 0.18);
   border-radius: 18px;
   background:
@@ -75,7 +74,7 @@
 }
 
 .timer-card__deadline-countdown {
-  font-size: clamp(40px, 4.8vw, 62px);
+  font-size: clamp(36px, 4vw, 54px);
   line-height: 1;
   font-weight: 900;
   letter-spacing: 0;
@@ -84,7 +83,7 @@
 
 .timer-card__deadline-countdown--none {
   color: var(--color-muted);
-  font-size: clamp(30px, 3.5vw, 46px);
+  font-size: clamp(26px, 3vw, 36px);
 }
 
 .timer-card__deadline-countdown--safe {
@@ -114,7 +113,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 8px 12px;
-  margin-top: 18px;
+  margin-top: 0;
   color: var(--color-muted);
   font-size: 14px;
   font-weight: 800;
@@ -134,10 +133,9 @@
 }
 
 .timer-card__actions {
-  height: 44px;
   display: flex;
   align-items: center;
-  margin-top: 30px;
+  margin-top: 0;
 }
 
 .timer-card__stop {
@@ -147,16 +145,11 @@
 
 @media (max-width: 760px) {
   .timer-card {
-    min-height: 390px;
-    padding: 32px 24px;
+    padding: 24px 18px;
   }
 
   .timer-card__title {
     font-size: 25px;
-  }
-
-  .timer-card__deadline {
-    padding: 18px;
   }
 
   .timer-card__deadline-countdown {

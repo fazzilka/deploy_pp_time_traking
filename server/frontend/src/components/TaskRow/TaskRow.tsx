@@ -2,7 +2,7 @@ import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
 import type { Task } from "../../shared/types/task";
 import { formatDeadline } from "../../shared/utils/date";
-import { formatDeadlineCountdown } from "../../shared/utils/deadline";
+import { formatDeadlineCountdownCompact } from "../../shared/utils/deadline";
 import { formatDuration } from "../../shared/utils/time";
 import "./TaskRow.css";
 
@@ -30,14 +30,9 @@ export function TaskRow({
   onToggleCompleted,
 }: TaskRowProps) {
   const isCompleted = task.is_completed;
-  const deadlineCountdown = formatDeadlineCountdown(task.deadline);
+  const deadlineCountdown = formatDeadlineCountdownCompact(task.deadline);
   const deadlineStatus = isCompleted ? "completed" : deadlineCountdown.status;
-  const deadlineDetail =
-    task.deadline && !isCompleted
-      ? deadlineCountdown.isOverdue
-        ? deadlineCountdown.label
-        : `осталось ${deadlineCountdown.label}`
-      : null;
+  const deadlineDetail = task.deadline ? (isCompleted ? "сделано" : deadlineCountdown.label) : null;
 
   return (
     <article
@@ -70,11 +65,13 @@ export function TaskRow({
         <div className="task-row__meta">
           <ProjectBadge project={task.project} fallback />
           <PriorityIcon priority={task.priority} />
-          <span className={`task-row__deadline task-row__deadline--${deadlineStatus}`}>
-            <span className="task-row__deadline-date">{formatDeadline(task.deadline)}</span>
-            {deadlineDetail ? <em className="task-row__deadline-detail">{deadlineDetail}</em> : null}
-          </span>
         </div>
+      </div>
+
+      <div className={`task-row__deadline task-row__deadline--${deadlineStatus}`}>
+        <span className="task-row__deadline-label">Дедлайн</span>
+        <span className="task-row__deadline-date">{formatDeadline(task.deadline)}</span>
+        {deadlineDetail ? <em className="task-row__deadline-detail">{deadlineDetail}</em> : null}
       </div>
 
       <div className="task-row__time">{formatDuration(displaySeconds)}</div>

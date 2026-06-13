@@ -75,6 +75,62 @@ function formatOverdueDuration(overdueMs: number): string {
   return "Просрочено меньше минуты";
 }
 
+function formatRemainingDurationCompact(diffMs: number): string {
+  const days = Math.floor(diffMs / DAY_MS);
+  const hours = Math.floor((diffMs % DAY_MS) / HOUR_MS);
+  const minutes = Math.floor((diffMs % HOUR_MS) / MINUTE_MS);
+
+  if (days > 0) {
+    return hours > 0 ? `${days} д ${hours} ч` : `${days} д`;
+  }
+
+  if (hours > 0) {
+    return `${hours} ч ${pad(minutes)} мин`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes} мин`;
+  }
+
+  return "<1 мин";
+}
+
+function formatOverdueDurationCompact(overdueMs: number): string {
+  const days = Math.floor(overdueMs / DAY_MS);
+  const hours = Math.floor((overdueMs % DAY_MS) / HOUR_MS);
+  const minutes = Math.floor((overdueMs % HOUR_MS) / MINUTE_MS);
+
+  if (days > 0) {
+    return hours > 0 ? `${days} д ${hours} ч` : `${days} д`;
+  }
+
+  if (hours > 0) {
+    return `${hours} ч`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes} мин`;
+  }
+
+  return "<1 мин";
+}
+
+function getCountdownStatus(totalMinutes: number, isOverdue: boolean): DeadlineCountdownStatus {
+  if (isOverdue) {
+    return "overdue";
+  }
+
+  if (totalMinutes <= 24 * 60) {
+    return "danger";
+  }
+
+  if (totalMinutes <= 3 * 24 * 60) {
+    return "warning";
+  }
+
+  return "safe";
+}
+
 export function formatDeadlineCountdown(
   deadline: string | null | undefined,
   now = new Date(),
@@ -104,33 +160,58 @@ export function formatDeadlineCountdown(
   if (diffMs < 0) {
     return {
       label: formatOverdueDuration(Math.abs(diffMs)),
-      status: "overdue",
+      status: getCountdownStatus(totalMinutes, true),
       isOverdue: true,
-      totalMinutes,
-    };
-  }
-
-  if (totalMinutes <= 24 * 60) {
-    return {
-      label: formatRemainingDuration(diffMs),
-      status: "danger",
-      isOverdue: false,
-      totalMinutes,
-    };
-  }
-
-  if (totalMinutes <= 3 * 24 * 60) {
-    return {
-      label: formatRemainingDuration(diffMs),
-      status: "warning",
-      isOverdue: false,
       totalMinutes,
     };
   }
 
   return {
     label: formatRemainingDuration(diffMs),
-    status: "safe",
+    status: getCountdownStatus(totalMinutes, false),
+    isOverdue: false,
+    totalMinutes,
+  };
+}
+
+export function formatDeadlineCountdownCompact(
+  deadline: string | null | undefined,
+  now = new Date(),
+): DeadlineCountdown {
+  if (!deadline) {
+    return {
+      label: "без срока",
+      status: "none",
+      isOverdue: false,
+      totalMinutes: null,
+    };
+  }
+
+  const deadlineDate = parseDeadlineDate(deadline);
+  if (!deadlineDate) {
+    return {
+      label: "без срока",
+      status: "none",
+      isOverdue: false,
+      totalMinutes: null,
+    };
+  }
+
+  const diffMs = deadlineDate.getTime() - now.getTime();
+  const totalMinutes = Math.floor(diffMs / MINUTE_MS);
+
+  if (diffMs < 0) {
+    return {
+      label: `просрочено ${formatOverdueDurationCompact(Math.abs(diffMs))}`,
+      status: getCountdownStatus(totalMinutes, true),
+      isOverdue: true,
+      totalMinutes,
+    };
+  }
+
+  return {
+    label: `осталось ${formatRemainingDurationCompact(diffMs)}`,
+    status: getCountdownStatus(totalMinutes, false),
     isOverdue: false,
     totalMinutes,
   };

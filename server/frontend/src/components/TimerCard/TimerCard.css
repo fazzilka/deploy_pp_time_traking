@@ -16,7 +16,7 @@
 }
 
 .timer-card__content {
-  min-height: 150px;
+  min-height: 132px;
 }
 
 .timer-card__title {
@@ -54,19 +54,83 @@
   font-weight: 800;
 }
 
-.timer-card__time {
+.timer-card__deadline {
   margin-top: auto;
-  color: var(--color-green-bright);
-  font-size: clamp(54px, 5vw, 70px);
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid rgba(139, 148, 158, 0.18);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(46, 160, 67, 0.12), transparent 34%),
+    rgba(13, 17, 23, 0.34);
+}
+
+.timer-card__deadline-label {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.timer-card__deadline-countdown {
+  font-size: clamp(40px, 4.8vw, 62px);
   line-height: 1;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.timer-card__deadline-countdown--none {
+  color: var(--color-muted);
+  font-size: clamp(30px, 3.5vw, 46px);
+}
+
+.timer-card__deadline-countdown--safe {
+  color: var(--color-green-bright);
+}
+
+.timer-card__deadline-countdown--warning {
+  color: var(--color-yellow);
+}
+
+.timer-card__deadline-countdown--danger {
+  color: #f0883e;
+}
+
+.timer-card__deadline-countdown--overdue {
+  color: var(--color-red);
+}
+
+.timer-card__deadline-hint {
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.timer-card__session-time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin-top: 18px;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.timer-card__session-time-value {
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
 
-.timer-card__time--empty {
+.timer-card__session-time em {
   color: var(--color-subtle);
+  font-style: normal;
+  font-size: 13px;
 }
 
 .timer-card__actions {
@@ -91,7 +155,15 @@
     font-size: 25px;
   }
 
-  .timer-card__time {
-    font-size: clamp(42px, 13vw, 64px);
+  .timer-card__deadline {
+    padding: 18px;
+  }
+
+  .timer-card__deadline-countdown {
+    font-size: clamp(34px, 11vw, 52px);
+  }
+
+  .timer-card__deadline-countdown--none {
+    font-size: clamp(26px, 8vw, 38px);
   }
 }

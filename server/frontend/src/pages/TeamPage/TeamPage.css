@@ -3,15 +3,40 @@
   width: min(100% - 64px, 1780px);
   margin: 0 auto;
   padding: 32px 0 36px;
+  overflow: visible;
 }
 
 .team-page::before {
   content: "";
-  position: fixed;
-  inset: 68px 0 auto;
+  position: absolute;
+  top: 0;
+  left: 50%;
   z-index: 0;
-  height: 540px;
+  width: 100vw;
+  height: 560px;
   pointer-events: none;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(46, 160, 67, 0.18), transparent 34%),
+    radial-gradient(circle at 86% 12%, rgba(31, 111, 235, 0.09), transparent 32%),
+    linear-gradient(180deg, rgba(13, 17, 23, 0.2), rgba(13, 17, 23, 0));
+}
+
+.team-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+.team-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 0;
+  width: 100vw;
+  height: 560px;
+  pointer-events: none;
+  transform: translateX(-50%);
   background:
     radial-gradient(circle at 12% 0%, rgba(46, 160, 67, 0.18), transparent 34%),
     radial-gradient(circle at 86% 12%, rgba(31, 111, 235, 0.09), transparent 32%),

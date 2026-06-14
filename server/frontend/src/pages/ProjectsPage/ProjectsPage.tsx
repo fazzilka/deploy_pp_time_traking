@@ -72,6 +72,7 @@ function ProjectMetricIcon({ type }: { type: "tasks" | "time" | "active" }) {
 export function ProjectsPage() {
   const navigate = useNavigate();
   const { currentWorkspaceId, currentUserRole } = useWorkspace();
+  const canCreateProject = canCreateProjects(currentUserRole);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [projectsSummary, setProjectsSummary] = useState<ProjectsTimeSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -169,7 +170,8 @@ export function ProjectsPage() {
           className="button button--green projects-hero__button"
           type="button"
           onClick={() => setIsCreateOpen(true)}
-          disabled={!canCreateProjects(currentUserRole)}
+          disabled={!canCreateProject}
+          title={canCreateProject ? undefined : "Создавать проекты могут Owner и Team Lead"}
         >
           Создать проект
         </button>
@@ -308,7 +310,13 @@ export function ProjectsPage() {
         <section className="projects-empty">
           <h2>Проектов пока нет</h2>
           <p>Создайте первый проект, чтобы группировать задачи.</p>
-          <button className="button button--green" type="button" onClick={() => setIsCreateOpen(true)}>
+          <button
+            className="button button--green"
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            disabled={!canCreateProject}
+            title={canCreateProject ? undefined : "Создавать проекты могут Owner и Team Lead"}
+          >
             Создать проект
           </button>
         </section>

@@ -8,7 +8,7 @@ import { applyProjectsTaskChange, getProjects } from "../../shared/api/projects"
 import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer, updateTask } from "../../shared/api/tasks";
 import type { ProjectListItem } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
-import { canCreateTasks, useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import { canCreateTasks, canDeleteTasks, useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import "./DashboardPage.css";
 
 type ActiveTimerState = {
@@ -66,6 +66,8 @@ export function DashboardPage() {
     () => (primaryActiveTimer ? tasks.find((task) => task.id === primaryActiveTimer.taskId) ?? null : null),
     [primaryActiveTimer, tasks],
   );
+  const canMutateTasks = canCreateTasks(currentUserRole);
+  const canDeleteTask = canDeleteTasks(currentUserRole);
 
   function syncActiveTimers(nextTasks: Task[]) {
     setActiveTimers((currentTimers) => {
@@ -159,6 +161,10 @@ export function DashboardPage() {
   }
 
   function openCreateTask() {
+    if (!canMutateTasks) {
+      setError("В текущей роли задачи доступны только для просмотра");
+      return;
+    }
     setNewProjectId(getDefaultProjectForCreate());
     setIsCreateOpen(true);
   }
@@ -221,6 +227,11 @@ export function DashboardPage() {
   }
 
   async function handleStart(taskId: number) {
+    if (!canMutateTasks) {
+      setError("Недостаточно прав для запуска таймера");
+      return;
+    }
+
     if (activeTimers[taskId]) {
       return;
     }
@@ -255,6 +266,11 @@ export function DashboardPage() {
   }
 
   async function handleStop(taskId: number) {
+    if (!canMutateTasks) {
+      setError("Недостаточно прав для остановки таймера");
+      return;
+    }
+
     setBusyTaskId(taskId);
     setError(null);
 
@@ -275,6 +291,11 @@ export function DashboardPage() {
   }
 
   async function handleToggleCompleted(task: Task) {
+    if (!canMutateTasks) {
+      setError("Недостаточно прав для изменения задачи");
+      return;
+    }
+
     if (activeTimers[task.id] || getActiveInterval(task)) {
       setError("Сначала остановите таймер");
       return;
@@ -303,6 +324,11 @@ export function DashboardPage() {
   }
 
   async function handleDelete(taskId: number) {
+    if (!canDeleteTask) {
+      setError("Удалять задачи могут только Owner и Team Lead");
+      return;
+    }
+
     const shouldDelete = window.confirm("Удалить задачу? Все интервалы времени по ней также будут удалены.");
 
     if (!shouldDelete) {
@@ -338,6 +364,11 @@ export function DashboardPage() {
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCreateError(null);
+
+    if (!canMutateTasks) {
+      setCreateError("В текущей роли нельзя создавать задачи");
+      return;
+    }
 
     if (!newTitle.trim()) {
       setCreateError("Введите название задачи");
@@ -385,7 +416,7 @@ export function DashboardPage() {
           className="button button--green dashboard-hero__button"
           type="button"
           onClick={openCreateTask}
-          disabled={!canCreateTasks(currentUserRole)}
+          disabled={!canMutateTasks}
         >
           Создать задачу
         </button>
@@ -520,6 +551,9 @@ export function DashboardPage() {
                     onStop={(taskId) => void handleStop(taskId)}
                     onDelete={(taskId) => void handleDelete(taskId)}
                     onToggleCompleted={(task) => void handleToggleCompleted(task)}
+                    canStartTimer={canMutateTasks}
+                    canDeleteTask={canDeleteTask}
+                    canToggleCompleted={canMutateTasks}
                   />
                 );
               })
@@ -527,7 +561,7 @@ export function DashboardPage() {
               <div className="tasks-empty">
                 <h3>Задач пока нет</h3>
                 <p>Создайте первую задачу, чтобы запустить таймер.</p>
-                <button className="button button--green" type="button" onClick={openCreateTask}>
+                <button className="button button--green" type="button" onClick={openCreateTask} disabled={!canMutateTasks}>
                   Создать первую задачу
                 </button>
               </div>
@@ -548,6 +582,9 @@ export function DashboardPage() {
         onDelete={(taskId) => void handleDelete(taskId)}
         onTaskUpdated={replaceTask}
         projects={projects}
+        canStartTimer={canMutateTasks}
+        canDeleteTask={canDeleteTask}
+        canEditTask={canMutateTasks}
       />
       )}
     </main>

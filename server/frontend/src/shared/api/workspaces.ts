@@ -174,8 +174,14 @@ export async function getWorkspaceSummary(workspaceId: number): Promise<Workspac
     return {
       workspace,
       members_count: workspace.members_count,
+      active_members_count: membersStore.filter(
+        (member) => member.workspace_id === workspaceId && member.status === "active",
+      ).length,
       projects_count: workspace.projects_count,
+      active_projects_count: workspace.projects_count,
       tasks_count: workspace.tasks_count,
+      active_tasks_count: 0,
+      completed_tasks_count: 0,
       total_time_seconds: workspace.total_time_seconds,
     };
   }

@@ -121,14 +121,19 @@ class WorkspaceMemberUpdate(BaseModel):
 class WorkspaceSummary(BaseModel):
     workspace: WorkspaceRead
     members_count: int
+    active_members_count: int
     projects_count: int
+    active_projects_count: int
     tasks_count: int
+    active_tasks_count: int
+    completed_tasks_count: int
     total_time_seconds: int
 
 
 class WorkspaceMemberSummaryItem(BaseModel):
     user: WorkspaceMemberUser
     role: WorkspaceRole
+    status: WorkspaceMemberStatus
     tasks_count: int
     completed_tasks_count: int
     projects_count: int

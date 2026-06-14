@@ -1,7 +1,7 @@
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -26,6 +26,7 @@ from src.schemas.workspace import (
 )
 
 MUTATION_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER}
+PROJECT_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
 MEMBER_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
 
 
@@ -179,6 +180,14 @@ async def require_workspace_mutation(
     return await require_workspace_role(session, user_id, workspace_id, MUTATION_ROLES)
 
 
+async def require_project_management(
+    session: AsyncSession,
+    user_id: int,
+    workspace_id: int,
+) -> WorkspaceMember:
+    return await require_workspace_role(session, user_id, workspace_id, PROJECT_MANAGEMENT_ROLES)
+
+
 async def get_workspace_or_404(
     session: AsyncSession,
     user: User,
@@ -295,7 +304,9 @@ async def add_workspace_member_by_email(
         workspace_id,
         MEMBER_MANAGEMENT_ROLES,
     )
-    if actor_membership.role == WorkspaceRole.TEAM_LEAD and payload.role == WorkspaceRole.OWNER:
+    if payload.role == WorkspaceRole.OWNER:
+        raise _forbidden()
+    if actor_membership.role == WorkspaceRole.TEAM_LEAD and payload.role == WorkspaceRole.TEAM_LEAD:
         raise _forbidden()
 
     result = await session.execute(select(User).where(User.email == payload.email.lower()))
@@ -350,8 +361,11 @@ async def update_workspace_member(
     await require_workspace_role(session, user.id, workspace_id, {WorkspaceRole.OWNER})
     member = await _load_member_or_404(session, workspace_id, member_id)
     values = payload.model_dump(exclude_unset=True)
+    next_role = values.get("role")
+    if next_role == WorkspaceRole.OWNER:
+        raise _forbidden()
 
-    if member.role == WorkspaceRole.OWNER and values.get("role") != WorkspaceRole.OWNER:
+    if member.role == WorkspaceRole.OWNER and next_role != WorkspaceRole.OWNER:
         await _ensure_another_owner(session, workspace_id, member.user_id)
 
     for key, value in values.items():
@@ -431,11 +445,35 @@ async def build_workspace_summary(
 ) -> WorkspaceSummary:
     workspace = await get_workspace_or_404(session, user, workspace_id)
     workspace_read = await build_workspace_read(session, workspace, user.id)
+    active_members_count = await _scalar_int(
+        session,
+        select(func.count(WorkspaceMember.id)).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+        ),
+    )
+    active_tasks_count = await _scalar_int(
+        session,
+        select(func.count(func.distinct(Task.id)))
+        .join(TimeInterval, TimeInterval.task_id == Task.id)
+        .where(Task.workspace_id == workspace_id, TimeInterval.finished_at.is_(None)),
+    )
+    completed_tasks_count = await _scalar_int(
+        session,
+        select(func.count(Task.id)).where(
+            Task.workspace_id == workspace_id,
+            Task.is_completed.is_(True),
+        ),
+    )
     return WorkspaceSummary(
         workspace=workspace_read,
         members_count=workspace_read.members_count,
+        active_members_count=active_members_count,
         projects_count=workspace_read.projects_count,
+        active_projects_count=workspace_read.projects_count,
         tasks_count=workspace_read.tasks_count,
+        active_tasks_count=active_tasks_count,
+        completed_tasks_count=completed_tasks_count,
         total_time_seconds=workspace_read.total_time_seconds,
     )
 
@@ -452,6 +490,7 @@ async def build_workspace_member_summary(
             WorkspaceMemberSummaryItem(
                 user=member.user,
                 role=member.role,
+                status=member.status,
                 tasks_count=member.tasks_count,
                 completed_tasks_count=member.completed_tasks_count,
                 projects_count=member.projects_count,
@@ -520,21 +559,30 @@ async def _member_summaries_by_user_id(
     session: AsyncSession,
     workspace_id: int,
 ) -> dict[int, dict[str, int]]:
-    task_owner = or_(
-        Task.assignee_id == WorkspaceMember.user_id,
-        and_(Task.assignee_id.is_(None), Task.created_by_id == WorkspaceMember.user_id),
+    member_rows = await session.execute(
+        select(WorkspaceMember.user_id).where(WorkspaceMember.workspace_id == workspace_id)
     )
+    summaries: dict[int, dict[str, int]] = {
+        int(user_id): {
+            "tasks_count": 0,
+            "completed_tasks_count": 0,
+            "projects_count": 0,
+            "total_time_seconds": 0,
+        }
+        for (user_id,) in member_rows.all()
+    }
+
     task_rows = await session.execute(
         select(
-            WorkspaceMember.user_id,
-            func.count(Task.id),
-            func.coalesce(func.sum(case((Task.is_completed.is_(True), 1), else_=0)), 0),
-            func.count(func.distinct(Task.project_id)),
-        )
-        .select_from(WorkspaceMember)
-        .outerjoin(Task, and_(Task.workspace_id == workspace_id, task_owner))
-        .where(WorkspaceMember.workspace_id == workspace_id)
-        .group_by(WorkspaceMember.user_id)
+            Task.id,
+            Task.assignee_id,
+            Task.created_by_id,
+            Task.project_id,
+            Task.is_completed,
+        ).where(Task.workspace_id == workspace_id)
+    )
+    project_rows = await session.execute(
+        select(Project.id, Project.owner_id).where(Project.workspace_id == workspace_id)
     )
     interval_rows = await session.execute(
         select(TimeInterval.user_id, func.coalesce(func.sum(_interval_duration_expr()), 0))
@@ -543,14 +591,30 @@ async def _member_summaries_by_user_id(
         .group_by(TimeInterval.user_id)
     )
 
-    summaries: dict[int, dict[str, int]] = {}
-    for user_id, tasks_count, completed_tasks_count, projects_count in task_rows.all():
-        summaries[int(user_id)] = {
-            "tasks_count": int(tasks_count or 0),
-            "completed_tasks_count": int(completed_tasks_count or 0),
-            "projects_count": int(projects_count or 0),
-            "total_time_seconds": 0,
+    project_ids_by_user: dict[int, set[int]] = {user_id: set() for user_id in summaries}
+    counted_task_ids_by_user: dict[int, set[int]] = {user_id: set() for user_id in summaries}
+
+    for project_id, owner_id in project_rows.all():
+        if owner_id in project_ids_by_user:
+            project_ids_by_user[int(owner_id)].add(int(project_id))
+
+    for task_id, assignee_id, created_by_id, project_id, is_completed in task_rows.all():
+        participant_ids = {
+            user_id
+            for user_id in (assignee_id, created_by_id)
+            if user_id in summaries
         }
+        for participant_id in participant_ids:
+            participant_id = int(participant_id)
+            if int(task_id) in counted_task_ids_by_user[participant_id]:
+                continue
+            counted_task_ids_by_user[participant_id].add(int(task_id))
+            summaries[participant_id]["tasks_count"] += 1
+            if is_completed:
+                summaries[participant_id]["completed_tasks_count"] += 1
+            if project_id is not None:
+                project_ids_by_user[participant_id].add(int(project_id))
+
     for user_id, total_time_seconds in interval_rows.all():
         if user_id is None:
             continue
@@ -563,6 +627,9 @@ async def _member_summaries_by_user_id(
                 "total_time_seconds": 0,
             },
         )["total_time_seconds"] = int(total_time_seconds or 0)
+
+    for user_id, project_ids in project_ids_by_user.items():
+        summaries[user_id]["projects_count"] = len(project_ids)
     return summaries
 
 

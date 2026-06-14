@@ -3,10 +3,11 @@ import {
   addWorkspaceMember,
   getWorkspaceMembers,
   getWorkspaceMemberSummary,
+  getWorkspaceSummary,
   removeWorkspaceMember,
   updateWorkspaceMember,
 } from "../../shared/api/workspaces";
-import type { WorkspaceMember, WorkspaceMemberStatus, WorkspaceRole } from "../../shared/types/workspace";
+import type { WorkspaceMember, WorkspaceMemberStatus, WorkspaceRole, WorkspaceSummary } from "../../shared/types/workspace";
 import { canEditWorkspace, canManageMembers, useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./TeamPage.css";
@@ -180,24 +181,42 @@ function getMemberName(member: WorkspaceMember): string {
 }
 
 export function TeamPage() {
-  const { currentWorkspace, currentWorkspaceId, currentUserRole, refreshWorkspaces } = useWorkspace();
+  const {
+    currentWorkspace,
+    currentWorkspaceId,
+    currentUserRole,
+    refreshWorkspaces,
+    updateCurrentWorkspace,
+  } = useWorkspace();
 
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [workspaceSummary, setWorkspaceSummary] = useState<WorkspaceSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<WorkspaceRole>("member");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsDescription, setSettingsDescription] = useState("");
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | WorkspaceRole>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkspaceMemberStatus>("all");
 
   const canManage = canManageMembers(currentUserRole);
   const canEdit = canEditWorkspace(currentUserRole);
-  const membersCount = currentWorkspace?.members_count ?? members.length;
-  const activeMembersCount = members.filter((member) => member.status === "active").length;
+  const membersCount = workspaceSummary?.members_count ?? currentWorkspace?.members_count ?? members.length;
+  const activeMembersCount =
+    workspaceSummary?.active_members_count ?? members.filter((member) => member.status === "active").length;
   const shownMembersCount = activeMembersCount || membersCount;
+  const projectsCount = workspaceSummary?.projects_count ?? currentWorkspace?.projects_count ?? 0;
+  const activeProjectsCount = workspaceSummary?.active_projects_count ?? projectsCount;
+  const tasksCount = workspaceSummary?.tasks_count ?? currentWorkspace?.tasks_count ?? 0;
+  const completedTasksCount = workspaceSummary?.completed_tasks_count ?? 0;
 
   async function loadTeam() {
     if (!currentWorkspaceId) {
@@ -210,12 +229,13 @@ export function TeamPage() {
     setError(null);
 
     try {
-      const [nextMembers, summary] = await Promise.all([
+      const [nextMembers, memberSummary, nextWorkspaceSummary] = await Promise.all([
         getWorkspaceMembers(currentWorkspaceId),
         getWorkspaceMemberSummary(currentWorkspaceId),
+        getWorkspaceSummary(currentWorkspaceId),
       ]);
 
-      const summaryByUser = new Map(summary.items.map((item) => [item.user.id, item]));
+      const summaryByUser = new Map(memberSummary.items.map((item) => [item.user.id, item]));
 
       setMembers(
         nextMembers.map((member) => ({
@@ -223,6 +243,7 @@ export function TeamPage() {
           ...(summaryByUser.get(member.user.id) ?? {}),
         })),
       );
+      setWorkspaceSummary(nextWorkspaceSummary);
     } catch {
       setError("Не удалось загрузить команду");
     } finally {
@@ -233,6 +254,12 @@ export function TeamPage() {
   useEffect(() => {
     void loadTeam();
   }, [currentWorkspaceId]);
+
+  useEffect(() => {
+    setSettingsName(currentWorkspace?.name ?? "");
+    setSettingsDescription(currentWorkspace?.description ?? "");
+    setSettingsError(null);
+  }, [currentWorkspace]);
 
   const filteredMembers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -270,9 +297,47 @@ export function TeamPage() {
       setEmail("");
       setRole("member");
       setIsInviteOpen(false);
+      setSuccessMessage("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.");
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
       setInviteError(caughtError instanceof Error ? caughtError.message : "Не удалось добавить участника");
+    }
+  }
+
+  function openSettings() {
+    setSettingsName(currentWorkspace?.name ?? "");
+    setSettingsDescription(currentWorkspace?.description ?? "");
+    setSettingsError(null);
+    setIsSettingsOpen(true);
+  }
+
+  async function handleSaveSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSettingsError(null);
+
+    if (!canEdit) {
+      setSettingsError("У вас нет прав на изменение настроек.");
+      return;
+    }
+
+    if (!settingsName.trim()) {
+      setSettingsError("Введите название workspace");
+      return;
+    }
+
+    try {
+      setIsSavingSettings(true);
+      await updateCurrentWorkspace({
+        name: settingsName.trim(),
+        description: settingsDescription.trim() || null,
+      });
+      setSuccessMessage("Настройки команды сохранены");
+      setIsSettingsOpen(false);
+      await Promise.all([loadTeam(), refreshWorkspaces()]);
+    } catch (caughtError) {
+      setSettingsError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить настройки");
+    } finally {
+      setIsSavingSettings(false);
     }
   }
 
@@ -322,7 +387,7 @@ export function TeamPage() {
             Пригласить участника
           </button>
 
-          <button className="team-action team-action--secondary" type="button" disabled={!canEdit}>
+          <button className="team-action team-action--secondary" type="button" onClick={openSettings}>
             <TeamIcon name="gear" />
             Настройки команды
           </button>
@@ -330,6 +395,7 @@ export function TeamPage() {
       </section>
 
       {error && <div className="status-message status-message--error team-page__status">{error}</div>}
+      {successMessage && <div className="team-page__notice">{successMessage}</div>}
 
       <section className="team-stats-grid" aria-label="Сводка команды">
         <article className="team-stat">
@@ -359,7 +425,7 @@ export function TeamPage() {
           <div className="team-stat__content">
             <p>Участников</p>
             <h2>
-              {membersCount} <small>из 10 мест</small>
+              {membersCount} <small>{activeMembersCount} активных</small>
             </h2>
           </div>
         </article>
@@ -371,7 +437,7 @@ export function TeamPage() {
           <div className="team-stat__content">
             <p>Всего проектов</p>
             <h2>
-              {currentWorkspace?.projects_count ?? 0} <small>активных</small>
+              {projectsCount} <small>{activeProjectsCount} активных</small>
             </h2>
           </div>
         </article>
@@ -554,12 +620,34 @@ export function TeamPage() {
             </div>
 
             <div className="team-roles">
-              {(["owner", "team_lead", "member"] as WorkspaceRole[]).map((item) => (
+              {(["owner", "team_lead", "member", "viewer"] as WorkspaceRole[]).map((item) => (
                 <article key={item}>
                   <span className={roleClass(item)}>{roleLabels[item]}</span>
                   <p>{roleDescriptions[item]}</p>
                 </article>
               ))}
+            </div>
+          </section>
+
+          <section className="team-side-card">
+            <div className="team-side-card__title">
+              <TeamIcon name="activity" />
+              <h2>Рабочая нагрузка</h2>
+            </div>
+
+            <div className="team-workload">
+              <span>
+                <strong>{tasksCount}</strong>
+                задач всего
+              </span>
+              <span>
+                <strong>{completedTasksCount}</strong>
+                завершено
+              </span>
+              <span>
+                <strong>{formatHumanDuration(workspaceSummary?.total_time_seconds ?? currentWorkspace?.total_time_seconds ?? 0)}</strong>
+                учтено времени
+              </span>
             </div>
           </section>
 
@@ -612,7 +700,10 @@ export function TeamPage() {
               </span>
               <div>
                 <h2>Добавить участника</h2>
-                <p>Введите email зарегистрированного пользователя.</p>
+                <p>
+                  Пользователь должен быть уже зарегистрирован. После добавления организация появится у него в
+                  workspace switcher.
+                </p>
               </div>
             </div>
 
@@ -642,6 +733,77 @@ export function TeamPage() {
                 Добавить
               </button>
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
+                Отмена
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isSettingsOpen && (
+        <div className="team-modal-backdrop" role="presentation" onClick={() => setIsSettingsOpen(false)}>
+          <form className="team-modal" onSubmit={handleSaveSettings} onClick={(event) => event.stopPropagation()}>
+            <div className="team-modal__header">
+              <span>
+                <TeamIcon name="gear" />
+              </span>
+              <div>
+                <h2>Настройки команды</h2>
+                <p>{currentWorkspace?.name ?? "Workspace"}</p>
+              </div>
+            </div>
+
+            {!canEdit && <p className="team-modal__warning">У вас нет прав на изменение настроек.</p>}
+
+            <label>
+              <span>Название</span>
+              <input
+                value={settingsName}
+                onChange={(event) => setSettingsName(event.target.value)}
+                disabled={!canEdit || isSavingSettings}
+              />
+            </label>
+
+            <label>
+              <span>Описание</span>
+              <textarea
+                value={settingsDescription}
+                onChange={(event) => setSettingsDescription(event.target.value)}
+                disabled={!canEdit || isSavingSettings}
+              />
+            </label>
+
+            <div className="team-settings-summary">
+              <span>
+                <em>Тип workspace</em>
+                <strong>{currentWorkspace?.type === "team" ? "Organization" : "Personal"}</strong>
+              </span>
+              <span>
+                <em>Моя роль</em>
+                <strong>{currentUserRole ? roleLabels[currentUserRole] : "Viewer"}</strong>
+              </span>
+              <span>
+                <em>Участников</em>
+                <strong>{membersCount}</strong>
+              </span>
+              <span>
+                <em>Проектов</em>
+                <strong>{projectsCount}</strong>
+              </span>
+            </div>
+
+            <div className="team-danger-zone">
+              <strong>Архивация организации</strong>
+              <p>Будет добавлена отдельной безопасной операцией позже.</p>
+            </div>
+
+            {settingsError && <p className="team-modal__error">{settingsError}</p>}
+
+            <div className="team-modal__actions">
+              <button className="team-action team-action--primary" type="submit" disabled={!canEdit || isSavingSettings}>
+                {isSavingSettings ? "Сохраняем..." : "Сохранить"}
+              </button>
+              <button className="team-action team-action--secondary" type="button" onClick={() => setIsSettingsOpen(false)}>
                 Отмена
               </button>
             </div>

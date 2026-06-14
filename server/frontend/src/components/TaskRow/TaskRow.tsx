@@ -16,6 +16,9 @@ type TaskRowProps = {
   onStop: (taskId: number) => void;
   onDelete: (taskId: number) => void;
   onToggleCompleted: (task: Task) => void;
+  canStartTimer?: boolean;
+  canDeleteTask?: boolean;
+  canToggleCompleted?: boolean;
 };
 
 export function TaskRow({
@@ -28,6 +31,9 @@ export function TaskRow({
   onStop,
   onDelete,
   onToggleCompleted,
+  canStartTimer = true,
+  canDeleteTask = true,
+  canToggleCompleted = true,
 }: TaskRowProps) {
   const isCompleted = task.is_completed;
   const deadlineCountdown = formatDeadlineCountdownCompact(task.deadline);
@@ -53,7 +59,7 @@ export function TaskRow({
           event.stopPropagation();
           onToggleCompleted(task);
         }}
-        disabled={isBusy}
+        disabled={isBusy || !canToggleCompleted}
         aria-label={isCompleted ? "Вернуть задачу в работу" : "Отметить задачу как выполненную"}
       >
         <span aria-hidden="true">✓</span>
@@ -83,7 +89,7 @@ export function TaskRow({
           event.stopPropagation();
           isActive ? onStop(task.id) : onStart(task.id);
         }}
-        disabled={isBusy || (isCompleted && !isActive)}
+        disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
       >
         {isActive ? "Stop" : isCompleted ? "Done" : "Start"}
       </button>
@@ -94,7 +100,7 @@ export function TaskRow({
           event.stopPropagation();
           onDelete(task.id);
         }}
-        disabled={isBusy}
+        disabled={isBusy || !canDeleteTask}
         aria-label={`Удалить задачу ${task.title}`}
       >
         ×

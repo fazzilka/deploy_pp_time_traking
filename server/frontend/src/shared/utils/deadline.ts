@@ -72,39 +72,11 @@ function formatOverdueDuration(overdueMs: number): string {
 }
 
 function formatRemainingDurationCompact(diffMs: number): string {
-  const { days, hours, minutes } = getDurationParts(diffMs);
-
-  if (days > 0) {
-    return hours > 0 ? `${days} д ${hours} ч` : `${days} д`;
-  }
-
-  if (hours > 0) {
-    return `${hours} ч ${minutes} м`;
-  }
-
-  if (minutes > 0) {
-    return `${minutes} м`;
-  }
-
-  return "меньше 1 м";
+  return formatRemainingDuration(diffMs);
 }
 
 function formatOverdueDurationCompact(overdueMs: number): string {
-  const { days, hours, minutes } = getDurationParts(overdueMs);
-
-  if (days > 0) {
-    return hours > 0 ? `${days} д ${hours} ч` : `${days} д`;
-  }
-
-  if (hours > 0) {
-    return `${hours} ч`;
-  }
-
-  if (minutes > 0) {
-    return `${minutes} м`;
-  }
-
-  return "меньше 1 м";
+  return formatOverdueDuration(overdueMs);
 }
 
 function getCountdownStatus(totalMinutes: number, isOverdue: boolean): DeadlineCountdownStatus {
@@ -172,7 +144,7 @@ export function formatDeadlineCountdownCompact(
 ): DeadlineCountdown {
   if (!deadline) {
     return {
-      label: "без срока",
+      label: "Без срока",
       status: "none",
       isOverdue: false,
       totalMinutes: null,
@@ -182,7 +154,7 @@ export function formatDeadlineCountdownCompact(
   const deadlineDate = parseDeadlineDate(deadline);
   if (!deadlineDate) {
     return {
-      label: "без срока",
+      label: "Без срока",
       status: "none",
       isOverdue: false,
       totalMinutes: null,
@@ -194,7 +166,7 @@ export function formatDeadlineCountdownCompact(
 
   if (diffMs < 0) {
     return {
-      label: `просрочено ${formatOverdueDurationCompact(Math.abs(diffMs))}`,
+      label: formatOverdueDurationCompact(Math.abs(diffMs)),
       status: getCountdownStatus(totalMinutes, true),
       isOverdue: true,
       totalMinutes,
@@ -202,7 +174,7 @@ export function formatDeadlineCountdownCompact(
   }
 
   return {
-    label: `осталось ${formatRemainingDurationCompact(diffMs)}`,
+    label: formatRemainingDurationCompact(diffMs),
     status: getCountdownStatus(totalMinutes, false),
     isOverdue: false,
     totalMinutes,

@@ -32,7 +32,7 @@ export function TaskRow({
   const isCompleted = task.is_completed;
   const deadlineCountdown = formatDeadlineCountdownCompact(task.deadline);
   const deadlineStatus = isCompleted ? "completed" : deadlineCountdown.status;
-  const deadlineDetail = task.deadline ? (isCompleted ? "сделано" : deadlineCountdown.label) : null;
+  const deadlineDetail = task.deadline ? deadlineCountdown.label : null;
 
   return (
     <article

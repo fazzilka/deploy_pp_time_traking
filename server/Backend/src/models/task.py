@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from src.models.project import Project
     from src.models.time_interval import TimeInterval
     from src.models.user import User
+    from src.models.workspace import Workspace
 
 
 class Task(Base):
@@ -34,6 +35,9 @@ class Task(Base):
         Index("ix_tasks_user_id_project_id", "user_id", "project_id"),
         Index("ix_tasks_user_id_is_completed", "user_id", "is_completed"),
         Index("ix_tasks_user_id_total_time_seconds", "user_id", "total_time_seconds"),
+        Index("ix_tasks_workspace_id", "workspace_id"),
+        Index("ix_tasks_workspace_id_project_id", "workspace_id", "project_id"),
+        Index("ix_tasks_workspace_id_assignee_id", "workspace_id", "assignee_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -55,6 +59,15 @@ class Task(Base):
     )
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     project_id: Mapped[int | None] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
@@ -80,7 +93,10 @@ class Task(Base):
         index=True,
     )
 
-    user: Mapped[User] = relationship(back_populates="tasks")
+    user: Mapped[User] = relationship(back_populates="tasks", foreign_keys=[user_id])
+    workspace: Mapped[Workspace] = relationship(back_populates="tasks")
+    created_by: Mapped[User | None] = relationship(foreign_keys=[created_by_id])
+    assignee: Mapped[User | None] = relationship(foreign_keys=[assignee_id])
     project: Mapped[Project | None] = relationship(back_populates="tasks")
 
     intervals: Mapped[list[TimeInterval]] = relationship(

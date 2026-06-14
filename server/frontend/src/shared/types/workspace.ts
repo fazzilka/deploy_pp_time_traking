@@ -65,6 +65,7 @@ export type WorkspaceMemberUpdateRequest = {
 export type WorkspaceMemberSummaryItem = {
   user: WorkspaceMemberUser;
   role: WorkspaceRole;
+  status: WorkspaceMemberStatus;
   tasks_count: number;
   completed_tasks_count: number;
   projects_count: number;
@@ -78,7 +79,11 @@ export type WorkspaceMemberSummaryResponse = {
 export type WorkspaceSummary = {
   workspace: Workspace;
   members_count: number;
+  active_members_count: number;
   projects_count: number;
+  active_projects_count: number;
   tasks_count: number;
+  active_tasks_count: number;
+  completed_tasks_count: number;
   total_time_seconds: number;
 };

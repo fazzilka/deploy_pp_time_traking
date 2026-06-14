@@ -1,8 +1,8 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getWorkspaces } from "../api/workspaces";
+import { createWorkspace, getWorkspaces, updateWorkspace } from "../api/workspaces";
 import { resetProjectsDataCache } from "../api/projects";
 import { clearReportsCache } from "../api/reports";
-import type { Workspace, WorkspaceRole } from "../types/workspace";
+import type { Workspace, WorkspaceCreateRequest, WorkspaceRole, WorkspaceUpdateRequest } from "../types/workspace";
 
 const STORAGE_KEY = "time_tracking_current_workspace_id";
 
@@ -15,6 +15,8 @@ type WorkspaceContextValue = {
   error: string | null;
   setCurrentWorkspaceId: (workspaceId: number) => void;
   refreshWorkspaces: () => Promise<void>;
+  createOrganization: (payload: WorkspaceCreateRequest) => Promise<Workspace>;
+  updateCurrentWorkspace: (payload: WorkspaceUpdateRequest) => Promise<Workspace | null>;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -71,6 +73,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const createOrganization = useCallback(
+    async (payload: WorkspaceCreateRequest) => {
+      const createdWorkspace = await createWorkspace({ ...payload, type: "team" });
+      await refreshWorkspaces();
+      setCurrentWorkspaceId(createdWorkspace.id);
+      return createdWorkspace;
+    },
+    [refreshWorkspaces, setCurrentWorkspaceId],
+  );
+
+  const updateCurrentWorkspace = useCallback(
+    async (payload: WorkspaceUpdateRequest) => {
+      const workspaceId = currentWorkspace?.id;
+      if (!workspaceId) {
+        return null;
+      }
+      const updatedWorkspace = await updateWorkspace(workspaceId, payload);
+      await refreshWorkspaces();
+      setCurrentWorkspaceId(updatedWorkspace.id);
+      return updatedWorkspace;
+    },
+    [currentWorkspace?.id, refreshWorkspaces, setCurrentWorkspaceId],
+  );
+
   useEffect(() => {
     void refreshWorkspaces();
   }, [refreshWorkspaces]);
@@ -85,8 +111,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       error,
       setCurrentWorkspaceId,
       refreshWorkspaces,
+      createOrganization,
+      updateCurrentWorkspace,
     }),
-    [currentWorkspace, error, isLoading, refreshWorkspaces, setCurrentWorkspaceId, workspaces],
+    [
+      createOrganization,
+      currentWorkspace,
+      error,
+      isLoading,
+      refreshWorkspaces,
+      setCurrentWorkspaceId,
+      updateCurrentWorkspace,
+      workspaces,
+    ],
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
@@ -105,11 +142,15 @@ export function canManageMembers(role: WorkspaceRole | null): boolean {
 }
 
 export function canCreateProjects(role: WorkspaceRole | null): boolean {
-  return role === "owner" || role === "team_lead" || role === "member";
+  return role === "owner" || role === "team_lead";
 }
 
 export function canCreateTasks(role: WorkspaceRole | null): boolean {
   return role === "owner" || role === "team_lead" || role === "member";
+}
+
+export function canDeleteTasks(role: WorkspaceRole | null): boolean {
+  return role === "owner" || role === "team_lead";
 }
 
 export function canEditWorkspace(role: WorkspaceRole | null): boolean {

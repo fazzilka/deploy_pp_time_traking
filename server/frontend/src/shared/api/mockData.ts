@@ -286,6 +286,7 @@ export const mockWorkspaceMembers: WorkspaceMember[] = [
 export const mockWorkspaceMemberSummary: WorkspaceMemberSummaryItem[] = mockWorkspaceMembers.map((member) => ({
   user: member.user,
   role: member.role,
+  status: member.status,
   tasks_count: member.tasks_count,
   completed_tasks_count: member.completed_tasks_count,
   projects_count: member.projects_count,

@@ -2,6 +2,7 @@ import type { Task } from "../types/task";
 import type { ProjectListItem } from "../types/project";
 import type { ActivityDay, ActivityResponse, SummaryResponse } from "../types/reports";
 import type { User } from "../types/user";
+import type { Workspace, WorkspaceMember, WorkspaceMemberSummaryItem } from "../types/workspace";
 import { getActivityLevel } from "../utils/activity";
 
 const now = new Date();
@@ -28,6 +29,7 @@ export const mockUser: User = {
 export const mockProjects: ProjectListItem[] = [
   {
     id: 1,
+    workspace_id: 1,
     name: "Разработка backend",
     description: "API, база данных и инфраструктурные задачи",
     color: "#1f6feb",
@@ -42,6 +44,7 @@ export const mockProjects: ProjectListItem[] = [
   },
   {
     id: 2,
+    workspace_id: 1,
     name: "Интерфейс",
     description: "Экран таймера, отчёты и адаптация",
     color: "#2ea043",
@@ -56,6 +59,7 @@ export const mockProjects: ProjectListItem[] = [
   },
   {
     id: 3,
+    workspace_id: 1,
     name: "Деплой проекта",
     description: "Production, мониторинг и проверка релизов",
     color: "#f0883e",
@@ -78,6 +82,7 @@ export const mockTasks: Task[] = [
     total_time_seconds: 18420,
     deadline: "2026-05-30",
     priority: "high",
+    workspace_id: 1,
     project_id: 2,
     project: {
       id: 2,
@@ -102,6 +107,7 @@ export const mockTasks: Task[] = [
     total_time_seconds: 27600,
     deadline: "2026-06-02",
     priority: "highest",
+    workspace_id: 1,
     project_id: 1,
     project: {
       id: 1,
@@ -120,6 +126,7 @@ export const mockTasks: Task[] = [
     total_time_seconds: 13480,
     deadline: null,
     priority: "medium",
+    workspace_id: 1,
     project_id: 1,
     project: {
       id: 1,
@@ -138,6 +145,7 @@ export const mockTasks: Task[] = [
     total_time_seconds: 0,
     deadline: "2026-06-07",
     priority: "low",
+    workspace_id: 1,
     project_id: null,
     project: null,
     is_completed: false,
@@ -151,6 +159,7 @@ export const mockTasks: Task[] = [
     total_time_seconds: 8520,
     deadline: null,
     priority: "lowest",
+    workspace_id: 1,
     project_id: 3,
     project: {
       id: 3,
@@ -163,6 +172,125 @@ export const mockTasks: Task[] = [
     time_intervals: [],
   },
 ];
+
+export const mockWorkspaces: Workspace[] = [
+  {
+    id: 1,
+    name: "Личное пространство",
+    description: "Персональные проекты и задачи",
+    type: "personal",
+    owner_id: 1,
+    created_at: "2026-05-20T08:00:00.000Z",
+    updated_at: "2026-05-20T08:00:00.000Z",
+    members_count: 1,
+    projects_count: mockProjects.length,
+    tasks_count: mockTasks.length,
+    total_time_seconds: mockTasks.reduce((sum, task) => sum + task.total_time_seconds, 0),
+    current_user_role: "owner",
+  },
+  {
+    id: 2,
+    name: "Команда разработки",
+    description: "Общее пространство команды продукта",
+    type: "team",
+    owner_id: 1,
+    created_at: "2026-06-01T08:00:00.000Z",
+    updated_at: "2026-06-01T08:00:00.000Z",
+    members_count: 3,
+    projects_count: 0,
+    tasks_count: 0,
+    total_time_seconds: 0,
+    current_user_role: "owner",
+  },
+];
+
+export const mockWorkspaceMembers: WorkspaceMember[] = [
+  {
+    id: 1,
+    workspace_id: 1,
+    user: {
+      id: 1,
+      email: mockUser.email,
+      username: mockUser.username,
+      full_name: mockUser.full_name,
+      avatar_letter: mockUser.avatar_letter,
+      is_active: true,
+    },
+    role: "owner",
+    status: "active",
+    joined_at: "2026-05-20T08:00:00.000Z",
+    projects_count: mockProjects.length,
+    tasks_count: mockTasks.length,
+    completed_tasks_count: mockTasks.filter((task) => task.is_completed).length,
+    total_time_seconds: mockTasks.reduce((sum, task) => sum + task.total_time_seconds, 0),
+  },
+  {
+    id: 2,
+    workspace_id: 2,
+    user: {
+      id: 1,
+      email: mockUser.email,
+      username: mockUser.username,
+      full_name: mockUser.full_name,
+      avatar_letter: mockUser.avatar_letter,
+      is_active: true,
+    },
+    role: "owner",
+    status: "active",
+    joined_at: "2026-06-01T08:00:00.000Z",
+    projects_count: 0,
+    tasks_count: 0,
+    completed_tasks_count: 0,
+    total_time_seconds: 0,
+  },
+  {
+    id: 3,
+    workspace_id: 2,
+    user: {
+      id: 2,
+      email: "teamlead@example.com",
+      username: "teamlead",
+      full_name: "Team Lead",
+      avatar_letter: "T",
+      is_active: true,
+    },
+    role: "team_lead",
+    status: "active",
+    joined_at: "2026-06-02T09:00:00.000Z",
+    projects_count: 0,
+    tasks_count: 0,
+    completed_tasks_count: 0,
+    total_time_seconds: 0,
+  },
+  {
+    id: 4,
+    workspace_id: 2,
+    user: {
+      id: 3,
+      email: "member@example.com",
+      username: "member",
+      full_name: "Member",
+      avatar_letter: "M",
+      is_active: true,
+    },
+    role: "member",
+    status: "active",
+    joined_at: "2026-06-03T10:00:00.000Z",
+    projects_count: 0,
+    tasks_count: 0,
+    completed_tasks_count: 0,
+    total_time_seconds: 0,
+  },
+];
+
+export const mockWorkspaceMemberSummary: WorkspaceMemberSummaryItem[] = mockWorkspaceMembers.map((member) => ({
+  user: member.user,
+  role: member.role,
+  tasks_count: member.tasks_count,
+  completed_tasks_count: member.completed_tasks_count,
+  projects_count: member.projects_count,
+  total_time_seconds: member.total_time_seconds,
+}));
 
 function buildActivityDays(year: number): ActivityDay[] {
   const start = new Date(Date.UTC(year, 0, 1));

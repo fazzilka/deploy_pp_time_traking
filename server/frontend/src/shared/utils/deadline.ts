@@ -8,8 +8,6 @@ export type DeadlineCountdown = {
 };
 
 const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 function parseDeadlineDate(deadline: string): Date | null {
   const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(deadline);

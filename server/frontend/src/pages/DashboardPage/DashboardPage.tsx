@@ -395,10 +395,6 @@ export function DashboardPage() {
               <p className="tasks-queue__label">Очередь задач</p>
               <h2>Задачи</h2>
             </div>
-            <label className="tasks-queue__toggle">
-              <input type="checkbox" checked={hasTimeOnly} onChange={(event) => setHasTimeOnly(event.target.checked)} />
-              Только с временем
-            </label>
           </div>
 
           <div className="tasks-queue__tools">
@@ -423,6 +419,10 @@ export function DashboardPage() {
                 </option>
               ))}
             </select>
+            <label className="tasks-queue__toggle">
+              <input type="checkbox" checked={hasTimeOnly} onChange={(event) => setHasTimeOnly(event.target.checked)} />
+              Только с временем
+            </label>
           </div>
 
           {isCreateOpen && (

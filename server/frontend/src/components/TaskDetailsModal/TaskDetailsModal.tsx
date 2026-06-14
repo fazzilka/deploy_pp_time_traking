@@ -19,6 +19,9 @@ type TaskDetailsModalProps = {
   onDelete: (taskId: number) => void;
   onTaskUpdated: (previousTask: Task, task: Task) => void;
   projects?: ProjectListItem[];
+  canStartTimer?: boolean;
+  canDeleteTask?: boolean;
+  canEditTask?: boolean;
 };
 
 export function TaskDetailsModal({
@@ -32,6 +35,9 @@ export function TaskDetailsModal({
   onDelete,
   onTaskUpdated,
   projects = [],
+  canStartTimer = true,
+  canDeleteTask = true,
+  canEditTask = true,
 }: TaskDetailsModalProps) {
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(task.description ?? "");
@@ -180,6 +186,7 @@ export function TaskDetailsModal({
                 className={`task-description__preview${hasDescription ? "" : " task-description__preview--empty"}`}
                 type="button"
                 onClick={handleStartDescriptionEdit}
+                disabled={!canEditTask}
               >
                 {hasDescription ? task.description : "Описание не указано"}
               </button>
@@ -217,7 +224,7 @@ export function TaskDetailsModal({
                 className="task-info-card__select"
                 value={task.project_id == null ? "none" : String(task.project_id)}
                 onChange={(event) => void handleProjectChange(event.target.value)}
-                disabled={isSavingProject}
+                disabled={isSavingProject || !canEditTask}
               >
                 <option value="none">Без проекта</option>
                 {projects.map((project) => (
@@ -237,11 +244,16 @@ export function TaskDetailsModal({
               className={`button ${isActive ? "button--red" : "button--green"}`}
               type="button"
               onClick={() => (isActive ? onStop(task.id) : onStart(task.id))}
-              disabled={isBusy || (isCompleted && !isActive)}
+              disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
             >
               {isActive ? "Остановить" : isCompleted ? "Done" : "Start"}
             </button>
-            <button className="button button--red" type="button" onClick={() => onDelete(task.id)} disabled={isBusy}>
+            <button
+              className="button button--red"
+              type="button"
+              onClick={() => onDelete(task.id)}
+              disabled={isBusy || !canDeleteTask}
+            >
               Удалить
             </button>
             <button className="button" type="button" onClick={onClose}>

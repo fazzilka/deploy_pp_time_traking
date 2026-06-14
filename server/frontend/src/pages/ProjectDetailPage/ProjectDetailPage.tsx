@@ -21,7 +21,12 @@ import {
 import { createTask, deleteTask, startTaskTimer, stopTaskTimer, updateTask } from "../../shared/api/tasks";
 import type { Project, ProjectListItem, ProjectSummary, ProjectSummaryTask } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
-import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import {
+  canCreateProjects,
+  canCreateTasks,
+  canDeleteTasks,
+  useWorkspace,
+} from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./ProjectDetailPage.css";
 
@@ -156,7 +161,7 @@ function applyProjectSummaryTaskMutation(
 }
 
 export function ProjectDetailPage() {
-  const { currentWorkspaceId } = useWorkspace();
+  const { currentWorkspaceId, currentUserRole } = useWorkspace();
   const { projectId } = useParams();
   const navigate = useNavigate();
   const numericProjectId = Number(projectId);
@@ -187,6 +192,9 @@ export function ProjectDetailPage() {
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[1]);
   const [projectIcon, setProjectIcon] = useState<ProjectIconName>("folder");
   const [projectError, setProjectError] = useState<string | null>(null);
+  const canManageProject = canCreateProjects(currentUserRole);
+  const canMutateTasks = canCreateTasks(currentUserRole);
+  const canDeleteTask = canDeleteTasks(currentUserRole);
 
   const activeTimerEntries = useMemo(
     () => Object.values(activeTimers).sort((firstTimer, secondTimer) => secondTimer.order - firstTimer.order),
@@ -375,6 +383,11 @@ export function ProjectDetailPage() {
   }
 
   async function handleStart(taskId: number) {
+    if (!canMutateTasks) {
+      setError("Недостаточно прав для запуска таймера");
+      return;
+    }
+
     if (activeTimers[taskId]) {
       return;
     }
@@ -409,6 +422,11 @@ export function ProjectDetailPage() {
   }
 
   async function handleStop(taskId: number) {
+    if (!canMutateTasks) {
+      setError("Недостаточно прав для остановки таймера");
+      return;
+    }
+
     setBusyTaskId(taskId);
     setError(null);
 
@@ -429,6 +447,11 @@ export function ProjectDetailPage() {
   }
 
   async function handleToggleCompleted(task: Task) {
+    if (!canMutateTasks) {
+      setError("Недостаточно прав для изменения задачи");
+      return;
+    }
+
     if (activeTimers[task.id] || getActiveInterval(task)) {
       setError("Сначала остановите таймер");
       return;
@@ -457,6 +480,11 @@ export function ProjectDetailPage() {
   }
 
   async function handleDelete(taskId: number) {
+    if (!canDeleteTask) {
+      setError("Удалять задачи могут только Owner и Team Lead");
+      return;
+    }
+
     const shouldDelete = window.confirm("Удалить задачу? Все интервалы времени по ней также будут удалены.");
     if (!shouldDelete) {
       return;
@@ -494,6 +522,11 @@ export function ProjectDetailPage() {
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTaskError(null);
+
+    if (!canMutateTasks) {
+      setTaskError("В текущей роли нельзя создавать задачи");
+      return;
+    }
 
     if (!taskTitle.trim()) {
       setTaskError("Введите название задачи");
@@ -535,6 +568,11 @@ export function ProjectDetailPage() {
     event.preventDefault();
     setProjectError(null);
 
+    if (!canManageProject) {
+      setProjectError("Редактировать проекты могут только Owner и Team Lead");
+      return;
+    }
+
     if (!projectName.trim()) {
       setProjectError("Введите название проекта");
       return;
@@ -573,6 +611,11 @@ export function ProjectDetailPage() {
   }
 
   async function handleArchiveProject() {
+    if (!canManageProject) {
+      setError("Архивировать проекты могут только Owner и Team Lead");
+      return;
+    }
+
     const shouldArchive = window.confirm("Архивировать проект? Задачи и история времени сохранятся.");
     if (!shouldArchive) {
       return;
@@ -632,13 +675,23 @@ export function ProjectDetailPage() {
           </div>
         </div>
         <div className="project-detail-hero__actions">
-          <button className="button" type="button" onClick={() => setIsEditOpen(true)}>
+          <button className="button" type="button" onClick={() => setIsEditOpen(true)} disabled={!canManageProject}>
             Редактировать
           </button>
-          <button className="button button--red" type="button" onClick={() => void handleArchiveProject()}>
+          <button
+            className="button button--red"
+            type="button"
+            onClick={() => void handleArchiveProject()}
+            disabled={!canManageProject}
+          >
             Архивировать
           </button>
-          <button className="button button--green" type="button" onClick={() => setIsCreateOpen(true)}>
+          <button
+            className="button button--green"
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            disabled={!canMutateTasks}
+          >
             Создать задачу
           </button>
         </div>
@@ -794,6 +847,9 @@ export function ProjectDetailPage() {
                     onStop={(taskId) => void handleStop(taskId)}
                     onDelete={(taskId) => void handleDelete(taskId)}
                     onToggleCompleted={(task) => void handleToggleCompleted(task)}
+                    canStartTimer={canMutateTasks}
+                    canDeleteTask={canDeleteTask}
+                    canToggleCompleted={canMutateTasks}
                   />
                 );
               })
@@ -801,7 +857,12 @@ export function ProjectDetailPage() {
               <div className="tasks-empty">
                 <h3>В проекте пока нет задач</h3>
                 <p>Создайте первую задачу внутри проекта.</p>
-                <button className="button button--green" type="button" onClick={() => setIsCreateOpen(true)}>
+                <button
+                  className="button button--green"
+                  type="button"
+                  onClick={() => setIsCreateOpen(true)}
+                  disabled={!canMutateTasks}
+                >
                   Создать задачу
                 </button>
               </div>
@@ -989,6 +1050,9 @@ export function ProjectDetailPage() {
           onDelete={(taskId) => void handleDelete(taskId)}
           onTaskUpdated={replaceTask}
           projects={projects}
+          canStartTimer={canMutateTasks}
+          canDeleteTask={canDeleteTask}
+          canEditTask={canMutateTasks}
         />
       )}
     </main>

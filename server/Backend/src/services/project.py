@@ -18,7 +18,7 @@ from src.schemas.project import (
 )
 from src.services.workspace import (
     get_accessible_workspace_id,
-    require_workspace_mutation,
+    require_project_management,
     require_workspace_role,
 )
 
@@ -51,7 +51,7 @@ async def create_project(
     payload: ProjectCreate,
 ) -> Project:
     workspace_id = await get_accessible_workspace_id(session, user_id, payload.workspace_id)
-    await require_workspace_mutation(session, user_id, workspace_id)
+    await require_project_management(session, user_id, workspace_id)
     project = Project(
         owner_id=user_id,
         workspace_id=workspace_id,
@@ -194,7 +194,7 @@ async def update_project(
     payload: ProjectUpdate,
 ) -> Project:
     project = await get_project_or_404(session, user_id, project_id)
-    await require_workspace_mutation(session, user_id, project.workspace_id)
+    await require_project_management(session, user_id, project.workspace_id)
     values = payload.model_dump(exclude_unset=True)
     values.pop("workspace_id", None)
     for key, value in values.items():
@@ -211,7 +211,7 @@ async def update_project(
 
 async def archive_project(session: AsyncSession, user_id: int, project_id: int) -> None:
     project = await get_project_or_404(session, user_id, project_id)
-    await require_workspace_mutation(session, user_id, project.workspace_id)
+    await require_project_management(session, user_id, project.workspace_id)
     project.is_archived = True
     await session.commit()
 

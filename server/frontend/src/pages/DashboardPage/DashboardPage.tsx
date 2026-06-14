@@ -371,7 +371,7 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">Рабочий экран</p>
           <h1 className="page-heading">Focus Timer First</h1>
-          <p className="page-copy">Запускайте таймер на задаче, держите очередь под рукой и сохраняйте ровный темп работы.</p>
+          <p className="page-copy">Контролируй время и задачи без лишней спешки.</p>
         </div>
         <button className="button button--green dashboard-hero__button" type="button" onClick={openCreateTask}>
           Создать задачу

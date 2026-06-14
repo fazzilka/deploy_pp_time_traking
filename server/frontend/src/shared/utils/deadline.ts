@@ -66,11 +66,11 @@ function formatRemainingDuration(diffMs: number): string {
 
 function formatOverdueDuration(overdueMs: number): string {
   const { days, hours, minutes } = getDurationParts(overdueMs);
-  return `Просрочено на ${formatParts(days, hours, minutes)}`;
+  return `Просрочено ${formatParts(days, hours, minutes)}`;
 }
 
 function formatRemainingDurationCompact(diffMs: number): string {
-  return formatRemainingDuration(diffMs);
+  return `осталось ${formatRemainingDuration(diffMs)}`;
 }
 
 function formatOverdueDurationCompact(overdueMs: number): string {

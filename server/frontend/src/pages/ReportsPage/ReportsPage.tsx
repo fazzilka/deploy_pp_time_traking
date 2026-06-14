@@ -3,6 +3,7 @@ import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getReportsData } from "../../shared/api/reports";
 import type { ActivityDay, ProjectsTimeSummaryResponse, SummaryResponse } from "../../shared/types/reports";
+import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import { getBestActivityDay } from "../../shared/utils/activity";
 import { formatDuration, formatHumanDuration } from "../../shared/utils/time";
 import "./ReportsPage.css";
@@ -109,6 +110,7 @@ function buildProjectConicGradient(projectsSummary: ProjectsTimeSummaryResponse)
 }
 
 export function ReportsPage() {
+  const { currentWorkspaceId } = useWorkspace();
   const [reports, setReports] = useState<ReportsState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,11 +118,15 @@ export function ReportsPage() {
 
   useEffect(() => {
     async function loadReports() {
+      if (!currentWorkspaceId) {
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
 
       try {
-        const data = await getReportsData(currentYear);
+        const data = await getReportsData(currentYear, { workspaceId: currentWorkspaceId ?? undefined });
         setReports({
           summary: data.summary,
           days: data.activity.days,
@@ -134,7 +140,7 @@ export function ReportsPage() {
     }
 
     void loadReports();
-  }, []);
+  }, [currentWorkspaceId]);
 
   const stats = useMemo(() => {
     if (!reports) {

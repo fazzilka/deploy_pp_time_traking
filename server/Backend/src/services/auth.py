@@ -12,6 +12,7 @@ from src.models.enums import UserRole
 from src.models.user import User
 from src.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from src.services.user import get_user_base_profile
+from src.services.workspace import ensure_personal_workspace
 
 AuthStageDurations = list[tuple[str, float]]
 AuthDurationObserver = Callable[[str, str, float], None]
@@ -60,6 +61,7 @@ async def register_user(session: AsyncSession, payload: RegisterRequest) -> User
                 detail="Email или username уже занят",
             ) from exc
         await session.refresh(user)
+        await ensure_personal_workspace(session, user)
         stage_durations.append(("db_insert", perf_counter() - stage_started_at))
         result = "success"
         return user

@@ -7,14 +7,6 @@ export type DeadlineCountdown = {
   totalMinutes: number | null;
 };
 
-export type TaskRowDeadline = {
-  dateLabel: string;
-  countdownLabel: string;
-  status: DeadlineCountdownStatus;
-  isOverdue: boolean;
-  totalMinutes: number | null;
-};
-
 const MINUTE_MS = 60_000;
 
 function parseDeadlineDate(deadline: string): Date | null {
@@ -75,15 +67,6 @@ function formatRemainingDuration(diffMs: number): string {
 function formatOverdueDuration(overdueMs: number): string {
   const { days, hours, minutes } = getDurationParts(overdueMs);
   return `Просрочено на ${formatParts(days, hours, minutes)}`;
-}
-
-function formatTaskRowRemainingDuration(diffMs: number): string {
-  return `осталось ${formatRemainingDuration(diffMs)}`;
-}
-
-function formatTaskRowOverdueDuration(overdueMs: number): string {
-  const { days, hours, minutes } = getDurationParts(overdueMs);
-  return `просрочено ${formatParts(days, hours, minutes)}`;
 }
 
 function formatRemainingDurationCompact(diffMs: number): string {
@@ -190,55 +173,6 @@ export function formatDeadlineCountdownCompact(
 
   return {
     label: formatRemainingDurationCompact(diffMs),
-    status: getCountdownStatus(totalMinutes, false),
-    isOverdue: false,
-    totalMinutes,
-  };
-}
-
-export function formatTaskRowDeadline(deadline: string | null | undefined, now = new Date()): TaskRowDeadline {
-  if (!deadline) {
-    return {
-      dateLabel: "Без срока",
-      countdownLabel: "срок не задан",
-      status: "none",
-      isOverdue: false,
-      totalMinutes: null,
-    };
-  }
-
-  const deadlineDate = parseDeadlineDate(deadline);
-  if (!deadlineDate) {
-    return {
-      dateLabel: "Без срока",
-      countdownLabel: "срок не задан",
-      status: "none",
-      isOverdue: false,
-      totalMinutes: null,
-    };
-  }
-
-  const diffMs = deadlineDate.getTime() - now.getTime();
-  const totalMinutes = Math.floor(diffMs / MINUTE_MS);
-  const dateLabel = new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(deadlineDate);
-
-  if (diffMs < 0) {
-    return {
-      dateLabel,
-      countdownLabel: formatTaskRowOverdueDuration(Math.abs(diffMs)),
-      status: getCountdownStatus(totalMinutes, true),
-      isOverdue: true,
-      totalMinutes,
-    };
-  }
-
-  return {
-    dateLabel,
-    countdownLabel: formatTaskRowRemainingDuration(diffMs),
     status: getCountdownStatus(totalMinutes, false),
     isOverdue: false,
     totalMinutes,

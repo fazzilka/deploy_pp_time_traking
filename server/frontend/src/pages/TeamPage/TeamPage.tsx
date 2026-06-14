@@ -23,7 +23,8 @@ type TeamIconName =
   | "mail"
   | "layers"
   | "shield"
-  | "activity";
+  | "activity"
+  | "chevron";
 
 const roleLabels: Record<WorkspaceRole, string> = {
   owner: "Owner",
@@ -41,7 +42,7 @@ const roleDescriptions: Record<WorkspaceRole, string> = {
 
 const statusLabels: Record<WorkspaceMemberStatus, string> = {
   active: "Активен",
-  inactive: "Отключён",
+  inactive: "Оффлайн",
 };
 
 function TeamIcon({ name }: { name: TeamIconName }) {
@@ -104,7 +105,7 @@ function TeamIcon({ name }: { name: TeamIconName }) {
     case "gear":
       return (
         <svg {...commonProps}>
-          <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+          <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.4.5.73.9 1 .3.2.7.3 1.1.3h.1a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.1.3c-.4.27-.7.6-.9 1Z" />
         </svg>
       );
@@ -150,6 +151,12 @@ function TeamIcon({ name }: { name: TeamIconName }) {
           <path d="M22 12h-4l-3 8-6-16-3 8H2" />
         </svg>
       );
+    case "chevron":
+      return (
+        <svg {...commonProps}>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -168,8 +175,13 @@ function getAvatarLetter(member: WorkspaceMember): string {
   );
 }
 
+function getMemberName(member: WorkspaceMember): string {
+  return member.user.full_name || member.user.username || member.user.email;
+}
+
 export function TeamPage() {
   const { currentWorkspace, currentWorkspaceId, currentUserRole, refreshWorkspaces } = useWorkspace();
+
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,6 +197,7 @@ export function TeamPage() {
   const canEdit = canEditWorkspace(currentUserRole);
   const membersCount = currentWorkspace?.members_count ?? members.length;
   const activeMembersCount = members.filter((member) => member.status === "active").length;
+  const shownMembersCount = activeMembersCount || membersCount;
 
   async function loadTeam() {
     if (!currentWorkspaceId) {
@@ -195,12 +208,15 @@ export function TeamPage() {
 
     setIsLoading(true);
     setError(null);
+
     try {
       const [nextMembers, summary] = await Promise.all([
         getWorkspaceMembers(currentWorkspaceId),
         getWorkspaceMemberSummary(currentWorkspaceId),
       ]);
+
       const summaryByUser = new Map(summary.items.map((item) => [item.user.id, item]));
+
       setMembers(
         nextMembers.map((member) => ({
           ...member,
@@ -220,24 +236,30 @@ export function TeamPage() {
 
   const filteredMembers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
+
     return members.filter((member) => {
       const matchesSearch =
         !normalizedSearch ||
         member.user.email.toLowerCase().includes(normalizedSearch) ||
         member.user.username.toLowerCase().includes(normalizedSearch) ||
         member.user.full_name?.toLowerCase().includes(normalizedSearch);
+
       const matchesRole = roleFilter === "all" || member.role === roleFilter;
       const matchesStatus = statusFilter === "all" || member.status === statusFilter;
+
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [members, roleFilter, search, statusFilter]);
 
   async function handleAddMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!currentWorkspaceId) {
       return;
     }
+
     setInviteError(null);
+
     if (!email.trim()) {
       setInviteError("Введите email участника");
       return;
@@ -258,6 +280,7 @@ export function TeamPage() {
     if (!currentWorkspaceId || member.role === nextRole) {
       return;
     }
+
     await updateWorkspaceMember(currentWorkspaceId, member.id, { role: nextRole });
     await loadTeam();
   }
@@ -266,27 +289,31 @@ export function TeamPage() {
     if (!currentWorkspaceId) {
       return;
     }
+
     const confirmed = window.confirm(`Удалить ${member.user.email} из команды?`);
+
     if (!confirmed) {
       return;
     }
+
     await removeWorkspaceMember(currentWorkspaceId, member.id);
     await Promise.all([loadTeam(), refreshWorkspaces()]);
   }
 
   return (
     <main className="team-page">
-      <section className="team-page__hero">
-        <div className="team-page__hero-copy">
-          <p className="team-page__eyebrow">Командная работа</p>
-          <h1 className="team-page__title">Команда</h1>
-          <p className="team-page__subtitle">
+      <section className="team-hero">
+        <div className="team-hero__copy">
+          <p className="team-hero__eyebrow">Командная работа</p>
+          <h1 className="team-hero__title">Команда</h1>
+          <p className="team-hero__text">
             Управляйте участниками, ролями и рабочим пространством в одном месте.
           </p>
         </div>
-        <div className="team-page__actions">
+
+        <div className="team-hero__actions">
           <button
-            className="team-button team-button--primary"
+            className="team-action team-action--primary"
             type="button"
             onClick={() => setIsInviteOpen(true)}
             disabled={!canManage}
@@ -294,7 +321,8 @@ export function TeamPage() {
             <TeamIcon name="user-plus" />
             Пригласить участника
           </button>
-          <button className="team-button team-button--secondary" type="button" disabled={!canEdit}>
+
+          <button className="team-action team-action--secondary" type="button" disabled={!canEdit}>
             <TeamIcon name="gear" />
             Настройки команды
           </button>
@@ -303,61 +331,60 @@ export function TeamPage() {
 
       {error && <div className="status-message status-message--error team-page__status">{error}</div>}
 
-      <section className="team-overview-grid" aria-label="Сводка workspace">
-        <article className="team-stat-card">
-          <span className="team-stat-card__icon">
+      <section className="team-stats-grid" aria-label="Сводка команды">
+        <article className="team-stat">
+          <span className="team-stat__icon">
             <TeamIcon name="building" />
           </span>
-          <div>
+          <div className="team-stat__content">
             <p>Организация</p>
             <h2>{currentWorkspace?.name ?? "Workspace"}</h2>
-            <span>{currentWorkspace?.type === "team" ? "Team workspace" : "Personal workspace"}</span>
           </div>
         </article>
-        <article className="team-stat-card">
-          <span className="team-stat-card__icon">
+
+        <article className="team-stat">
+          <span className="team-stat__icon">
             <TeamIcon name="users" />
           </span>
-          <div>
+          <div className="team-stat__content">
             <p>Команда</p>
             <h2>Основная команда</h2>
-            <span>{roleLabels[currentUserRole ?? "viewer"]}</span>
           </div>
         </article>
-        <article className="team-stat-card">
-          <span className="team-stat-card__icon">
+
+        <article className="team-stat">
+          <span className="team-stat__icon">
             <TeamIcon name="user" />
           </span>
-          <div>
+          <div className="team-stat__content">
             <p>Участников</p>
-            <h2>{membersCount}</h2>
-            <span>{activeMembersCount || membersCount} активных участников</span>
+            <h2>
+              {membersCount} <small>из 10 мест</small>
+            </h2>
           </div>
         </article>
-        <article className="team-stat-card">
-          <span className="team-stat-card__icon">
+
+        <article className="team-stat">
+          <span className="team-stat__icon">
             <TeamIcon name="folder" />
           </span>
-          <div>
+          <div className="team-stat__content">
             <p>Всего проектов</p>
-            <h2>{currentWorkspace?.projects_count ?? 0}</h2>
-            <span>{currentWorkspace?.tasks_count ?? 0} задач в работе</span>
+            <h2>
+              {currentWorkspace?.projects_count ?? 0} <small>активных</small>
+            </h2>
           </div>
         </article>
       </section>
 
-      <section className="team-page__content">
+      <section className="team-layout">
         <section className="team-members-card">
-          <div className="team-members-card__header">
-            <div>
-              <h2>Участники</h2>
-              <p>Роли, статус и вклад участников в текущее рабочее пространство.</p>
-            </div>
-            <span>{filteredMembers.length} / {members.length}</span>
-          </div>
+          <header className="team-card-heading">
+            <h2>Участники</h2>
+          </header>
 
-          <div className="team-members-card__filters">
-            <label className="team-search-field">
+          <div className="team-filters">
+            <label className="team-search">
               <TeamIcon name="search" />
               <input
                 type="search"
@@ -366,6 +393,7 @@ export function TeamPage() {
                 placeholder="Поиск по участникам"
               />
             </label>
+
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | WorkspaceRole)}>
               <option value="all">Все роли</option>
               <option value="owner">Owner</option>
@@ -373,21 +401,22 @@ export function TeamPage() {
               <option value="member">Member</option>
               <option value="viewer">Viewer</option>
             </select>
+
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as "all" | WorkspaceMemberStatus)}
             >
               <option value="all">Все участники</option>
               <option value="active">Активные</option>
-              <option value="inactive">Отключённые</option>
+              <option value="inactive">Оффлайн</option>
             </select>
           </div>
 
           {isLoading ? (
             <div className="team-empty-state">Загружаем участников...</div>
           ) : (
-            <div className="team-members-table" role="table" aria-label="Участники workspace">
-              <div className="team-members-table__head" role="row">
+            <div className="team-table" role="table" aria-label="Участники workspace">
+              <div className="team-table__head" role="row">
                 <span>Участник</span>
                 <span>Роль</span>
                 <span>Статус</span>
@@ -396,32 +425,38 @@ export function TeamPage() {
                 <span>Время</span>
                 <span>Действия</span>
               </div>
+
               {filteredMembers.map((member) => (
-                <div className="team-members-table__row" role="row" key={member.id}>
-                  <div className="team-member-cell">
-                    <span className="team-member-cell__avatar">
+                <div className="team-table__row" role="row" key={member.id}>
+                  <div className="team-member">
+                    <span className="team-member__avatar">
                       {getAvatarLetter(member)}
-                      <i className={`team-member-cell__presence team-member-cell__presence--${member.status}`} />
+                      <i className={`team-member__dot team-member__dot--${member.status}`} />
                     </span>
-                    <div>
-                      <strong>{member.user.full_name || member.user.username}</strong>
+                    <div className="team-member__info">
+                      <strong>{getMemberName(member)}</strong>
                       <em>{member.user.email}</em>
                     </div>
                   </div>
+
                   <span className={roleClass(member.role)}>{roleLabels[member.role]}</span>
+
                   <span className={`team-status team-status--${member.status}`}>
                     <i />
                     {statusLabels[member.status]}
                   </span>
-                  <span className="team-table-number">{member.projects_count ?? 0}</span>
-                  <span className="team-table-number">{member.tasks_count ?? 0}</span>
-                  <span className="team-table-time">{formatHumanDuration(member.total_time_seconds ?? 0)}</span>
+
+                  <span className="team-number">{member.projects_count ?? 0}</span>
+                  <span className="team-number">{member.tasks_count ?? 0}</span>
+                  <span className="team-time">{formatHumanDuration(member.total_time_seconds ?? 0)}</span>
+
                   <div className="team-row-actions">
                     {canManage && member.role !== "owner" ? (
                       <details>
                         <summary aria-label={`Действия ${member.user.email}`}>
                           <TeamIcon name="more" />
                         </summary>
+
                         <div className="team-row-actions__menu">
                           <label>
                             Роль
@@ -434,6 +469,7 @@ export function TeamPage() {
                               <option value="viewer">Viewer</option>
                             </select>
                           </label>
+
                           <button type="button" onClick={() => void handleRemoveMember(member)}>
                             Удалить из команды
                           </button>
@@ -447,30 +483,34 @@ export function TeamPage() {
                   </div>
                 </div>
               ))}
+
               {filteredMembers.length === 0 && <div className="team-empty-state">Участники не найдены.</div>}
             </div>
           )}
 
-          <footer className="team-members-card__footer">
-            <span>Показано {filteredMembers.length} из {members.length} участников</span>
+          <footer className="team-members-footer">
+            <span>
+              Показано {filteredMembers.length} из {members.length} участников
+            </span>
             <div className="team-pagination" aria-label="Пагинация участников">
               <button type="button" disabled>
-                &lt;
+                ‹
               </button>
               <strong>1</strong>
               <button type="button" disabled>
-                &gt;
+                ›
               </button>
             </div>
           </footer>
         </section>
 
-        <aside className="team-side-panel">
-          <section className="team-side-card team-side-card--structure">
+        <aside className="team-sidebar">
+          <section className="team-side-card">
             <div className="team-side-card__title">
               <TeamIcon name="layers" />
               <h2>Структура</h2>
             </div>
+
             <div className="team-structure">
               <article>
                 <span>
@@ -481,6 +521,7 @@ export function TeamPage() {
                   <strong>{currentWorkspace?.name ?? "Workspace"}</strong>
                 </div>
               </article>
+
               <article>
                 <span>
                   <TeamIcon name="users" />
@@ -490,19 +531,20 @@ export function TeamPage() {
                   <strong>Основная команда</strong>
                 </div>
               </article>
+
               <article>
                 <span>
                   <TeamIcon name="user" />
                 </span>
                 <div>
                   <p>Участники</p>
-                  <strong>{membersCount} участников</strong>
+                  <strong>{shownMembersCount} участников</strong>
                 </div>
               </article>
             </div>
           </section>
 
-          <section className="team-side-card">
+          <section className="team-side-card team-side-card--roles">
             <div className="team-side-card__title team-side-card__title--split">
               <span>
                 <TeamIcon name="shield" />
@@ -510,8 +552,9 @@ export function TeamPage() {
               </span>
               <button type="button">Подробнее о ролях</button>
             </div>
-            <div className="team-roles-list">
-              {(["owner", "team_lead", "member", "viewer"] as WorkspaceRole[]).map((item) => (
+
+            <div className="team-roles">
+              {(["owner", "team_lead", "member"] as WorkspaceRole[]).map((item) => (
                 <article key={item}>
                   <span className={roleClass(item)}>{roleLabels[item]}</span>
                   <p>{roleDescriptions[item]}</p>
@@ -523,17 +566,20 @@ export function TeamPage() {
           <section className="team-side-card">
             <div className="team-side-card__title">
               <TeamIcon name="mail" />
-              <h2>Приглашения</h2>
+              <h2>
+                Приглашения <small>0</small>
+              </h2>
             </div>
-            <div className="team-invites">
-              <span>0</span>
-              <div>
+
+            <div className="team-invites-list">
+              <div className="team-invite-empty">
                 <strong>Активных приглашений нет</strong>
                 <p>Добавляйте участников по email. Пользователь должен быть уже зарегистрирован.</p>
               </div>
             </div>
+
             <button
-              className="team-button team-button--primary team-button--wide"
+              className="team-action team-action--primary team-action--wide"
               type="button"
               onClick={() => setIsInviteOpen(true)}
               disabled={!canManage}
@@ -548,6 +594,7 @@ export function TeamPage() {
               <TeamIcon name="activity" />
               <h2>Активность команды</h2>
             </div>
+
             <div className="team-activity-empty">
               <span />
               <p>Активность появится после действий участников.</p>
@@ -568,6 +615,7 @@ export function TeamPage() {
                 <p>Введите email зарегистрированного пользователя.</p>
               </div>
             </div>
+
             <label>
               <span>Email</span>
               <input
@@ -577,6 +625,7 @@ export function TeamPage() {
                 placeholder="user@example.com"
               />
             </label>
+
             <label>
               <span>Роль</span>
               <select value={role} onChange={(event) => setRole(event.target.value as WorkspaceRole)}>
@@ -585,12 +634,14 @@ export function TeamPage() {
                 <option value="viewer">Viewer</option>
               </select>
             </label>
+
             {inviteError && <p className="team-modal__error">{inviteError}</p>}
+
             <div className="team-modal__actions">
-              <button className="team-button team-button--primary" type="submit">
+              <button className="team-action team-action--primary" type="submit">
                 Добавить
               </button>
-              <button className="team-button team-button--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
+              <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
                 Отмена
               </button>
             </div>

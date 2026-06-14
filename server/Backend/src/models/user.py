@@ -10,6 +10,7 @@ from src.models.enums import UserRole
 if TYPE_CHECKING:
     from src.models.project import Project
     from src.models.task import Task
+    from src.models.workspace import Workspace, WorkspaceMember
 
 
 class User(Base):
@@ -46,7 +47,17 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    tasks: Mapped[list[Task]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    tasks: Mapped[list[Task]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Task.user_id",
+    )
     projects: Mapped[list[Project]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
+    )
+    owned_workspaces: Mapped[list[Workspace]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
+    )
+    workspace_memberships: Mapped[list[WorkspaceMember]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )

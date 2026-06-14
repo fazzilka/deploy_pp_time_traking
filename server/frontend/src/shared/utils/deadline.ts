@@ -11,10 +11,6 @@ const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
 function parseDeadlineDate(deadline: string): Date | null {
   const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(deadline);
 
@@ -35,70 +31,66 @@ function parseDeadlineDate(deadline: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function formatRemainingDuration(diffMs: number): string {
-  const days = Math.floor(diffMs / DAY_MS);
-  const hours = Math.floor((diffMs % DAY_MS) / HOUR_MS);
-  const minutes = Math.floor((diffMs % HOUR_MS) / MINUTE_MS);
+function getDurationParts(durationMs: number) {
+  const totalMinutes = Math.floor(durationMs / MINUTE_MS);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
 
+  return {
+    days,
+    hours,
+    minutes,
+    totalMinutes,
+  };
+}
+
+function formatParts(days: number, hours: number, minutes: number): string {
   if (days > 0) {
-    return `${days} д ${pad(hours)} ч ${pad(minutes)} мин`;
+    return `${days} д ${hours} ч ${minutes} м`;
   }
 
   if (hours > 0) {
-    return `${hours} ч ${pad(minutes)} мин`;
+    return `${hours} ч ${minutes} м`;
   }
 
   if (minutes > 0) {
-    return `${minutes} мин`;
+    return `${minutes} м`;
   }
 
-  return "меньше минуты";
+  return "меньше 1 м";
+}
+
+function formatRemainingDuration(diffMs: number): string {
+  const { days, hours, minutes } = getDurationParts(diffMs);
+  return formatParts(days, hours, minutes);
 }
 
 function formatOverdueDuration(overdueMs: number): string {
-  const days = Math.floor(overdueMs / DAY_MS);
-  const hours = Math.floor((overdueMs % DAY_MS) / HOUR_MS);
-  const minutes = Math.floor((overdueMs % HOUR_MS) / MINUTE_MS);
-
-  if (days > 0) {
-    return `Просрочено на ${days} д ${pad(hours)} ч`;
-  }
-
-  if (hours > 0) {
-    return `Просрочено на ${hours} ч ${pad(minutes)} мин`;
-  }
-
-  if (minutes > 0) {
-    return `Просрочено на ${minutes} мин`;
-  }
-
-  return "Просрочено меньше минуты";
+  const { days, hours, minutes } = getDurationParts(overdueMs);
+  return `Просрочено на ${formatParts(days, hours, minutes)}`;
 }
 
 function formatRemainingDurationCompact(diffMs: number): string {
-  const days = Math.floor(diffMs / DAY_MS);
-  const hours = Math.floor((diffMs % DAY_MS) / HOUR_MS);
-  const minutes = Math.floor((diffMs % HOUR_MS) / MINUTE_MS);
+  const { days, hours, minutes } = getDurationParts(diffMs);
 
   if (days > 0) {
     return hours > 0 ? `${days} д ${hours} ч` : `${days} д`;
   }
 
   if (hours > 0) {
-    return `${hours} ч ${pad(minutes)} мин`;
+    return `${hours} ч ${minutes} м`;
   }
 
   if (minutes > 0) {
-    return `${minutes} мин`;
+    return `${minutes} м`;
   }
 
-  return "<1 мин";
+  return "меньше 1 м";
 }
 
 function formatOverdueDurationCompact(overdueMs: number): string {
-  const days = Math.floor(overdueMs / DAY_MS);
-  const hours = Math.floor((overdueMs % DAY_MS) / HOUR_MS);
-  const minutes = Math.floor((overdueMs % HOUR_MS) / MINUTE_MS);
+  const { days, hours, minutes } = getDurationParts(overdueMs);
 
   if (days > 0) {
     return hours > 0 ? `${days} д ${hours} ч` : `${days} д`;
@@ -109,10 +101,10 @@ function formatOverdueDurationCompact(overdueMs: number): string {
   }
 
   if (minutes > 0) {
-    return `${minutes} мин`;
+    return `${minutes} м`;
   }
 
-  return "<1 мин";
+  return "меньше 1 м";
 }
 
 function getCountdownStatus(totalMinutes: number, isOverdue: boolean): DeadlineCountdownStatus {

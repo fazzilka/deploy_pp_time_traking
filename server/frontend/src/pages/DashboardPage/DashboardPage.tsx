@@ -8,6 +8,7 @@ import { applyProjectsTaskChange, getProjects } from "../../shared/api/projects"
 import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer, updateTask } from "../../shared/api/tasks";
 import type { ProjectListItem } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
+import { canCreateTasks, useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import "./DashboardPage.css";
 
 type ActiveTimerState = {
@@ -32,6 +33,7 @@ function keepActiveIntervalsOnly(task: Task): Task {
 
 export function DashboardPage() {
   const [searchParams] = useSearchParams();
+  const { currentWorkspaceId, currentUserRole } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -98,6 +100,7 @@ export function DashboardPage() {
 
     try {
       const nextTasks = await getTasks({
+        workspaceId: currentWorkspaceId ?? undefined,
         search: searchQuery,
         hasTime: hasTimeOnly,
         projectId: selectedProjectFilter !== "all" && selectedProjectFilter !== "none" ? Number(selectedProjectFilter) : undefined,
@@ -145,7 +148,7 @@ export function DashboardPage() {
 
   async function loadProjects() {
     try {
-      setProjects(await getProjects());
+      setProjects(await getProjects({ workspaceId: currentWorkspaceId ?? undefined }));
     } catch {
       setProjects([]);
     }
@@ -184,12 +187,16 @@ export function DashboardPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    void loadTasks();
-  }, [searchQuery, hasTimeOnly, selectedProjectFilter]);
+    if (currentWorkspaceId) {
+      void loadTasks();
+    }
+  }, [currentWorkspaceId, searchQuery, hasTimeOnly, selectedProjectFilter]);
 
   useEffect(() => {
-    void loadProjects();
-  }, []);
+    if (currentWorkspaceId) {
+      void loadProjects();
+    }
+  }, [currentWorkspaceId]);
 
   useEffect(() => {
     if (activeTimerEntries.length === 0) {
@@ -344,6 +351,7 @@ export function DashboardPage() {
           description: newDescription || null,
           deadline: newDeadline || null,
           priority: newPriority,
+          workspace_id: currentWorkspaceId,
           project_id: newProjectId === "none" ? null : Number(newProjectId),
         }),
       );
@@ -373,7 +381,12 @@ export function DashboardPage() {
           <h1 className="page-heading">Focus Timer First</h1>
           <p className="page-copy">Контролируй время и задачи без лишней спешки.</p>
         </div>
-        <button className="button button--green dashboard-hero__button" type="button" onClick={openCreateTask}>
+        <button
+          className="button button--green dashboard-hero__button"
+          type="button"
+          onClick={openCreateTask}
+          disabled={!canCreateTasks(currentUserRole)}
+        >
           Создать задачу
         </button>
       </section>

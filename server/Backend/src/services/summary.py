@@ -8,6 +8,7 @@ from src.models.enums import TaskPriority
 from src.models.task import Task
 from src.schemas.project import ProjectTimeSummaryItem
 from src.services.project import build_projects_time_summary
+from src.services.workspace import get_accessible_workspace_id
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,13 @@ class ProjectsSummaryData:
     total_time_seconds: int
 
 
-async def build_summary(session: AsyncSession, user_id: int, limit: int = 10) -> SummaryData:
+async def build_summary(
+    session: AsyncSession,
+    user_id: int,
+    workspace_id: int | None = None,
+    limit: int = 10,
+) -> SummaryData:
+    resolved_workspace_id = await get_accessible_workspace_id(session, user_id, workspace_id)
     tasks_with_time = func.coalesce(
         func.sum(case((Task.total_time_seconds > 0, 1), else_=0)),
         0,
@@ -41,7 +48,7 @@ async def build_summary(session: AsyncSession, user_id: int, limit: int = 10) ->
     stats_stmt = select(
         func.coalesce(func.sum(Task.total_time_seconds), 0),
         tasks_with_time,
-    ).where(Task.user_id == user_id)
+    ).where(Task.workspace_id == resolved_workspace_id)
     stats_result = await session.execute(stats_stmt)
     total_time, tasks_with_time_count = stats_result.one()
 
@@ -54,7 +61,7 @@ async def build_summary(session: AsyncSession, user_id: int, limit: int = 10) ->
             Task.deadline,
             Task.priority,
         )
-        .where(Task.user_id == user_id, Task.total_time_seconds > 0)
+        .where(Task.workspace_id == resolved_workspace_id, Task.total_time_seconds > 0)
         .order_by(Task.total_time_seconds.desc(), Task.id.asc())
         .limit(limit)
     )
@@ -77,8 +84,12 @@ async def build_summary(session: AsyncSession, user_id: int, limit: int = 10) ->
     )
 
 
-async def build_projects_summary(session: AsyncSession, user_id: int) -> ProjectsSummaryData:
-    items = await build_projects_time_summary(session, user_id)
+async def build_projects_summary(
+    session: AsyncSession,
+    user_id: int,
+    workspace_id: int | None = None,
+) -> ProjectsSummaryData:
+    items = await build_projects_time_summary(session, user_id, workspace_id=workspace_id)
     return ProjectsSummaryData(
         items=items,
         total_time_seconds=sum(item.total_time_seconds for item in items),

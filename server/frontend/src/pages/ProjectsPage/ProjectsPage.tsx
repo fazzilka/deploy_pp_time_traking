@@ -15,6 +15,7 @@ import type {
   ProjectListItem,
   ProjectsTimeSummaryResponse,
 } from "../../shared/types/project";
+import { canCreateProjects, useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./ProjectsPage.css";
 
@@ -70,6 +71,7 @@ function ProjectMetricIcon({ type }: { type: "tasks" | "time" | "active" }) {
 
 export function ProjectsPage() {
   const navigate = useNavigate();
+  const { currentWorkspaceId, currentUserRole } = useWorkspace();
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [projectsSummary, setProjectsSummary] = useState<ProjectsTimeSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,8 +90,8 @@ export function ProjectsPage() {
 
     try {
       const [nextProjects, nextSummary] = await Promise.all([
-        ensureProjectsLoaded(),
-        getProjectsTimeSummary(),
+        ensureProjectsLoaded({ workspaceId: currentWorkspaceId ?? undefined }),
+        getProjectsTimeSummary(currentWorkspaceId ?? undefined),
       ]);
       setProjects(nextProjects);
       setProjectsSummary(nextSummary);
@@ -101,8 +103,10 @@ export function ProjectsPage() {
   }
 
   useEffect(() => {
-    void loadProjects();
-  }, []);
+    if (currentWorkspaceId) {
+      void loadProjects();
+    }
+  }, [currentWorkspaceId]);
 
   const unassignedProject = projectsSummary?.items.find((item) => item.project_id === null) ?? null;
   const maxProjectSeconds = useMemo(
@@ -126,6 +130,7 @@ export function ProjectsPage() {
         description: projectDescription || null,
         color: projectColor,
         icon: projectIcon,
+        workspace_id: currentWorkspaceId,
       });
       setProjectName("");
       setProjectDescription("");
@@ -160,7 +165,12 @@ export function ProjectsPage() {
             Проекты помогают группировать задачи и отслеживать время по направлениям работы.
           </p>
         </div>
-        <button className="button button--green projects-hero__button" type="button" onClick={() => setIsCreateOpen(true)}>
+        <button
+          className="button button--green projects-hero__button"
+          type="button"
+          onClick={() => setIsCreateOpen(true)}
+          disabled={!canCreateProjects(currentUserRole)}
+        >
           Создать проект
         </button>
       </section>

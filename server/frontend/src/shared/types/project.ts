@@ -2,6 +2,7 @@ import type { Task, TaskPriority } from "./task";
 
 export type Project = {
   id: number;
+  workspace_id?: number | null;
   name: string;
   description: string | null;
   color: string;
@@ -13,6 +14,7 @@ export type Project = {
 
 export type ProjectBadge = {
   id: number;
+  workspace_id?: number | null;
   name: string;
   color: string;
   icon: string;
@@ -30,6 +32,7 @@ export type ProjectCreateRequest = {
   description?: string | null;
   color: string;
   icon: string;
+  workspace_id?: number | null;
 };
 
 export type ProjectUpdateRequest = {

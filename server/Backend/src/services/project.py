@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
-from src.models.enums import TaskPriority
+from src.models.enums import TaskPriority, WorkspaceRole
 from src.models.project import Project
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
@@ -15,6 +15,11 @@ from src.schemas.project import (
     ProjectSummaryTask,
     ProjectTimeSummaryItem,
     ProjectUpdate,
+)
+from src.services.workspace import (
+    get_accessible_workspace_id,
+    require_workspace_mutation,
+    require_workspace_role,
 )
 
 UNASSIGNED_PROJECT_COLOR = "#8b949e"
@@ -45,8 +50,11 @@ async def create_project(
     user_id: int,
     payload: ProjectCreate,
 ) -> Project:
+    workspace_id = await get_accessible_workspace_id(session, user_id, payload.workspace_id)
+    await require_workspace_mutation(session, user_id, workspace_id)
     project = Project(
         owner_id=user_id,
+        workspace_id=workspace_id,
         name=payload.name,
         description=payload.description,
         color=payload.color,
@@ -63,8 +71,14 @@ async def create_project(
 
 
 async def get_project_or_404(session: AsyncSession, user_id: int, project_id: int) -> Project:
+    await require_workspace_role(
+        session,
+        user_id,
+        await _project_workspace_id_or_404(session, project_id),
+        {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER, WorkspaceRole.VIEWER},
+    )
     result = await session.execute(
-        select(Project).where(Project.id == project_id, Project.owner_id == user_id)
+        select(Project).where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()
     if project is None:
@@ -90,12 +104,15 @@ async def list_projects(
     session: AsyncSession,
     user_id: int,
     *,
+    workspace_id: int | None = None,
     include_archived: bool = False,
     search: str | None = None,
 ) -> list[ProjectListItem]:
+    resolved_workspace_id = await get_accessible_workspace_id(session, user_id, workspace_id)
     stmt = (
         select(
             Project.id,
+            Project.workspace_id,
             Project.name,
             Project.description,
             Project.color,
@@ -108,14 +125,18 @@ async def list_projects(
             _tasks_with_time_count_expr(),
             func.coalesce(func.sum(Task.total_time_seconds), 0),
         )
-        .outerjoin(Task, Task.project_id == Project.id)
+        .outerjoin(
+            Task,
+            and_(Task.project_id == Project.id, Task.workspace_id == Project.workspace_id),
+        )
         .outerjoin(
             TimeInterval,
             and_(TimeInterval.task_id == Task.id, TimeInterval.finished_at.is_(None)),
         )
-        .where(Project.owner_id == user_id)
+        .where(Project.workspace_id == resolved_workspace_id)
         .group_by(
             Project.id,
+            Project.workspace_id,
             Project.name,
             Project.description,
             Project.color,
@@ -135,6 +156,7 @@ async def list_projects(
     return [
         ProjectListItem(
             id=project_id,
+            workspace_id=project_workspace_id,
             name=name,
             description=description,
             color=color,
@@ -149,6 +171,7 @@ async def list_projects(
         )
         for (
             project_id,
+            project_workspace_id,
             name,
             description,
             color,
@@ -171,7 +194,9 @@ async def update_project(
     payload: ProjectUpdate,
 ) -> Project:
     project = await get_project_or_404(session, user_id, project_id)
+    await require_workspace_mutation(session, user_id, project.workspace_id)
     values = payload.model_dump(exclude_unset=True)
+    values.pop("workspace_id", None)
     for key, value in values.items():
         setattr(project, key, value)
 
@@ -186,6 +211,7 @@ async def update_project(
 
 async def archive_project(session: AsyncSession, user_id: int, project_id: int) -> None:
     project = await get_project_or_404(session, user_id, project_id)
+    await require_workspace_mutation(session, user_id, project.workspace_id)
     project.is_archived = True
     await session.commit()
 
@@ -210,7 +236,7 @@ async def build_project_summary(
             TimeInterval,
             and_(TimeInterval.task_id == Task.id, TimeInterval.finished_at.is_(None)),
         )
-        .where(Task.user_id == user_id, Task.project_id == project_id)
+        .where(Task.workspace_id == project.workspace_id, Task.project_id == project_id)
     )
     stats_result = await session.execute(stats_stmt)
     tasks_count, active_tasks_count, tasks_with_time_count, total_time_seconds = (
@@ -226,7 +252,11 @@ async def build_project_summary(
             Task.deadline,
             Task.priority,
         )
-        .where(Task.user_id == user_id, Task.project_id == project_id, Task.total_time_seconds > 0)
+        .where(
+            Task.workspace_id == project.workspace_id,
+            Task.project_id == project_id,
+            Task.total_time_seconds > 0,
+        )
         .order_by(Task.total_time_seconds.desc(), Task.id.asc())
         .limit(limit)
     )
@@ -245,6 +275,7 @@ async def build_project_summary(
 
     return ProjectSummary(
         id=project.id,
+        workspace_id=project.workspace_id,
         name=project.name,
         description=project.description,
         color=project.color,
@@ -263,7 +294,9 @@ async def build_project_summary(
 async def build_projects_time_summary(
     session: AsyncSession,
     user_id: int,
+    workspace_id: int | None = None,
 ) -> list[ProjectTimeSummaryItem]:
+    resolved_workspace_id = await get_accessible_workspace_id(session, user_id, workspace_id)
     stmt = (
         select(
             Project.id,
@@ -280,7 +313,7 @@ async def build_projects_time_summary(
             TimeInterval,
             and_(TimeInterval.task_id == Task.id, TimeInterval.finished_at.is_(None)),
         )
-        .where(Task.user_id == user_id)
+        .where(Task.workspace_id == resolved_workspace_id)
         .group_by(Project.id, Project.name, Project.color, Project.icon)
         .order_by(func.coalesce(func.sum(Task.total_time_seconds), 0).desc(), Project.name.asc())
     )
@@ -315,3 +348,11 @@ async def build_projects_time_summary(
             raw_items
         )
     ]
+
+
+async def _project_workspace_id_or_404(session: AsyncSession, project_id: int) -> int:
+    result = await session.execute(select(Project.workspace_id).where(Project.id == project_id))
+    workspace_id = result.scalar_one_or_none()
+    if workspace_id is None:
+        raise _project_not_found_error()
+    return int(workspace_id)

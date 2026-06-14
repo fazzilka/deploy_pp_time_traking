@@ -33,6 +33,10 @@ function serializeQuery(query: TaskQuery = {}): string {
     params.set("priority", query.priority);
   }
 
+  if (query.workspaceId !== undefined) {
+    params.set("workspace_id", String(query.workspaceId));
+  }
+
   if (query.deadlineBefore) {
     params.set("deadline_before", query.deadlineBefore);
   }
@@ -89,6 +93,7 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
       const matchesSearch = !search || task.title.toLowerCase().includes(search);
       const matchesTime = !query.hasTime || task.total_time_seconds > 0;
       const matchesPriority = !query.priority || task.priority === query.priority;
+      const matchesWorkspace = query.workspaceId === undefined || task.workspace_id === query.workspaceId;
       const matchesDeadlineBefore =
         !query.deadlineBefore || Boolean(task.deadline && task.deadline <= query.deadlineBefore);
       const matchesDeadlineAfter =
@@ -100,6 +105,7 @@ export async function getTasks(query: TaskQuery = {}): Promise<Task[]> {
         matchesSearch &&
         matchesTime &&
         matchesPriority &&
+        matchesWorkspace &&
         matchesDeadlineBefore &&
         matchesDeadlineAfter &&
         matchesProject &&
@@ -132,6 +138,7 @@ export async function createTask(payload: CreateTaskRequest): Promise<Task> {
       total_time_seconds: 0,
       deadline: payload.deadline || null,
       priority: payload.priority ?? "medium",
+      workspace_id: payload.workspace_id ?? 1,
       project_id: payload.project_id ?? null,
       project: getMockProjectBadge(payload.project_id),
       is_completed: false,
@@ -235,6 +242,10 @@ export async function updateTask(taskId: number, payload: UpdateTaskRequest): Pr
     if (payload.project_id !== undefined) {
       task.project_id = payload.project_id;
       task.project = getMockProjectBadge(payload.project_id);
+    }
+
+    if (payload.assignee_id !== undefined) {
+      task.assignee_id = payload.assignee_id;
     }
 
     if (payload.is_completed !== undefined) {

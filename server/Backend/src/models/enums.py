@@ -12,3 +12,20 @@ class TaskPriority(StrEnum):
     MEDIUM = "medium"
     HIGH = "high"
     HIGHEST = "highest"
+
+
+class WorkspaceType(StrEnum):
+    PERSONAL = "personal"
+    TEAM = "team"
+
+
+class WorkspaceRole(StrEnum):
+    OWNER = "owner"
+    TEAM_LEAD = "team_lead"
+    MEMBER = "member"
+    VIEWER = "viewer"
+
+
+class WorkspaceMemberStatus(StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"

@@ -8,6 +8,7 @@ class TimeIntervalRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    user_id: int | None = None
     started_at: datetime
     ended_at: datetime | None
 
@@ -22,6 +23,7 @@ class TimeIntervalRead(BaseModel):
         if hasattr(data, "finished_at"):
             return {
                 "id": data.id,
+                "user_id": getattr(data, "user_id", None),
                 "started_at": data.started_at,
                 "ended_at": data.finished_at,
             }

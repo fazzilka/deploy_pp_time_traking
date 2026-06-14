@@ -21,6 +21,7 @@ import {
 import { createTask, deleteTask, startTaskTimer, stopTaskTimer, updateTask } from "../../shared/api/tasks";
 import type { Project, ProjectListItem, ProjectSummary, ProjectSummaryTask } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
+import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./ProjectDetailPage.css";
 
@@ -155,6 +156,7 @@ function applyProjectSummaryTaskMutation(
 }
 
 export function ProjectDetailPage() {
+  const { currentWorkspaceId } = useWorkspace();
   const { projectId } = useParams();
   const navigate = useNavigate();
   const numericProjectId = Number(projectId);
@@ -232,7 +234,7 @@ export function ProjectDetailPage() {
       const [nextProject, nextSummary, nextProjects] = await Promise.all([
         getProject(numericProjectId),
         getProjectSummary(numericProjectId),
-        ensureProjectsLoaded(),
+        ensureProjectsLoaded({ workspaceId: currentWorkspaceId ?? undefined }),
       ]);
       setProject(nextProject);
       setSummary(nextSummary);
@@ -333,7 +335,7 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     void loadProjectData();
-  }, [numericProjectId]);
+  }, [currentWorkspaceId, numericProjectId]);
 
   useEffect(() => {
     if (!project) {
@@ -505,6 +507,7 @@ export function ProjectDetailPage() {
           description: taskDescription || null,
           deadline: taskDeadline || null,
           priority: taskPriority,
+          workspace_id: project?.workspace_id ?? currentWorkspaceId,
           project_id: numericProjectId,
         }),
       );

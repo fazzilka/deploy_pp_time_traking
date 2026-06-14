@@ -7,6 +7,7 @@ import { ProjectDetailPage } from "../pages/ProjectDetailPage/ProjectDetailPage"
 import { ProjectsPage } from "../pages/ProjectsPage/ProjectsPage";
 import { ProfilePage } from "../pages/ProfilePage/ProfilePage";
 import { ReportsPage } from "../pages/ReportsPage/ReportsPage";
+import { TeamPage } from "../pages/TeamPage";
 import { isAuthenticated } from "../shared/api/auth";
 import { RouteErrorPage } from "./RouteErrorPage";
 
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
           {
             path: "/reports",
             element: <ReportsPage />,
+          },
+          {
+            path: "/team",
+            element: <TeamPage />,
           },
         ],
       },

@@ -45,6 +45,7 @@ class ProjectBase(BaseModel):
     description: str | None = Field(default=None, max_length=1000)
     color: str = Field(default="#2ea043", pattern=HEX_COLOR_PATTERN)
     icon: str = Field(default="folder", max_length=64)
+    workspace_id: int | None = None
 
     @field_validator("name")
     @classmethod
@@ -120,6 +121,7 @@ class ProjectRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    workspace_id: int | None = None
     name: str
     description: str | None = None
     color: str
@@ -133,6 +135,7 @@ class ProjectBadge(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    workspace_id: int | None = None
     name: str
     color: str
     icon: str

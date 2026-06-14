@@ -13,7 +13,9 @@ class TaskBase(BaseModel):
     description: str | None = None
     deadline: date | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
+    workspace_id: int | None = None
     project_id: int | None = None
+    assignee_id: int | None = None
 
 
 class TaskCreate(TaskBase):
@@ -26,6 +28,7 @@ class TaskUpdate(BaseModel):
     deadline: date | None = None
     priority: TaskPriority | None = None
     project_id: int | None = None
+    assignee_id: int | None = None
     is_completed: bool | None = None
 
 
@@ -38,7 +41,10 @@ class TaskRead(BaseModel):
     total_time_seconds: int
     deadline: date | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
+    workspace_id: int | None = None
     project_id: int | None = None
+    created_by_id: int | None = None
+    assignee_id: int | None = None
     project: ProjectBadge | None = None
     is_completed: bool = False
     created_at: datetime | None = None
@@ -61,7 +67,10 @@ class TaskRead(BaseModel):
                 "total_time_seconds": data.total_time_seconds,
                 "deadline": getattr(data, "deadline", None),
                 "priority": getattr(data, "priority", TaskPriority.MEDIUM),
+                "workspace_id": getattr(data, "workspace_id", None),
                 "project_id": getattr(data, "project_id", None),
+                "created_by_id": getattr(data, "created_by_id", None),
+                "assignee_id": getattr(data, "assignee_id", None),
                 "project": getattr(data, "__dict__", {}).get("project"),
                 "is_completed": getattr(data, "is_completed", False),
                 "created_at": getattr(data, "created_at", None),

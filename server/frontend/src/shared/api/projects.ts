@@ -27,7 +27,9 @@ import type { Task, TaskQuery } from "../types/task";
 const projectsStore: ProjectListItem[] = mockProjects.map((project) => ({ ...project }));
 const pendingProjectRequests = new Map<string, Promise<unknown>>();
 
-function serializeProjectParams(params: { includeArchived?: boolean; search?: string } = {}): string {
+function serializeProjectParams(
+  params: { includeArchived?: boolean; search?: string; workspaceId?: number } = {},
+): string {
   const searchParams = new URLSearchParams();
 
   if (params.includeArchived) {
@@ -36,6 +38,10 @@ function serializeProjectParams(params: { includeArchived?: boolean; search?: st
 
   if (params.search) {
     searchParams.set("search", params.search);
+  }
+
+  if (params.workspaceId !== undefined) {
+    searchParams.set("workspace_id", String(params.workspaceId));
   }
 
   const search = searchParams.toString();
@@ -55,6 +61,10 @@ function serializeTaskQuery(query: TaskQuery = {}): string {
 
   if (query.priority) {
     params.set("priority", query.priority);
+  }
+
+  if (query.workspaceId !== undefined) {
+    params.set("workspace_id", String(query.workspaceId));
   }
 
   if (query.deadlineBefore) {
@@ -101,7 +111,9 @@ function getProjectById(projectId: number): ProjectListItem {
 }
 
 function buildProjectStats(project: ProjectListItem, tasks: Task[]): ProjectListItem {
-  const projectTasks = tasks.filter((task) => task.project_id === project.id);
+  const projectTasks = tasks.filter(
+    (task) => task.project_id === project.id && task.workspace_id === project.workspace_id,
+  );
 
   return {
     ...project,
@@ -147,22 +159,22 @@ export function invalidateProjectsCache(): void {
   pendingProjectRequests.clear();
 }
 
-export function ensureProjectsLoaded(options: { force?: boolean } = {}): Promise<ProjectListItem[]> {
+export function ensureProjectsLoaded(options: { force?: boolean; workspaceId?: number } = {}): Promise<ProjectListItem[]> {
   if (options.force) {
     invalidateProjectsListCache();
-    pendingProjectRequests.delete("/api/v1/projects");
+    pendingProjectRequests.delete(`/api/v1/projects${serializeProjectParams({ workspaceId: options.workspaceId })}`);
   } else {
-    const cachedProjects = getCachedProjects();
+    const cachedProjects = options.workspaceId === undefined ? getCachedProjects() : null;
     if (cachedProjects) {
       return Promise.resolve(cachedProjects);
     }
   }
 
-  return getProjects();
+  return getProjects({ workspaceId: options.workspaceId });
 }
 
 export async function getProjects(
-  params: { includeArchived?: boolean; search?: string } = {},
+  params: { includeArchived?: boolean; search?: string; workspaceId?: number } = {},
 ): Promise<ProjectListItem[]> {
   const query = serializeProjectParams(params);
   const path = `/api/v1/projects${query}`;
@@ -173,7 +185,8 @@ export async function getProjects(
     return projects.filter((project) => {
       const matchesArchive = params.includeArchived || !project.is_archived;
       const matchesSearch = !search || project.name.toLowerCase().includes(search);
-      return matchesArchive && matchesSearch;
+      const matchesWorkspace = params.workspaceId === undefined || project.workspace_id === params.workspaceId;
+      return matchesArchive && matchesSearch && matchesWorkspace;
     });
   }
 
@@ -205,6 +218,7 @@ export async function createProject(payload: ProjectCreateRequest): Promise<Proj
     const now = new Date().toISOString();
     const project: ProjectListItem = {
       id: Math.max(...projectsStore.map((item) => item.id), 0) + 1,
+      workspace_id: payload.workspace_id ?? 1,
       name: payload.name.trim(),
       description: payload.description?.trim() || null,
       color: payload.color,
@@ -328,11 +342,12 @@ export async function getProjectTasks(projectId: number, query: TaskQuery = {}):
   return apiRequest<Task[]>(`/api/v1/projects/${projectId}/tasks${serializeTaskQuery(query)}`);
 }
 
-export async function getProjectsTimeSummary(): Promise<ProjectsTimeSummaryResponse> {
-  const path = "/api/v1/summary/projects";
+export async function getProjectsTimeSummary(workspaceId?: number): Promise<ProjectsTimeSummaryResponse> {
+  const query = workspaceId !== undefined ? `?workspace_id=${workspaceId}` : "";
+  const path = `/api/v1/summary/projects${query}`;
 
   if (USE_MOCKS) {
-    const tasks = await getTasks({ limit: 100 });
+    const tasks = await getTasks({ limit: 100, workspaceId });
     const byProject = new Map<number | null, ProjectTimeSummaryItem>();
 
     tasks.forEach((task) => {
@@ -371,7 +386,7 @@ export async function getProjectsTimeSummary(): Promise<ProjectsTimeSummaryRespo
     };
   }
 
-  const cachedSummary = getCachedProjectsTimeSummary();
+  const cachedSummary = workspaceId === undefined ? getCachedProjectsTimeSummary() : null;
   if (cachedSummary) {
     return cachedSummary;
   }
@@ -384,7 +399,9 @@ export async function getProjectsTimeSummary(): Promise<ProjectsTimeSummaryRespo
   return rememberPending(
     path,
     apiRequest<ProjectsTimeSummaryResponse>(path).then((summary) => {
-      setCachedProjectsTimeSummary(summary);
+      if (workspaceId === undefined) {
+        setCachedProjectsTimeSummary(summary);
+      }
       return summary;
     }),
   );

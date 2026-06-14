@@ -35,12 +35,21 @@ SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 async def get_projects(
     session: SessionDep,
     current_user: CurrentUserDep,
+    workspace_id: Annotated[int | None, Query()] = None,
     include_archived: Annotated[bool, Query()] = False,
     search: Annotated[str | None, Query()] = None,
 ) -> list[ProjectListItem]:
+    if workspace_id is None:
+        return await list_projects(
+            session,
+            current_user.id,
+            include_archived=include_archived,
+            search=search,
+        )
     return await list_projects(
         session,
         current_user.id,
+        workspace_id=workspace_id,
         include_archived=include_archived,
         search=search,
     )
@@ -110,6 +119,7 @@ async def get_project_tasks(
     return await fetch_tasks(
         session,
         current_user.id,
+        workspace_id=None,
         search=search,
         has_time=has_time,
         priority=priority,

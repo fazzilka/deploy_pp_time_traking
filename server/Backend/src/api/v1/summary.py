@@ -16,9 +16,10 @@ SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 async def get_summary(
     session: SessionDep,
     current_user: CurrentUserDep,
+    workspace_id: Annotated[int | None, Query()] = None,
     limit: int = Query(default=10, ge=1, le=100),
 ) -> SummaryResponse:
-    summary = await build_summary(session, current_user.id, limit=limit)
+    summary = await build_summary(session, current_user.id, workspace_id=workspace_id, limit=limit)
     return SummaryResponse(
         total_time_seconds_all_tasks=summary.total_time_seconds_all_tasks,
         tasks_with_time_count=summary.tasks_with_time_count,
@@ -30,8 +31,9 @@ async def get_summary(
 async def get_projects_summary(
     session: SessionDep,
     current_user: CurrentUserDep,
+    workspace_id: Annotated[int | None, Query()] = None,
 ) -> ProjectsTimeSummaryResponse:
-    summary = await build_projects_summary(session, current_user.id)
+    summary = await build_projects_summary(session, current_user.id, workspace_id=workspace_id)
     return ProjectsTimeSummaryResponse(
         items=summary.items,
         total_time_seconds=summary.total_time_seconds,

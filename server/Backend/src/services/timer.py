@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
+from src.services.workspace import require_workspace_mutation
 
 
 def utc_now() -> datetime:
@@ -26,7 +27,14 @@ async def start_timer(session: AsyncSession, task_id: int, user_id: int) -> Task
             status_code=status.HTTP_409_CONFLICT,
             detail="Активный интервал уже существует",
         )
-    session.add(TimeInterval(task_id=task_id, started_at=utc_now(), finished_at=None))
+    session.add(
+        TimeInterval(
+            task_id=task_id,
+            user_id=user_id,
+            started_at=utc_now(),
+            finished_at=None,
+        )
+    )
     await session.commit()
     await session.refresh(task)
     return task
@@ -52,11 +60,12 @@ async def stop_timer(session: AsyncSession, task_id: int, user_id: int) -> Task:
 
 
 async def _get_task_for_update(session: AsyncSession, task_id: int, user_id: int) -> Task:
-    stmt = select(Task).where(Task.id == task_id, Task.user_id == user_id).with_for_update()
+    stmt = select(Task).where(Task.id == task_id).with_for_update()
     result = await session.execute(stmt)
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+    await require_workspace_mutation(session, user_id, task.workspace_id)
     return task
 
 

@@ -37,11 +37,22 @@ function getSummaryCacheState(path: string) {
   return nextCache;
 }
 
-export async function getSummary(limit?: number, options: CacheOptions = {}): Promise<SummaryResponse> {
-  const path = `/api/v1/summary${limit ? `?limit=${limit}` : ""}`;
+export async function getSummary(
+  limit?: number,
+  options: CacheOptions & { workspaceId?: number } = {},
+): Promise<SummaryResponse> {
+  const params = new URLSearchParams();
+  if (limit) {
+    params.set("limit", String(limit));
+  }
+  if (options.workspaceId !== undefined) {
+    params.set("workspace_id", String(options.workspaceId));
+  }
+  const query = params.toString();
+  const path = `/api/v1/summary${query ? `?${query}` : ""}`;
 
   if (USE_MOCKS) {
-    const tasks = await getTasks();
+    const tasks = await getTasks({ workspaceId: options.workspaceId });
     const topTasksLimit = limit ?? 5;
 
     return {
@@ -90,7 +101,7 @@ export async function getSummary(limit?: number, options: CacheOptions = {}): Pr
   return request;
 }
 
-export async function getReportsData(year: number, options: CacheOptions = {}): Promise<{
+export async function getReportsData(year: number, options: CacheOptions & { workspaceId?: number } = {}): Promise<{
   summary: SummaryResponse;
   activity: ActivityResponse;
   projectsSummary: ProjectsTimeSummaryResponse;
@@ -98,7 +109,7 @@ export async function getReportsData(year: number, options: CacheOptions = {}): 
   const [summary, activity, projectsSummary] = await Promise.all([
     getSummary(3, options),
     getUserActivity(year, options),
-    getProjectsTimeSummary(),
+    getProjectsTimeSummary(options.workspaceId),
   ]);
 
   return {

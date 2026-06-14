@@ -9,6 +9,7 @@ from src.db.session import Base
 if TYPE_CHECKING:
     from src.models.task import Task
     from src.models.user import User
+    from src.models.workspace import Workspace
 
 
 class Project(Base):
@@ -17,11 +18,16 @@ class Project(Base):
         UniqueConstraint("owner_id", "name", name="uq_projects_owner_id_name"),
         Index("ix_projects_owner_id_created_at", "owner_id", "created_at"),
         Index("ix_projects_owner_id_is_archived", "owner_id", "is_archived"),
+        Index("ix_projects_workspace_id", "workspace_id"),
+        Index("ix_projects_workspace_id_is_archived", "workspace_id", "is_archived"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
@@ -42,4 +48,5 @@ class Project(Base):
     )
 
     owner: Mapped[User] = relationship(back_populates="projects")
+    workspace: Mapped[Workspace] = relationship(back_populates="projects")
     tasks: Mapped[list[Task]] = relationship(back_populates="project")

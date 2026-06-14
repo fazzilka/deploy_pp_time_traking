@@ -11,12 +11,15 @@ from src.db.session import get_db_session
 from src.main import app
 from src.models.enums import WorkspaceMemberStatus, WorkspaceRole, WorkspaceType
 from src.schemas.workspace import (
+    WorkspaceMemberAdd,
     WorkspaceMemberRead,
     WorkspaceMemberSummaryItem,
     WorkspaceMemberSummaryResponse,
     WorkspaceMemberUser,
     WorkspaceRead,
+    WorkspaceSummary,
 )
+from tests.conftest import DummyResult, DummySession
 
 NOW = datetime(2026, 6, 1, 10, 0, tzinfo=UTC)
 
@@ -60,6 +63,34 @@ def _member(**overrides) -> WorkspaceMemberRead:
     )
 
 
+def _workspace_summary(**overrides) -> WorkspaceSummary:
+    workspace = _workspace(
+        id=overrides.get("workspace_id", 2),
+        type=WorkspaceType.TEAM,
+        name=overrides.get("workspace_name", "Engineering"),
+        members_count=overrides.get("members_count", 2),
+        projects_count=overrides.get("projects_count", 3),
+        tasks_count=overrides.get("tasks_count", 7),
+    )
+    return WorkspaceSummary(
+        workspace=workspace,
+        members_count=overrides.get("members_count", 2),
+        active_members_count=overrides.get("active_members_count", 2),
+        projects_count=overrides.get("projects_count", 3),
+        active_projects_count=overrides.get("active_projects_count", 3),
+        tasks_count=overrides.get("tasks_count", 7),
+        active_tasks_count=overrides.get("active_tasks_count", 1),
+        completed_tasks_count=overrides.get("completed_tasks_count", 4),
+        total_time_seconds=overrides.get("total_time_seconds", 3600),
+    )
+
+
+class WorkspaceServiceSession(DummySession):
+    async def refresh(self, item) -> None:
+        item.id = getattr(item, "id", None) or 99
+        item.joined_at = getattr(item, "joined_at", None) or NOW
+
+
 async def _override_session():
     yield object()
 
@@ -89,6 +120,41 @@ async def test_list_workspaces_returns_user_workspaces(
     data = response.json()
     assert data[0]["name"] == "Личное пространство"
     assert data[0]["current_user_role"] == "owner"
+
+
+@pytest.mark.asyncio
+async def test_list_workspaces_returns_team_workspace_for_added_member(
+    test_client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def override_added_user():
+        return SimpleNamespace(id=2)
+
+    async def fake_get_user_workspaces(_session, user):
+        assert user.id == 2
+        return [
+            _workspace(id=1),
+            _workspace(
+                id=7,
+                name="Engineering",
+                type=WorkspaceType.TEAM,
+                owner_id=1,
+                current_user_role=WorkspaceRole.MEMBER,
+            ),
+        ]
+
+    monkeypatch.setattr("src.api.v1.workspaces.get_user_workspaces", fake_get_user_workspaces)
+    app.dependency_overrides[get_db_session] = _override_session
+    app.dependency_overrides[get_current_active_user] = override_added_user
+    try:
+        response = await test_client.get("/api/v1/workspaces")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [workspace["name"] for workspace in data] == ["Личное пространство", "Engineering"]
+    assert data[1]["current_user_role"] == "member"
 
 
 @pytest.mark.asyncio
@@ -168,6 +234,73 @@ async def test_add_workspace_member_returns_duplicate_error(
 
 
 @pytest.mark.asyncio
+async def test_add_workspace_member_service_persists_real_membership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.user import User
+    from src.models.workspace import WorkspaceMember
+    from src.services.workspace import add_workspace_member_by_email
+
+    session = WorkspaceServiceSession()
+    target_user = User(
+        id=42,
+        email="member@example.com",
+        username="member",
+        full_name="Team Member",
+        hashed_password="hashed",
+        is_active=True,
+    )
+    session.execute_results = [DummyResult(scalar_one_or_none=target_user)]
+
+    async def fake_require_role(_session, _user_id, _workspace_id, _roles):
+        return SimpleNamespace(role=WorkspaceRole.OWNER)
+
+    async def fake_get_active_membership(_session, _user_id, _workspace_id):
+        return None
+
+    monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
+    monkeypatch.setattr("src.services.workspace.get_active_membership", fake_get_active_membership)
+
+    member = await add_workspace_member_by_email(
+        session,
+        SimpleNamespace(id=1),
+        7,
+        WorkspaceMemberAdd(email="member@example.com", role=WorkspaceRole.MEMBER),
+    )
+
+    persisted_member = next(item for item in session.items if isinstance(item, WorkspaceMember))
+    assert persisted_member.workspace_id == 7
+    assert persisted_member.user_id == 42
+    assert persisted_member.role == WorkspaceRole.MEMBER
+    assert persisted_member.status == WorkspaceMemberStatus.ACTIVE
+    assert session.committed is True
+    assert member.workspace_id == 7
+    assert member.user.email == "member@example.com"
+
+
+@pytest.mark.asyncio
+async def test_add_workspace_member_service_rejects_owner_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.services.workspace import add_workspace_member_by_email
+
+    async def fake_require_role(_session, _user_id, _workspace_id, _roles):
+        return SimpleNamespace(role=WorkspaceRole.OWNER)
+
+    monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await add_workspace_member_by_email(
+            WorkspaceServiceSession(),
+            SimpleNamespace(id=1),
+            7,
+            WorkspaceMemberAdd(email="member@example.com", role=WorkspaceRole.OWNER),
+        )
+
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_workspace_member_summary_returns_member_totals(
     test_client,
     monkeypatch: pytest.MonkeyPatch,
@@ -186,6 +319,7 @@ async def test_workspace_member_summary_returns_member_totals(
                 WorkspaceMemberSummaryItem(
                     user=member.user,
                     role=member.role,
+                    status=member.status,
                     tasks_count=member.tasks_count,
                     completed_tasks_count=member.completed_tasks_count,
                     projects_count=member.projects_count,
@@ -206,6 +340,31 @@ async def test_workspace_member_summary_returns_member_totals(
     data = response.json()
     assert data["items"][0]["tasks_count"] == 3
     assert data["items"][0]["total_time_seconds"] == 420
+
+
+@pytest.mark.asyncio
+async def test_workspace_summary_returns_active_and_completed_counts(
+    test_client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_workspace_summary(_session, user, workspace_id):
+        assert user.id == 1
+        assert workspace_id == 2
+        return _workspace_summary()
+
+    monkeypatch.setattr("src.api.v1.workspaces.build_workspace_summary", fake_workspace_summary)
+    app.dependency_overrides[get_db_session] = _override_session
+    app.dependency_overrides[get_current_active_user] = _override_user
+    try:
+        response = await test_client.get("/api/v1/workspaces/2/summary")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["active_members_count"] == 2
+    assert data["active_tasks_count"] == 1
+    assert data["completed_tasks_count"] == 4
 
 
 @pytest.mark.asyncio

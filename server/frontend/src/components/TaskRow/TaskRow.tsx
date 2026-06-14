@@ -1,8 +1,7 @@
 import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
 import type { Task } from "../../shared/types/task";
-import { formatDeadline } from "../../shared/utils/date";
-import { formatDeadlineCountdownCompact } from "../../shared/utils/deadline";
+import { formatTaskRowDeadline } from "../../shared/utils/deadline";
 import { formatDuration } from "../../shared/utils/time";
 import "./TaskRow.css";
 
@@ -30,9 +29,8 @@ export function TaskRow({
   onToggleCompleted,
 }: TaskRowProps) {
   const isCompleted = task.is_completed;
-  const deadlineCountdown = formatDeadlineCountdownCompact(task.deadline);
-  const deadlineStatus = isCompleted ? "completed" : deadlineCountdown.status;
-  const deadlineDetail = task.deadline ? deadlineCountdown.label : null;
+  const deadline = formatTaskRowDeadline(task.deadline);
+  const deadlineStatus = isCompleted ? "completed" : deadline.status;
 
   return (
     <article
@@ -70,8 +68,8 @@ export function TaskRow({
 
       <div className={`task-row__deadline task-row__deadline--${deadlineStatus}`}>
         <span className="task-row__deadline-label">Дедлайн</span>
-        <span className="task-row__deadline-date">{formatDeadline(task.deadline)}</span>
-        {deadlineDetail ? <em className="task-row__deadline-detail">{deadlineDetail}</em> : null}
+        <span className="task-row__deadline-date">{deadline.dateLabel}</span>
+        <em className="task-row__deadline-detail">{deadline.countdownLabel}</em>
       </div>
 
       <div className="task-row__time">{formatDuration(displaySeconds)}</div>

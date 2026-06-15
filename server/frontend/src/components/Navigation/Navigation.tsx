@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { getCurrentUser } from "../../shared/api/profile";
+import { GeneratedAvatar } from "../GeneratedAvatar";
+import { getCurrentUser, userProfileUpdatedEvent } from "../../shared/api/profile";
 import { logout } from "../../shared/api/auth";
 import { createWorkspace } from "../../shared/api/workspaces";
-import { getAvatarColor } from "../../shared/utils/avatar";
 import type { UserProfile } from "../../shared/types/user";
 import type { Workspace } from "../../shared/types/workspace";
 import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
@@ -118,6 +118,13 @@ export function Navigation() {
   useEffect(() => {
     let isMounted = true;
 
+    function handleProfileUpdated(event: Event) {
+      const nextUser = (event as CustomEvent<UserProfile>).detail;
+      if (nextUser) {
+        setUser(nextUser);
+      }
+    }
+
     getCurrentUser()
       .then((currentUser) => {
         if (isMounted) {
@@ -130,8 +137,11 @@ export function Navigation() {
         }
       });
 
+    window.addEventListener(userProfileUpdatedEvent, handleProfileUpdated);
+
     return () => {
       isMounted = false;
+      window.removeEventListener(userProfileUpdatedEvent, handleProfileUpdated);
     };
   }, []);
 
@@ -224,7 +234,7 @@ export function Navigation() {
   }
 
   const avatarLabel = user?.avatar_letter || user?.username.slice(0, 1).toUpperCase() || "T";
-  const avatarColor = getAvatarColor(user?.username || "time-tracking");
+  const avatarSeed = user?.avatar_seed ?? user?.email ?? user?.username ?? user?.id ?? avatarLabel;
   const currentWorkspaceIcon = getWorkspaceIcon(currentWorkspace);
 
   return (
@@ -359,11 +369,10 @@ export function Navigation() {
           <button
             className="navigation__avatar"
             type="button"
-            style={{ backgroundColor: avatarColor }}
             aria-label="Профиль пользователя"
             onClick={() => navigate("/profile")}
           >
-            {avatarLabel}
+            <GeneratedAvatar seed={avatarSeed} letter={avatarLabel} size={38} title="Профиль пользователя" />
           </button>
 
           <span className="navigation__username">{user?.username ?? "Профиль"}</span>

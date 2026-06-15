@@ -16,9 +16,10 @@ type AvatarCell = {
 
 const gridSize = 5;
 const visibleColumns = 3;
-const cellSize = 16;
-const cellGap = 4;
-const gridStart = 2;
+const cellSize = 14;
+const cellGap = 3;
+const gridTotalSize = gridSize * cellSize + (gridSize - 1) * cellGap;
+const gridStart = (100 - gridTotalSize) / 2;
 const minFilledCells = 6;
 const maxFilledCells = 18;
 
@@ -140,7 +141,7 @@ export const GeneratedAvatar = memo(function GeneratedAvatar({
   return (
     <span className={`generated-avatar${className ? ` ${className}` : ""}`} style={style} title={avatar.title}>
       <svg className="generated-avatar__svg" viewBox="0 0 100 100" role="img" aria-label={avatar.title}>
-        <rect className="generated-avatar__background" width="100" height="100" rx="0" />
+        <circle className="generated-avatar__background" cx="50" cy="50" r="49" />
 
         {avatar.cells.map((cell) => (
           <rect

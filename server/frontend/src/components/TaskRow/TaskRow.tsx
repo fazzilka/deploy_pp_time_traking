@@ -40,25 +40,65 @@ export function TaskRow({
   const deadlineStatus = isCompleted ? "completed" : deadlineCountdown.status;
   const deadlineDetail = task.deadline ? deadlineCountdown.label : null;
 
+  const rowClassName = [
+    "task-row",
+    isActive ? "task-row--active" : "",
+    isCompleted ? "task-row--completed" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const actionButtonClassName = [
+    "task-row__button",
+    "button",
+    isActive ? "button--red" : "button--green",
+    isCompleted && !isActive ? "task-row__button--completed" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  function handleOpen() {
+    onOpen(task);
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(task);
+    }
+  }
+
+  function handleToggleCompleted(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onToggleCompleted(task);
+  }
+
+  function handleTimerClick(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+
+    if (isCompleted && !isActive) {
+      return;
+    }
+
+    if (isActive) {
+      onStop(task.id);
+      return;
+    }
+
+    onStart(task.id);
+  }
+
+  function handleDelete(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onDelete(task.id);
+  }
+
   return (
-    <article
-      className={`task-row${isActive ? " task-row--active" : ""}${isCompleted ? " task-row--completed" : ""}`}
-      onClick={() => onOpen(task)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          onOpen(task);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
+    <article className={rowClassName} onClick={handleOpen} onKeyDown={handleKeyDown} role="button" tabIndex={0}>
       <button
         className={`task-row__complete-button${isCompleted ? " task-row__complete-button--completed" : ""}`}
         type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggleCompleted(task);
-        }}
+        onClick={handleToggleCompleted}
         disabled={isBusy || !canToggleCompleted}
         aria-label={isCompleted ? "Вернуть задачу в работу" : "Отметить задачу как выполненную"}
       >
@@ -68,6 +108,7 @@ export function TaskRow({
       <div className="task-row__content">
         <h3 className="task-row__title">{task.title}</h3>
         <p className="task-row__description">{task.description || "Без описания"}</p>
+
         <div className="task-row__meta">
           <ProjectBadge project={task.project} fallback />
           <PriorityIcon priority={task.priority} />
@@ -82,29 +123,26 @@ export function TaskRow({
 
       <div className="task-row__time">{formatDuration(displaySeconds)}</div>
 
-      <button
-        className={`task-row__button button ${isActive ? "button--red" : "button--green"}${isCompleted && !isActive ? " task-row__button--completed" : ""}`}
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          isActive ? onStop(task.id) : onStart(task.id);
-        }}
-        disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
-      >
-        {isActive ? "Stop" : isCompleted ? "Done" : "Start"}
-      </button>
-      <button
-        className="task-row__delete"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDelete(task.id);
-        }}
-        disabled={isBusy || !canDeleteTask}
-        aria-label={`Удалить задачу ${task.title}`}
-      >
-        ×
-      </button>
+      <div className="task-row__actions">
+        <button
+          className={actionButtonClassName}
+          type="button"
+          onClick={handleTimerClick}
+          disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
+        >
+          {isActive ? "Stop" : isCompleted ? "Done" : "Start"}
+        </button>
+
+        <button
+          className="task-row__delete"
+          type="button"
+          onClick={handleDelete}
+          disabled={isBusy || !canDeleteTask}
+          aria-label={`Удалить задачу ${task.title}`}
+        >
+          ×
+        </button>
+      </div>
     </article>
   );
 }

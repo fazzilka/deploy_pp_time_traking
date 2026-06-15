@@ -81,6 +81,7 @@ class WorkspaceMemberUser(BaseModel):
     username: str
     full_name: str | None = None
     avatar_letter: str = ""
+    avatar_seed: str | None = None
     is_active: bool
 
     @model_validator(mode="after")

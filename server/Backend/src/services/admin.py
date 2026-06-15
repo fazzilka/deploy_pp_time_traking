@@ -164,6 +164,7 @@ async def get_system_stats(session: AsyncSession) -> AdminSystemStats:
             username=user.username,
             full_name=user.full_name,
             avatar_letter=get_avatar_letter(user),
+            avatar_seed=user.avatar_seed,
             total_time_seconds=int(total_time),
         )
         for user, total_time in top_users_result.all()

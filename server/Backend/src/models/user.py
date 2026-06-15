@@ -21,6 +21,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    avatar_seed: Mapped[str] = mapped_column(String(128), nullable=False)
     role: Mapped[UserRole] = mapped_column(
         Enum(
             UserRole,

@@ -324,16 +324,16 @@
 
   display: grid;
   grid-template-columns:
-    minmax(210px, 1.55fr)
-    minmax(82px, 0.7fr)
-    minmax(102px, 0.75fr)
-    minmax(64px, 0.45fr)
-    minmax(64px, 0.45fr)
-    minmax(104px, 0.75fr)
-    54px;
+    minmax(260px, 1.55fr)
+    minmax(130px, 0.75fr)
+    minmax(150px, 0.8fr)
+    minmax(90px, 0.45fr)
+    minmax(90px, 0.45fr)
+    minmax(150px, 0.75fr)
+    minmax(90px, 0.4fr);
 
   align-items: center;
-  column-gap: 14px;
+  column-gap: 18px;
 }
 
 .team-table__head {
@@ -365,6 +365,33 @@
 .team-table__head > *,
 .team-table__row > * {
   min-width: 0;
+}
+
+.team-table__head > span {
+  display: flex;
+  align-items: center;
+}
+
+.team-table__head > span:nth-child(1),
+.team-table__row > :nth-child(1) {
+  justify-self: stretch;
+  text-align: left;
+}
+
+.team-table__head > span:nth-child(2),
+.team-table__row > :nth-child(2),
+.team-table__head > span:nth-child(3),
+.team-table__row > :nth-child(3),
+.team-table__head > span:nth-child(4),
+.team-table__row > :nth-child(4),
+.team-table__head > span:nth-child(5),
+.team-table__row > :nth-child(5),
+.team-table__head > span:nth-child(6),
+.team-table__row > :nth-child(6),
+.team-table__head > span:nth-child(7),
+.team-table__row > :nth-child(7) {
+  justify-self: center;
+  text-align: center;
 }
 
 .team-member {
@@ -443,6 +470,7 @@
 .team-role {
   width: max-content;
   max-width: 100%;
+  justify-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -482,13 +510,18 @@
 
 .team-status {
   min-width: 0;
+  justify-self: center;
+
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+
   color: var(--color-muted);
   font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
+
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -513,19 +546,26 @@
 .team-number,
 .team-time {
   min-width: 0;
+  justify-self: center;
+  text-align: center;
+
   color: var(--color-text);
   font-size: 15px;
   font-weight: 900;
   white-space: nowrap;
+
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .team-row-actions {
   position: relative;
+
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
+
+  justify-self: center;
 }
 
 .team-row-actions summary,

@@ -9,6 +9,7 @@ from src.core.security import get_password_hash
 from src.db.session import AsyncSessionFactory
 from src.models.enums import UserRole
 from src.models.user import User
+from src.services.avatar import generate_avatar_seed
 
 
 def _required_env(name: str) -> str:
@@ -41,6 +42,7 @@ async def create_admin() -> None:
                 username=username,
                 full_name=full_name,
                 hashed_password=get_password_hash(password),
+                avatar_seed=generate_avatar_seed(),
                 role=UserRole.ADMIN,
                 is_active=True,
             )

@@ -7,8 +7,17 @@ import {
   removeWorkspaceMember,
   updateWorkspaceMember,
 } from "../../shared/api/workspaces";
-import type { WorkspaceMember, WorkspaceMemberStatus, WorkspaceRole, WorkspaceSummary } from "../../shared/types/workspace";
-import { canEditWorkspace, canManageMembers, useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import type {
+  WorkspaceMember,
+  WorkspaceMemberStatus,
+  WorkspaceRole,
+  WorkspaceSummary,
+} from "../../shared/types/workspace";
+import {
+  canEditWorkspace,
+  canManageMembers,
+  useWorkspace,
+} from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./TeamPage.css";
 
@@ -194,33 +203,43 @@ export function TeamPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<WorkspaceRole>("member");
   const [inviteError, setInviteError] = useState<string | null>(null);
+
   const [settingsName, setSettingsName] = useState("");
   const [settingsDescription, setSettingsDescription] = useState("");
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | WorkspaceRole>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkspaceMemberStatus>("all");
 
   const canManage = canManageMembers(currentUserRole);
   const canEdit = canEditWorkspace(currentUserRole);
+
   const membersCount = workspaceSummary?.members_count ?? currentWorkspace?.members_count ?? members.length;
   const activeMembersCount =
     workspaceSummary?.active_members_count ?? members.filter((member) => member.status === "active").length;
+
   const shownMembersCount = activeMembersCount || membersCount;
+
   const projectsCount = workspaceSummary?.projects_count ?? currentWorkspace?.projects_count ?? 0;
   const activeProjectsCount = workspaceSummary?.active_projects_count ?? projectsCount;
+
   const tasksCount = workspaceSummary?.tasks_count ?? currentWorkspace?.tasks_count ?? 0;
   const completedTasksCount = workspaceSummary?.completed_tasks_count ?? 0;
+  const totalTimeSeconds = workspaceSummary?.total_time_seconds ?? currentWorkspace?.total_time_seconds ?? 0;
 
   async function loadTeam() {
     if (!currentWorkspaceId) {
       setMembers([]);
+      setWorkspaceSummary(null);
       setIsLoading(false);
       return;
     }
@@ -243,6 +262,7 @@ export function TeamPage() {
           ...(summaryByUser.get(member.user.id) ?? {}),
         })),
       );
+
       setWorkspaceSummary(nextWorkspaceSummary);
     } catch {
       setError("Не удалось загрузить команду");
@@ -286,6 +306,7 @@ export function TeamPage() {
     }
 
     setInviteError(null);
+    setSuccessMessage(null);
 
     if (!email.trim()) {
       setInviteError("Введите email участника");
@@ -293,11 +314,16 @@ export function TeamPage() {
     }
 
     try {
-      await addWorkspaceMember(currentWorkspaceId, { email: email.trim(), role });
+      await addWorkspaceMember(currentWorkspaceId, {
+        email: email.trim(),
+        role,
+      });
+
       setEmail("");
       setRole("member");
       setIsInviteOpen(false);
       setSuccessMessage("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.");
+
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
       setInviteError(caughtError instanceof Error ? caughtError.message : "Не удалось добавить участника");
@@ -313,7 +339,9 @@ export function TeamPage() {
 
   async function handleSaveSettings(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setSettingsError(null);
+    setSuccessMessage(null);
 
     if (!canEdit) {
       setSettingsError("У вас нет прав на изменение настроек.");
@@ -327,12 +355,15 @@ export function TeamPage() {
 
     try {
       setIsSavingSettings(true);
+
       await updateCurrentWorkspace({
         name: settingsName.trim(),
         description: settingsDescription.trim() || null,
       });
+
       setSuccessMessage("Настройки команды сохранены");
       setIsSettingsOpen(false);
+
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
       setSettingsError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить настройки");
@@ -346,7 +377,10 @@ export function TeamPage() {
       return;
     }
 
-    await updateWorkspaceMember(currentWorkspaceId, member.id, { role: nextRole });
+    await updateWorkspaceMember(currentWorkspaceId, member.id, {
+      role: nextRole,
+    });
+
     await loadTeam();
   }
 
@@ -402,6 +436,7 @@ export function TeamPage() {
           <span className="team-stat__icon">
             <TeamIcon name="building" />
           </span>
+
           <div className="team-stat__content">
             <p>Организация</p>
             <h2>{currentWorkspace?.name ?? "Workspace"}</h2>
@@ -412,6 +447,7 @@ export function TeamPage() {
           <span className="team-stat__icon">
             <TeamIcon name="users" />
           </span>
+
           <div className="team-stat__content">
             <p>Команда</p>
             <h2>Основная команда</h2>
@@ -422,6 +458,7 @@ export function TeamPage() {
           <span className="team-stat__icon">
             <TeamIcon name="user" />
           </span>
+
           <div className="team-stat__content">
             <p>Участников</p>
             <h2>
@@ -434,6 +471,7 @@ export function TeamPage() {
           <span className="team-stat__icon">
             <TeamIcon name="folder" />
           </span>
+
           <div className="team-stat__content">
             <p>Всего проектов</p>
             <h2>
@@ -460,7 +498,10 @@ export function TeamPage() {
               />
             </label>
 
-            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | WorkspaceRole)}>
+            <select
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value as "all" | WorkspaceRole)}
+            >
               <option value="all">Все роли</option>
               <option value="owner">Owner</option>
               <option value="team_lead">Team Lead</option>
@@ -499,6 +540,7 @@ export function TeamPage() {
                       {getAvatarLetter(member)}
                       <i className={`team-member__dot team-member__dot--${member.status}`} />
                     </span>
+
                     <div className="team-member__info">
                       <strong>{getMemberName(member)}</strong>
                       <em>{member.user.email}</em>
@@ -558,6 +600,7 @@ export function TeamPage() {
             <span>
               Показано {filteredMembers.length} из {members.length} участников
             </span>
+
             <div className="team-pagination" aria-label="Пагинация участников">
               <button type="button" disabled>
                 ‹
@@ -582,6 +625,7 @@ export function TeamPage() {
                 <span>
                   <TeamIcon name="building" />
                 </span>
+
                 <div>
                   <p>Организация</p>
                   <strong>{currentWorkspace?.name ?? "Workspace"}</strong>
@@ -592,6 +636,7 @@ export function TeamPage() {
                 <span>
                   <TeamIcon name="users" />
                 </span>
+
                 <div>
                   <p>Команда</p>
                   <strong>Основная команда</strong>
@@ -602,6 +647,7 @@ export function TeamPage() {
                 <span>
                   <TeamIcon name="user" />
                 </span>
+
                 <div>
                   <p>Участники</p>
                   <strong>{shownMembersCount} участников</strong>
@@ -616,6 +662,7 @@ export function TeamPage() {
                 <TeamIcon name="shield" />
                 <h2>Роли</h2>
               </span>
+
               <button type="button">Подробнее о ролях</button>
             </div>
 
@@ -630,24 +677,28 @@ export function TeamPage() {
           </section>
 
           <section className="team-side-card">
-            <div className="team-side-card__title">
-              <TeamIcon name="activity" />
-              <h2>Рабочая нагрузка</h2>
-            </div>
-
             <div className="team-workload">
-              <span>
-                <strong>{tasksCount}</strong>
-                задач всего
-              </span>
-              <span>
-                <strong>{completedTasksCount}</strong>
-                завершено
-              </span>
-              <span>
-                <strong>{formatHumanDuration(workspaceSummary?.total_time_seconds ?? currentWorkspace?.total_time_seconds ?? 0)}</strong>
-                учтено времени
-              </span>
+              <h2 className="team-workload__title">
+                <TeamIcon name="activity" />
+                Рабочая нагрузка
+              </h2>
+
+              <div className="team-workload__stats">
+                <div className="team-workload__stat">
+                  <strong>{tasksCount}</strong>
+                  <span>задач всего</span>
+                </div>
+
+                <div className="team-workload__stat">
+                  <strong>{completedTasksCount}</strong>
+                  <span>завершено</span>
+                </div>
+
+                <div className="team-workload__stat">
+                  <strong>{formatHumanDuration(totalTimeSeconds)}</strong>
+                  <span>учтено времени</span>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -698,6 +749,7 @@ export function TeamPage() {
               <span>
                 <TeamIcon name="user-plus" />
               </span>
+
               <div>
                 <h2>Добавить участника</h2>
                 <p>
@@ -732,6 +784,7 @@ export function TeamPage() {
               <button className="team-action team-action--primary" type="submit">
                 Добавить
               </button>
+
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
                 Отмена
               </button>
@@ -747,6 +800,7 @@ export function TeamPage() {
               <span>
                 <TeamIcon name="gear" />
               </span>
+
               <div>
                 <h2>Настройки команды</h2>
                 <p>{currentWorkspace?.name ?? "Workspace"}</p>
@@ -778,14 +832,17 @@ export function TeamPage() {
                 <em>Тип workspace</em>
                 <strong>{currentWorkspace?.type === "team" ? "Organization" : "Personal"}</strong>
               </span>
+
               <span>
                 <em>Моя роль</em>
                 <strong>{currentUserRole ? roleLabels[currentUserRole] : "Viewer"}</strong>
               </span>
+
               <span>
                 <em>Участников</em>
                 <strong>{membersCount}</strong>
               </span>
+
               <span>
                 <em>Проектов</em>
                 <strong>{projectsCount}</strong>
@@ -803,6 +860,7 @@ export function TeamPage() {
               <button className="team-action team-action--primary" type="submit" disabled={!canEdit || isSavingSettings}>
                 {isSavingSettings ? "Сохраняем..." : "Сохранить"}
               </button>
+
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsSettingsOpen(false)}>
                 Отмена
               </button>

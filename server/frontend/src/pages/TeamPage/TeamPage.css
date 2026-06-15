@@ -228,7 +228,7 @@
 
 .team-members-card {
   min-width: 0;
-  padding: 22px;
+  padding: 18px;
   border-radius: 18px;
   overflow: hidden;
 }
@@ -324,34 +324,34 @@
 
   display: grid;
   grid-template-columns:
-    minmax(230px, 1.35fr)
-    minmax(110px, 0.58fr)
-    minmax(120px, 0.62fr)
-    minmax(74px, 0.34fr)
-    minmax(74px, 0.34fr)
-    minmax(110px, 0.52fr)
-    58px;
+    minmax(220px, 1.25fr)
+    minmax(96px, 0.58fr)
+    minmax(108px, 0.58fr)
+    minmax(66px, 0.32fr)
+    minmax(66px, 0.32fr)
+    minmax(92px, 0.46fr)
+    48px;
 
   align-items: center;
-  column-gap: 12px;
+  column-gap: 8px;
 }
 
 .team-table__head {
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 10px;
   border: 1px solid rgba(48, 54, 61, 0.72);
   border-radius: 10px 10px 0 0;
   color: var(--color-subtle);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.13em;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .team-table__row {
-  min-height: 68px;
-  padding: 0 12px;
+  min-height: 62px;
+  padding: 0 10px;
   border-bottom: 1px solid rgba(48, 54, 61, 0.68);
   transition:
     background 160ms ease,
@@ -398,15 +398,15 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
 }
 
 .team-member__avatar,
 .team-member__avatar-wrap {
   position: relative;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -418,7 +418,7 @@
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.22), transparent 36%),
     linear-gradient(135deg, #8b735f, #6f5a4a);
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
@@ -429,8 +429,8 @@
   position: absolute;
   right: -1px;
   bottom: 0;
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   border: 2px solid var(--color-bg);
   border-radius: 999px;
 }
@@ -450,7 +450,7 @@
 .team-member__info strong {
   display: block;
   color: var(--color-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 1.15;
   overflow: hidden;
@@ -462,7 +462,7 @@
   display: block;
   margin-top: 3px;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 700;
   line-height: 1.2;
@@ -478,11 +478,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 24px;
-  padding: 0 9px;
+  min-height: 22px;
+  padding: 0 8px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 11px;
+  border-radius: 7px;
+  font-size: 10px;
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
@@ -515,25 +515,22 @@
 .team-status {
   min-width: 0;
   justify-self: center;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-
+  gap: 6px;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .team-status i {
-  width: 9px;
-  height: 9px;
-  min-width: 9px;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
   border-radius: 999px;
   box-shadow: 0 0 0 3px rgba(139, 148, 158, 0.12);
 }
@@ -552,40 +549,36 @@
   min-width: 0;
   justify-self: center;
   text-align: center;
-
   color: var(--color-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   white-space: nowrap;
-
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .team-row-actions {
   position: relative;
-
   display: flex;
   justify-content: center;
   align-items: center;
-
   justify-self: center;
 }
 
 .team-row-actions summary,
 .team-row-actions__button {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(48, 54, 61, 0.95);
-  border-radius: 10px;
+  border-radius: 9px;
   background: rgba(13, 17, 23, 0.52);
   color: var(--color-muted);
   list-style: none;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -869,6 +862,65 @@
   font-weight: 700;
 }
 
+.team-workload {
+  display: grid;
+  gap: 18px;
+}
+
+.team-workload__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.team-workload__title svg {
+  width: 26px;
+  height: 26px;
+  color: var(--color-green-bright);
+  flex: 0 0 auto;
+}
+
+.team-workload__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.team-workload__stat {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(48, 54, 61, 0.76);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(46, 160, 67, 0.08), transparent 42%),
+    rgba(13, 17, 23, 0.42);
+}
+
+.team-workload__stat strong {
+  display: block;
+  color: var(--color-text);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.team-workload__stat span {
+  display: block;
+  margin-top: 8px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .team-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -972,7 +1024,7 @@
 
   .team-table__head,
   .team-table__row {
-    min-width: 900px;
+    min-width: 820px;
   }
 }
 
@@ -1026,6 +1078,10 @@
   .team-members-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .team-workload__stats {
+    grid-template-columns: 1fr;
   }
 
   .team-modal__actions {

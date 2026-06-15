@@ -80,6 +80,7 @@ export async function register(payload: RegisterRequest): Promise<AuthResponse |
         username: payload.username,
         full_name: payload.full_name?.trim() || null,
         avatar_letter: payload.username.slice(0, 1).toUpperCase(),
+        avatar_seed: `mock-registered-${payload.email}`,
       },
     };
     if (response.user) {

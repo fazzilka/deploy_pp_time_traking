@@ -24,6 +24,7 @@ export type UserPublic = {
   role: UserRole;
   is_active: boolean;
   avatar_letter: string;
+  avatar_seed?: string | null;
 };
 
 export type UserProfile = UserPublic & {

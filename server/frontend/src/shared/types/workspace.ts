@@ -25,6 +25,7 @@ export type WorkspaceMemberUser = {
   username: string;
   full_name: string | null;
   avatar_letter: string;
+  avatar_seed?: string | null;
   is_active: boolean;
 };
 

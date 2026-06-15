@@ -1,0 +1,33 @@
+.generated-avatar {
+  width: var(--generated-avatar-size, 40px);
+  height: var(--generated-avatar-size, 40px);
+  min-width: var(--generated-avatar-size, 40px);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  border: 1px solid rgba(139, 148, 158, 0.34);
+  border-radius: 999px;
+  background: #f0f3f6;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 10px 22px rgba(1, 4, 9, 0.24);
+}
+
+.generated-avatar__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  shape-rendering: crispEdges;
+}
+
+.generated-avatar__background {
+  fill: #f0f3f6;
+}
+
+.generated-avatar__cell {
+  shape-rendering: crispEdges;
+}

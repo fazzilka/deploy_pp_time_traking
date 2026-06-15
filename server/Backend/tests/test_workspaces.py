@@ -51,6 +51,7 @@ def _member(**overrides) -> WorkspaceMemberRead:
             username=overrides.get("username", "member"),
             full_name=overrides.get("full_name", "Team Member"),
             avatar_letter="",
+            avatar_seed=overrides.get("avatar_seed", "seed-member-2"),
             is_active=True,
         ),
         role=overrides.get("role", WorkspaceRole.MEMBER),
@@ -205,6 +206,7 @@ async def test_add_workspace_member_by_email(test_client, monkeypatch: pytest.Mo
     data = response.json()
     assert data["workspace_id"] == 2
     assert data["user"]["email"] == "member@example.com"
+    assert data["user"]["avatar_seed"] == "seed-member-2"
 
 
 @pytest.mark.asyncio
@@ -248,6 +250,7 @@ async def test_add_workspace_member_service_persists_real_membership(
         username="member",
         full_name="Team Member",
         hashed_password="hashed",
+        avatar_seed="seed-member-42",
         is_active=True,
     )
     session.execute_results = [DummyResult(scalar_one_or_none=target_user)]
@@ -339,6 +342,7 @@ async def test_workspace_member_summary_returns_member_totals(
     assert response.status_code == 200
     data = response.json()
     assert data["items"][0]["tasks_count"] == 3
+    assert data["items"][0]["user"]["avatar_seed"] == "seed-member-2"
     assert data["items"][0]["total_time_seconds"] == 420
 
 

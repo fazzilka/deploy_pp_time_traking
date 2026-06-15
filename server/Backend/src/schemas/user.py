@@ -16,6 +16,7 @@ class UserPublic(BaseModel):
     role: UserRole
     is_active: bool
     avatar_letter: str = ""
+    avatar_seed: str | None = None
 
     @model_validator(mode="after")
     def fill_avatar_letter(self) -> Self:
@@ -116,6 +117,7 @@ class TopUserStats(BaseModel):
     username: str
     full_name: str | None = None
     avatar_letter: str
+    avatar_seed: str | None = None
     total_time_seconds: int
 
 

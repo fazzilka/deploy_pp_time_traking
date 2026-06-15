@@ -19,6 +19,7 @@ from src.schemas.user import (
     UserProfileBase,
     UserUpdate,
 )
+from src.services.avatar import generate_avatar_seed
 
 LEVEL_THRESHOLDS_SECONDS = (1, 1800, 3600, 7200)
 DATETIME_TYPE = datetime
@@ -44,6 +45,7 @@ def get_user_base_profile(user: User) -> UserProfileBase:
             "full_name": user.full_name,
             "role": user.role,
             "is_active": user.is_active,
+            "avatar_seed": user.avatar_seed,
             "created_at": user.created_at,
         }
     )
@@ -70,6 +72,13 @@ async def update_user_profile(
         user.username = username
     if "full_name" in values:
         user.full_name = values["full_name"]
+    await session.commit()
+    await session.refresh(user)
+    return get_user_base_profile(user)
+
+
+async def regenerate_user_avatar_seed(session: AsyncSession, user: User) -> UserProfileBase:
+    user.avatar_seed = generate_avatar_seed()
     await session.commit()
     await session.refresh(user)
     return get_user_base_profile(user)

@@ -38,12 +38,14 @@ def make_user(
     role: UserRole = UserRole.USER,
     is_active: bool = True,
     hashed_password: str | None = None,
+    avatar_seed: str = "seed-user-1",
 ) -> User:
     user = User(
         email=email,
         username=username,
         full_name=full_name,
         hashed_password=hashed_password or auth_service.get_password_hash("password123"),
+        avatar_seed=avatar_seed,
         role=role,
         is_active=is_active,
     )
@@ -71,6 +73,7 @@ async def test_register_user_creates_regular_user() -> None:
     assert user.email == "user@example.com"
     assert user.role == UserRole.USER
     assert user.hashed_password != "password123"
+    assert user.avatar_seed
     assert session.committed is True
     assert session.execute_count == 1
 
@@ -385,6 +388,7 @@ def test_user_public_contains_avatar_letter() -> None:
     user = UserPublic.model_validate(make_user(full_name="Дмитрий"))
 
     assert user.avatar_letter == "Д"
+    assert user.avatar_seed == "seed-user-1"
 
 
 def test_user_public_avatar_letter_falls_back_to_username() -> None:
@@ -508,9 +512,41 @@ async def test_users_me_returns_lightweight_profile(test_client) -> None:
     payload = response.json()
     assert payload["id"] == 1
     assert payload["email"] == "user@example.com"
+    assert payload["avatar_seed"] == "seed-user-1"
     assert payload["created_at"] == "2026-05-18T00:00:00Z"
     assert "stats" not in payload
     assert response.headers["cache-control"] == "private, max-age=60"
+
+
+@pytest.mark.asyncio
+async def test_regenerate_avatar_seed_updates_profile(
+    test_client,
+    dummy_session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_user = make_user(avatar_seed="old-seed")
+
+    async def override_session():
+        yield dummy_session
+
+    async def override_user():
+        return current_user
+
+    monkeypatch.setattr(user_service, "generate_avatar_seed", lambda: "new-seed")
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_active_user] = override_user
+    try:
+        response = await test_client.post("/api/v1/users/me/avatar/regenerate")
+        profile_response = await test_client.get("/api/v1/users/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["avatar_seed"] == "new-seed"
+    assert profile_response.status_code == 200
+    assert profile_response.json()["avatar_seed"] == "new-seed"
+    assert current_user.avatar_seed == "new-seed"
+    assert dummy_session.committed is True
 
 
 @pytest.mark.asyncio

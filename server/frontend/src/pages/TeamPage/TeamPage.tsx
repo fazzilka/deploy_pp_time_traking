@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import {
   addWorkspaceMember,
   getWorkspaceMembers,
@@ -536,8 +537,19 @@ export function TeamPage() {
               {filteredMembers.map((member) => (
                 <div className="team-table__row" role="row" key={member.id}>
                   <div className="team-member">
-                    <span className="team-member__avatar">
-                      {getAvatarLetter(member)}
+                    <span className="team-member__avatar-wrap">
+                      <GeneratedAvatar
+                        seed={
+                          member.user.avatar_seed ??
+                          member.user.email ??
+                          member.user.username ??
+                          member.user.id ??
+                          getAvatarLetter(member)
+                        }
+                        letter={getAvatarLetter(member)}
+                        size={38}
+                        title={getMemberName(member)}
+                      />
                       <i className={`team-member__dot team-member__dot--${member.status}`} />
                     </span>
 

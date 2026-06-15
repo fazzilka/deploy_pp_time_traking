@@ -119,6 +119,7 @@ export async function addWorkspaceMember(
         username: payload.email.split("@")[0],
         full_name: null,
         avatar_letter: payload.email.slice(0, 1).toUpperCase(),
+        avatar_seed: `mock-member-${payload.email}`,
         is_active: true,
       },
     };

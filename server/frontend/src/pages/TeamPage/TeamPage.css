@@ -425,7 +425,6 @@
   gap: 9px;
 }
 
-.team-member__avatar,
 .team-member__avatar-wrap {
   position: relative;
   width: 38px;
@@ -435,18 +434,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-}
-
-.team-member__avatar {
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.22), transparent 36%),
-    linear-gradient(135deg, #8b735f, #6f5a4a);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 900;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 10px 22px rgba(1, 4, 9, 0.28);
 }
 
 .team-member__dot {

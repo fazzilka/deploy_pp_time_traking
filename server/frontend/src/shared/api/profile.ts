@@ -12,6 +12,7 @@ import type {
 import { EMPTY_USER_STATS } from "../types/user";
 
 let userStore: User = { ...mockUser, stats: { ...(mockUser.stats ?? EMPTY_USER_STATS) } };
+export const userProfileUpdatedEvent = "time-tracking:user-profile-updated";
 
 type CacheState<T> = {
   data: T | null;
@@ -42,6 +43,18 @@ const activityCaches = new Map<number, CacheState<ActivityResponse>>();
 function toUserProfile(user: User): UserProfile {
   const { stats: _stats, ...profile } = user;
   return profile;
+}
+
+function notifyProfileUpdated(profile: UserProfile): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<UserProfile>(userProfileUpdatedEvent, {
+      detail: profile,
+    }),
+  );
 }
 
 function getActivityCache(year: number): CacheState<ActivityResponse> {
@@ -131,6 +144,7 @@ export async function updateCurrentUser(payload: UpdateUserRequest): Promise<Use
     profileCache.dirty = false;
     profileCache.version += 1;
     profileCache.pending = null;
+    notifyProfileUpdated(updatedProfile);
     return updatedProfile;
   }
 
@@ -143,6 +157,7 @@ export async function updateCurrentUser(payload: UpdateUserRequest): Promise<Use
   profileCache.loaded = true;
   profileCache.dirty = false;
   profileCache.version += 1;
+  notifyProfileUpdated(updatedProfile);
   return updatedProfile;
 }
 
@@ -159,6 +174,35 @@ export async function changePassword(payload: ChangePasswordRequest): Promise<Ch
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function regenerateMyAvatar(): Promise<UserProfile> {
+  if (USE_MOCKS) {
+    userStore = {
+      ...userStore,
+      avatar_seed: `mock-avatar-${Date.now()}-${profileCache.version + 1}`,
+    };
+
+    const updatedProfile = toUserProfile(userStore);
+    profileCache.data = updatedProfile;
+    profileCache.loaded = true;
+    profileCache.dirty = false;
+    profileCache.version += 1;
+    profileCache.pending = null;
+    notifyProfileUpdated(updatedProfile);
+    return updatedProfile;
+  }
+
+  profileCache.pending = null;
+  const updatedProfile = await apiRequest<UserProfile>("/api/v1/users/me/avatar/regenerate", {
+    method: "POST",
+  });
+  profileCache.data = updatedProfile;
+  profileCache.loaded = true;
+  profileCache.dirty = false;
+  profileCache.version += 1;
+  notifyProfileUpdated(updatedProfile);
+  return updatedProfile;
 }
 
 export async function getUserActivity(year: number, options: CacheOptions = {}): Promise<ActivityResponse> {

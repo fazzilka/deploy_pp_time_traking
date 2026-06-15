@@ -14,6 +14,7 @@ from src.services.user import (
     get_activity,
     get_profile_stats,
     get_user_base_profile,
+    regenerate_user_avatar_seed,
     update_user_profile,
 )
 
@@ -44,6 +45,14 @@ async def update_me(
     current_user: CurrentUserDep,
 ) -> UserProfileBase:
     return await update_user_profile(session, current_user, payload)
+
+
+@router.post("/me/avatar/regenerate", response_model=UserProfileBase)
+async def regenerate_my_avatar(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> UserProfileBase:
+    return await regenerate_user_avatar_seed(session, current_user)
 
 
 @router.post("/me/change-password", response_model=ChangePasswordResponse)

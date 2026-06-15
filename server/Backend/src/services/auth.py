@@ -11,6 +11,7 @@ from src.core.security import create_access_token, get_password_hash, verify_pas
 from src.models.enums import UserRole
 from src.models.user import User
 from src.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from src.services.avatar import generate_avatar_seed
 from src.services.user import get_user_base_profile
 from src.services.workspace import ensure_personal_workspace
 
@@ -46,6 +47,7 @@ async def register_user(session: AsyncSession, payload: RegisterRequest) -> User
             username=payload.username,
             full_name=payload.full_name,
             hashed_password=hashed_password,
+            avatar_seed=generate_avatar_seed(),
             role=UserRole.USER,
             is_active=True,
         )

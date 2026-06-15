@@ -1,13 +1,20 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
+import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
-import { changePassword, getCurrentUser, getProfileStats, getUserActivity, updateCurrentUser } from "../../shared/api/profile";
+import {
+  changePassword,
+  getCurrentUser,
+  getProfileStats,
+  getUserActivity,
+  regenerateMyAvatar,
+  updateCurrentUser,
+} from "../../shared/api/profile";
 import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
 import { EMPTY_USER_STATS, type UserProfile, type UserStats } from "../../shared/types/user";
-import { getAvatarColor } from "../../shared/utils/avatar";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
 import "./ProfilePage.css";
 
@@ -55,6 +62,7 @@ export function ProfilePage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [isRegeneratingAvatar, setIsRegeneratingAvatar] = useState(false);
 
   async function loadProfile() {
     setIsLoading(true);
@@ -164,6 +172,20 @@ export function ProfilePage() {
     }
   }
 
+  async function handleRegenerateAvatar() {
+    setError(null);
+    setIsRegeneratingAvatar(true);
+
+    try {
+      const updatedUser = await regenerateMyAvatar();
+      setUser(updatedUser);
+    } catch {
+      setError("Не удалось сгенерировать новую аватарку");
+    } finally {
+      setIsRegeneratingAvatar(false);
+    }
+  }
+
   if (isLoading && !user) {
     return (
       <main className="profile-page app-container">
@@ -181,7 +203,7 @@ export function ProfilePage() {
   }
 
   const displayName = user.full_name || user.username;
-  const avatarColor = getAvatarColor(user.username || user.email);
+  const avatarSeed = user.avatar_seed ?? user.email ?? user.username ?? user.id ?? user.avatar_letter;
   const safeStats = stats ?? user.stats ?? EMPTY_USER_STATS;
   const safeActivity = activity ?? EMPTY_ACTIVITY;
   const topThreeTasks = topTasks.slice(0, 3);
@@ -191,9 +213,13 @@ export function ProfilePage() {
     <main className="profile-page app-container">
       <div className="profile-layout">
         <aside className="profile-sidebar">
-          <div className="profile-avatar" style={{ backgroundColor: avatarColor }}>
-            {user.avatar_letter}
-          </div>
+          <GeneratedAvatar
+            className="profile-avatar"
+            seed={avatarSeed}
+            letter={user.avatar_letter}
+            size={220}
+            title={displayName}
+          />
           <h1 className="profile-name">{displayName}</h1>
           <p className="profile-username">@{user.username}</p>
 
@@ -203,6 +229,14 @@ export function ProfilePage() {
             </button>
             <button className="profile-edit" type="button" onClick={openPasswordModal}>
               Изменить пароль
+            </button>
+            <button
+              className="profile-edit"
+              type="button"
+              onClick={handleRegenerateAvatar}
+              disabled={isRegeneratingAvatar}
+            >
+              {isRegeneratingAvatar ? "Генерируем..." : "Сгенерировать новую аватарку"}
             </button>
           </div>
 

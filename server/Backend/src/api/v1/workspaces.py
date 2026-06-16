@@ -134,4 +134,3 @@ async def delete_workspace_member(
 ) -> Response:
     await remove_workspace_member(session, current_user, workspace_id, member_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-

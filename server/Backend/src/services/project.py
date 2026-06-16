@@ -77,9 +77,7 @@ async def get_project_or_404(session: AsyncSession, user_id: int, project_id: in
         await _project_workspace_id_or_404(session, project_id),
         {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER, WorkspaceRole.VIEWER},
     )
-    result = await session.execute(
-        select(Project).where(Project.id == project_id)
-    )
+    result = await session.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if project is None:
         raise _project_not_found_error()
@@ -239,9 +237,7 @@ async def build_project_summary(
         .where(Task.workspace_id == project.workspace_id, Task.project_id == project_id)
     )
     stats_result = await session.execute(stats_stmt)
-    tasks_count, active_tasks_count, tasks_with_time_count, total_time_seconds = (
-        stats_result.one()
-    )
+    tasks_count, active_tasks_count, tasks_with_time_count, total_time_seconds = stats_result.one()
 
     top_stmt = (
         select(

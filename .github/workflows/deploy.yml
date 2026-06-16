@@ -8,6 +8,7 @@ on:
       - main
     types:
       - completed
+
   workflow_dispatch:
 
 permissions:
@@ -22,6 +23,7 @@ jobs:
     name: production / deploy over ssh
     runs-on: ubuntu-latest
     timeout-minutes: 40
+
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (

@@ -1,13 +1,33 @@
-name: deploy
+name: cd
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - ci
     branches:
       - main
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    name: production / deploy over ssh
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success'
+      )
 
     steps:
       - name: Deploy over SSH
@@ -18,5 +38,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
+            set -euo pipefail
             cd /opt/time-tracking
             bash scripts/deploy.sh

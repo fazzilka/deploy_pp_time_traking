@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { GeneratedAvatar } from "../GeneratedAvatar";
 import { getCurrentUser, userProfileUpdatedEvent } from "../../shared/api/profile";

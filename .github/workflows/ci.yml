@@ -1,0 +1,229 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.14"
+  NODE_VERSION: "22"
+
+jobs:
+  repository:
+    name: repository / hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check repository files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f gitflic-ci.yaml ]; then
+            echo "::error file=gitflic-ci.yaml::Remove gitflic-ci.yaml. CI/CD must live in .github."
+            exit 1
+          fi
+
+          if [ ! -f server/Backend/uv.lock ]; then
+            echo "::error file=server/Backend/uv.lock::uv.lock is required for reproducible backend CI."
+            exit 1
+          fi
+
+          if [ ! -f server/frontend/package-lock.json ]; then
+            echo "::error file=server/frontend/package-lock.json::package-lock.json is required for reproducible frontend CI."
+            exit 1
+          fi
+
+          tracked_forbidden_files="$(
+            git ls-files | grep -E '(^|/)(node_modules|dist|build|\.venv|\.env|\.idea|\.obsidian)(/|$)' || true
+          )"
+
+          if [ -n "$tracked_forbidden_files" ]; then
+            echo "::error::Forbidden generated/local files are tracked by git:"
+            echo "$tracked_forbidden_files"
+            exit 1
+          fi
+
+  backend:
+    name: backend / lint, type, tests, migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: time_tracking
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d time_tracking"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: server/Backend
+
+    env:
+      APP_HOST: "127.0.0.1"
+      APP_PORT: "8000"
+      LOG_LEVEL: "INFO"
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/time_tracking"
+      DB_POOL_SIZE: "5"
+      DB_MAX_OVERFLOW: "5"
+      DB_POOL_TIMEOUT_SECONDS: "30"
+      JWT_SECRET_KEY: "ci-only-secret-key"
+      JWT_ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+      CORS_ALLOW_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            server/Backend/pyproject.toml
+            server/Backend/uv.lock
+
+      - name: Install backend dependencies
+        run: uv sync --frozen
+
+      - name: Check Python formatting
+        run: uv run --frozen ruff format --check src tests
+
+      - name: Run Python linter
+        run: uv run --frozen ruff check src tests
+
+      - name: Run Python type checking
+        run: uv run --frozen mypy src
+
+      - name: Run Python tests
+        run: uv run --frozen pytest tests -q
+
+      - name: Run Alembic migrations
+        run: uv run --frozen alembic upgrade head
+
+      - name: Smoke test backend health endpoint
+        run: |
+          uv run --frozen python - <<'PY'
+          import asyncio
+
+          from httpx import ASGITransport, AsyncClient
+
+          from src.main import app
+
+
+          async def main() -> None:
+              transport = ASGITransport(app=app)
+              async with AsyncClient(transport=transport, base_url="http://test") as client:
+                  response = await client.get("/health")
+                  assert response.status_code == 200, response.text
+                  payload = response.json()
+                  assert payload["status"] == "ok", payload
+
+
+          asyncio.run(main())
+          PY
+
+  frontend:
+    name: frontend / lint, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: server/frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend linter
+        run: npm run lint
+
+      - name: Run frontend type checking
+        run: npm run typecheck
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Audit production frontend dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+  docker:
+    name: production docker / build images
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - repository
+      - backend
+      - frontend
+
+    env:
+      POSTGRES_DB: time_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      JWT_SECRET_KEY: ci-only-secret-key
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin-password
+      ADMIN_FULL_NAME: CI Admin
+      GRAFANA_ADMIN_PASSWORD: admin-password
+      CORS_ALLOW_ORIGINS: http://localhost,http://127.0.0.1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate production Docker Compose config
+        run: docker compose -f docker-compose.prod.yml config --quiet
+
+      - name: Build backend Docker image
+        run: docker build -f server/Backend/Dockerfile server/Backend
+
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            -f deploy/frontend.Dockerfile \
+            --build-arg VITE_API_URL="" \
+            --build-arg VITE_USE_MOCKS="false" \
+            .

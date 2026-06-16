@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
+import type { FormEvent} from "react";
+import { useEffect, useState } from "react";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";

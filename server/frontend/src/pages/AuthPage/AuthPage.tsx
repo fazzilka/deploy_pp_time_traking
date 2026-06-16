@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import type { FormEvent} from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { isAuthenticated, login, register, saveAccessToken } from "../../shared/api/auth";

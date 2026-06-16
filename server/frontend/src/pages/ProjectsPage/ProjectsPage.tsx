@@ -1,4 +1,5 @@
-import { FormEvent, KeyboardEvent, type CSSProperties, useEffect, useMemo, useState } from "react";
+import type { FormEvent, KeyboardEvent} from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ProjectIcon,

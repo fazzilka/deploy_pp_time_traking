@@ -211,8 +211,7 @@ async def get_user_workspaces(session: AsyncSession, user: User) -> list[Workspa
         .order_by(Workspace.type.asc(), Workspace.created_at.asc(), Workspace.id.asc())
     )
     return [
-        await build_workspace_read(session, workspace, user.id)
-        for workspace in result.scalars()
+        await build_workspace_read(session, workspace, user.id) for workspace in result.scalars()
     ]
 
 
@@ -600,9 +599,7 @@ async def _member_summaries_by_user_id(
 
     for task_id, assignee_id, created_by_id, project_id, is_completed in task_rows.all():
         participant_ids = {
-            user_id
-            for user_id in (assignee_id, created_by_id)
-            if user_id in summaries
+            user_id for user_id in (assignee_id, created_by_id) if user_id in summaries
         }
         for participant_id in participant_ids:
             participant_id = int(participant_id)

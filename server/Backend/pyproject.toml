@@ -14,7 +14,7 @@ dependencies = [
   "pydantic-settings>=2.7.0",
   "python-jose[cryptography]>=3.3.0",
   "python-json-logger>=3.2.1",
-  "sqlalchemy[asyncio]>=2.0.38",
+  "sqlalchemy[asyncio]>=2.0.51",
   "uvicorn[standard]>=0.34.0",
 ]
 

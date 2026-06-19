@@ -4,6 +4,7 @@ import "./NotificationsBell.css";
 
 type NotificationType =
   | "deadline_soon"
+  | "deadline_overdue"
   | "workspace_member_added"
   | "workspace_member_removed"
   | "workspace_role_changed"
@@ -71,6 +72,26 @@ function CalendarIcon() {
       <path d="M16 2v4" />
       <rect width="18" height="18" x="3" y="4" rx="2" />
       <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function AlertTriangleIcon() {
+  return (
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
     </svg>
   );
 }
@@ -178,6 +199,10 @@ function getNotificationIcon(type: NotificationType) {
     return <CalendarIcon />;
   }
 
+  if (type === "deadline_overdue") {
+    return <AlertTriangleIcon />;
+  }
+
   if (type === "workspace_member_added") {
     return <UserPlusIcon />;
   }
@@ -198,6 +223,10 @@ function getNotificationTone(type: NotificationType) {
     return "deadline";
   }
 
+  if (type === "deadline_overdue") {
+    return "overdue";
+  }
+
   if (type === "workspace_member_added") {
     return "success";
   }
@@ -216,6 +245,10 @@ function getNotificationTone(type: NotificationType) {
 function getNotificationTitleFallback(type: NotificationType) {
   if (type === "deadline_soon") {
     return "Приближается дедлайн";
+  }
+
+  if (type === "deadline_overdue") {
+    return "Дедлайн просрочен";
   }
 
   if (type === "workspace_member_added") {

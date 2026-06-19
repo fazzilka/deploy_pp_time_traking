@@ -9,6 +9,7 @@ import {
 } from "../../components/ProjectIcon/ProjectIcon";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
+import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import {
   applyProjectsTaskChange,
@@ -539,7 +540,7 @@ export function ProjectDetailPage() {
         await createTask({
           title: taskTitle,
           description: taskDescription || null,
-          deadline: taskDeadline || null,
+          deadline: datetimeLocalToUtcIso(taskDeadline),
           priority: taskPriority,
           workspace_id: project?.workspace_id ?? currentWorkspaceId,
           project_id: numericProjectId,
@@ -808,7 +809,7 @@ export function ProjectDetailPage() {
                   <span>Срок выполнения</span>
                   <input
                     className="text-field"
-                    type="date"
+                    type="datetime-local"
                     value={taskDeadline}
                     onChange={(event) => setTaskDeadline(event.target.value)}
                   />

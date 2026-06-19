@@ -2,6 +2,7 @@ import { apiRequest, USE_MOCKS } from "./client";
 
 export type NotificationType =
   | "deadline_soon"
+  | "deadline_overdue"
   | "workspace_member_added"
   | "workspace_member_removed"
   | "workspace_member_role_changed";

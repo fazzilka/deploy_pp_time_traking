@@ -20,6 +20,7 @@ from src.db.session import Base
 from src.models.enums import TaskPriority
 
 if TYPE_CHECKING:
+    from src.models.notification import Notification
     from src.models.project import Project
     from src.models.time_interval import TimeInterval
     from src.models.user import User
@@ -105,3 +106,4 @@ class Task(Base):
         passive_deletes=True,
         order_by="TimeInterval.started_at.desc()",
     )
+    notifications: Mapped[list[Notification]] = relationship(back_populates="task")

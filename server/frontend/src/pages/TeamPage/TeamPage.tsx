@@ -1,11 +1,13 @@
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import {
   addWorkspaceMember,
   getWorkspaceMembers,
   getWorkspaceMemberSummary,
   getWorkspaceSummary,
+  leaveWorkspace,
   removeWorkspaceMember,
   updateWorkspaceMember,
 } from "../../shared/api/workspaces";
@@ -200,9 +202,11 @@ export function TeamPage() {
     currentWorkspace,
     currentWorkspaceId,
     currentUserRole,
+    removeWorkspaceFromState,
     refreshWorkspaces,
     updateCurrentWorkspace,
   } = useWorkspace();
+  const navigate = useNavigate();
 
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [workspaceSummary, setWorkspaceSummary] = useState<WorkspaceSummary | null>(null);
@@ -222,6 +226,9 @@ export function TeamPage() {
   const [settingsDescription, setSettingsDescription] = useState("");
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isLeaveOpen, setIsLeaveOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | WorkspaceRole>("all");
@@ -229,6 +236,8 @@ export function TeamPage() {
 
   const canManage = canManageMembers(currentUserRole);
   const canEdit = canEditWorkspace(currentUserRole);
+  const isTeamWorkspace = currentWorkspace?.type === "team";
+  const canLeaveOrganization = isTeamWorkspace && currentUserRole !== "owner";
 
   const membersCount = workspaceSummary?.members_count ?? currentWorkspace?.members_count ?? members.length;
   const activeMembersCount =
@@ -308,7 +317,7 @@ export function TeamPage() {
         return;
       }
 
-      if (detail.reason === "removed") {
+      if (detail.reason === "removed" || detail.reason === "left") {
         setMembers([]);
         setWorkspaceSummary(null);
         return;
@@ -491,6 +500,30 @@ export function TeamPage() {
       setMembers(previousMembers);
       setWorkspaceSummary(previousSummary);
       setError(caughtError instanceof Error ? caughtError.message : "Не удалось удалить участника");
+    }
+  }
+
+  async function handleLeaveWorkspace() {
+    if (!currentWorkspaceId || !currentWorkspace || !canLeaveOrganization || isLeaving) {
+      return;
+    }
+
+    setIsLeaving(true);
+    setLeaveError(null);
+
+    try {
+      const leavingWorkspaceId = currentWorkspaceId;
+      await leaveWorkspace(leavingWorkspaceId);
+      removeWorkspaceFromState(leavingWorkspaceId);
+      setMembers([]);
+      setWorkspaceSummary(null);
+      setIsLeaveOpen(false);
+      void refreshWorkspaces({ silent: true });
+      navigate("/dashboard");
+    } catch (caughtError) {
+      setLeaveError(caughtError instanceof Error ? caughtError.message : "Не удалось выйти из организации");
+    } finally {
+      setIsLeaving(false);
     }
   }
 
@@ -834,6 +867,37 @@ export function TeamPage() {
             </button>
           </section>
 
+          {isTeamWorkspace && (
+            <section className="team-side-card team-leave-card">
+              <div className="team-side-card__title">
+                <TeamIcon name="shield" />
+                <h2>Доступ</h2>
+              </div>
+
+              <p className="team-leave-card__text">
+                После выхода вы потеряете доступ к проектам, задачам и участникам этой организации.
+              </p>
+
+              {currentUserRole === "owner" && (
+                <p className="team-leave-card__warning">
+                  Владелец не может выйти из организации без передачи прав другому участнику.
+                </p>
+              )}
+
+              <button
+                className="team-action team-action--danger team-action--wide"
+                type="button"
+                onClick={() => {
+                  setLeaveError(null);
+                  setIsLeaveOpen(true);
+                }}
+                disabled={!canLeaveOrganization}
+              >
+                Выйти из организации
+              </button>
+            </section>
+          )}
+
           <section className="team-side-card">
             <div className="team-side-card__title">
               <TeamIcon name="activity" />
@@ -896,6 +960,49 @@ export function TeamPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {isLeaveOpen && currentWorkspace && (
+        <div className="team-modal-backdrop" role="presentation" onClick={() => setIsLeaveOpen(false)}>
+          <div className="team-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="team-modal__header">
+              <span>
+                <TeamIcon name="shield" />
+              </span>
+
+              <div>
+                <h2>Выйти из организации?</h2>
+                <p>Вы уверены, что хотите выйти из организации «{currentWorkspace.name}»?</p>
+              </div>
+            </div>
+
+            <p>
+              После выхода вы потеряете доступ к проектам, задачам и участникам этой организации.
+            </p>
+
+            {leaveError && <p className="team-modal__error">{leaveError}</p>}
+
+            <div className="team-modal__actions">
+              <button
+                className="team-action team-action--secondary"
+                type="button"
+                onClick={() => setIsLeaveOpen(false)}
+                disabled={isLeaving}
+              >
+                Отмена
+              </button>
+
+              <button
+                className="team-action team-action--danger"
+                type="button"
+                onClick={() => void handleLeaveWorkspace()}
+                disabled={isLeaving || !canLeaveOrganization}
+              >
+                {isLeaving ? "Выходим..." : "Выйти"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

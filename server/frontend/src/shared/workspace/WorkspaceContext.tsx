@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createWorkspace, getWorkspaces, updateWorkspace } from "../api/workspaces";
 import { resetProjectsDataCache } from "../api/projects";
 import { clearReportsCache } from "../api/reports";
@@ -16,6 +16,7 @@ type WorkspaceContextValue = {
   error: string | null;
   setCurrentWorkspaceId: (workspaceId: number) => void;
   refreshWorkspaces: (options?: { silent?: boolean }) => Promise<void>;
+  removeWorkspaceFromState: (workspaceId: number) => void;
   createOrganization: (payload: WorkspaceCreateRequest) => Promise<Workspace>;
   updateCurrentWorkspace: (payload: WorkspaceUpdateRequest) => Promise<Workspace | null>;
 };
@@ -37,6 +38,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<number | null>(readStoredWorkspaceId);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const refreshDebounceRef = useRef<number | null>(null);
 
   const currentWorkspace = useMemo(
     () => workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? workspaces[0] ?? null,
@@ -48,6 +50,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentWorkspaceIdState(workspaceId);
     resetProjectsDataCache();
     clearReportsCache();
+  }, []);
+
+  const setResolvedCurrentWorkspaceId = useCallback((workspaceId: number | null) => {
+    if (workspaceId === null) {
+      localStorage.removeItem(STORAGE_KEY);
+      setCurrentWorkspaceIdState(null);
+      resetProjectsDataCache();
+      clearReportsCache();
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, String(workspaceId));
+    setCurrentWorkspaceIdState((currentId) => {
+      if (currentId !== workspaceId) {
+        resetProjectsDataCache();
+        clearReportsCache();
+      }
+      return workspaceId;
+    });
   }, []);
 
   const refreshWorkspaces = useCallback(async (options?: { silent?: boolean }) => {
@@ -63,11 +84,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const nextCurrentWorkspace =
         nextWorkspaces.find((workspace) => workspace.id === storedWorkspaceId) ?? nextWorkspaces[0] ?? null;
       if (nextCurrentWorkspace) {
-        localStorage.setItem(STORAGE_KEY, String(nextCurrentWorkspace.id));
-        setCurrentWorkspaceIdState(nextCurrentWorkspace.id);
+        setResolvedCurrentWorkspaceId(nextCurrentWorkspace.id);
       } else {
-        localStorage.removeItem(STORAGE_KEY);
-        setCurrentWorkspaceIdState(null);
+        setResolvedCurrentWorkspaceId(null);
       }
     } catch {
       setError("Не удалось загрузить workspace");
@@ -76,7 +95,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [setResolvedCurrentWorkspaceId]);
+
+  const removeWorkspaceFromState = useCallback(
+    (workspaceId: number) => {
+      setWorkspaces((currentWorkspaces) => {
+        const nextWorkspaces = currentWorkspaces.filter((workspace) => workspace.id !== workspaceId);
+        if (currentWorkspaceId === workspaceId) {
+          setResolvedCurrentWorkspaceId(nextWorkspaces[0]?.id ?? null);
+        }
+        return nextWorkspaces;
+      });
+    },
+    [currentWorkspaceId, setResolvedCurrentWorkspaceId],
+  );
+
+  const scheduleSilentRefresh = useCallback(() => {
+    if (refreshDebounceRef.current !== null) {
+      window.clearTimeout(refreshDebounceRef.current);
+    }
+    refreshDebounceRef.current = window.setTimeout(() => {
+      refreshDebounceRef.current = null;
+      void refreshWorkspaces({ silent: true });
+    }, 300);
+  }, [refreshWorkspaces]);
 
   const createOrganization = useCallback(
     async (payload: WorkspaceCreateRequest) => {
@@ -113,13 +155,29 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return subscribeToUserEvents({
-      onEvent: (event) => {
+      onEvent: (event, payload) => {
         if (event === "workspace.membership.changed") {
-          void refreshWorkspaces({ silent: true });
+          if (
+            "workspace_id" in payload
+            && "reason" in payload
+            && (payload.reason === "removed" || payload.reason === "left")
+            && typeof payload.workspace_id === "number"
+          ) {
+            removeWorkspaceFromState(payload.workspace_id);
+          }
+          scheduleSilentRefresh();
         }
       },
     });
-  }, [refreshWorkspaces]);
+  }, [removeWorkspaceFromState, scheduleSilentRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshDebounceRef.current !== null) {
+        window.clearTimeout(refreshDebounceRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -139,6 +197,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       error,
       setCurrentWorkspaceId,
       refreshWorkspaces,
+      removeWorkspaceFromState,
       createOrganization,
       updateCurrentWorkspace,
     }),
@@ -147,6 +206,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       currentWorkspace,
       error,
       isLoading,
+      removeWorkspaceFromState,
       refreshWorkspaces,
       setCurrentWorkspaceId,
       updateCurrentWorkspace,

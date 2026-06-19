@@ -169,6 +169,24 @@ export async function removeWorkspaceMember(workspaceId: number, memberId: numbe
   });
 }
 
+export async function leaveWorkspace(workspaceId: number): Promise<void> {
+  if (USE_MOCKS) {
+    const workspaceIndex = workspacesStore.findIndex((workspace) => workspace.id === workspaceId);
+    if (workspaceIndex >= 0 && workspacesStore[workspaceIndex].type !== "personal") {
+      workspacesStore.splice(workspaceIndex, 1);
+    }
+    const memberIndex = membersStore.findIndex((member) => member.workspace_id === workspaceId);
+    if (memberIndex >= 0) {
+      membersStore.splice(memberIndex, 1);
+    }
+    return;
+  }
+
+  await apiRequest<void>(`/api/v1/workspaces/${workspaceId}/leave`, {
+    method: "POST",
+  });
+}
+
 export async function getWorkspaceSummary(workspaceId: number): Promise<WorkspaceSummary> {
   if (USE_MOCKS) {
     const workspace = getWorkspaceOrThrow(workspaceId);

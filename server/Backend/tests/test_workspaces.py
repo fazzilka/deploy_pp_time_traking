@@ -15,6 +15,7 @@ from src.schemas.workspace import (
     WorkspaceMemberRead,
     WorkspaceMemberSummaryItem,
     WorkspaceMemberSummaryResponse,
+    WorkspaceMemberUpdate,
     WorkspaceMemberUser,
     WorkspaceRead,
     WorkspaceSummary,
@@ -314,6 +315,196 @@ async def test_add_workspace_member_service_rejects_owner_role(
         )
 
     assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_leave_workspace_removes_current_user_membership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import leave_workspace
+
+    session = WorkspaceServiceSession()
+    workspace = Workspace(
+        id=7,
+        name="Engineering",
+        type=WorkspaceType.TEAM,
+        owner_id=1,
+    )
+    membership = WorkspaceMember(
+        id=15,
+        workspace_id=7,
+        user_id=42,
+        role=WorkspaceRole.MEMBER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+    )
+    published_events = []
+
+    async def fake_get_active_membership(_session, _user_id, _workspace_id):
+        return membership
+
+    async def fake_publish_user_event(user_id, event, data):
+        published_events.append((user_id, event, data))
+
+    monkeypatch.setattr("src.services.workspace.get_active_membership", fake_get_active_membership)
+    monkeypatch.setattr("src.services.workspace.publish_user_event", fake_publish_user_event)
+
+    await leave_workspace(session, SimpleNamespace(id=42), 7)
+
+    assert session.deleted == [membership]
+    assert session.committed is True
+    assert published_events == [
+        (
+            42,
+            "workspace.membership.changed",
+            {
+                "reason": "left",
+                "workspace_id": 7,
+                "workspace_name": "Engineering",
+                "user_id": 42,
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_leave_workspace_rejects_owner_without_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import leave_workspace
+
+    workspace = Workspace(id=7, name="Engineering", type=WorkspaceType.TEAM, owner_id=42)
+    membership = WorkspaceMember(
+        id=15,
+        workspace_id=7,
+        user_id=42,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+    )
+
+    async def fake_get_active_membership(_session, _user_id, _workspace_id):
+        return membership
+
+    monkeypatch.setattr("src.services.workspace.get_active_membership", fake_get_active_membership)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await leave_workspace(WorkspaceServiceSession(), SimpleNamespace(id=42), 7)
+
+    assert exc_info.value.status_code == 400
+    assert (
+        exc_info.value.detail
+        == "Перед выходом из организации передайте роль владельца другому участнику."
+    )
+
+
+@pytest.mark.asyncio
+async def test_leave_workspace_rejects_personal_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import leave_workspace
+
+    workspace = Workspace(
+        id=1, name="Личное пространство", type=WorkspaceType.PERSONAL, owner_id=42
+    )
+    membership = WorkspaceMember(
+        id=1,
+        workspace_id=1,
+        user_id=42,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+    )
+
+    async def fake_get_active_membership(_session, _user_id, _workspace_id):
+        return membership
+
+    monkeypatch.setattr("src.services.workspace.get_active_membership", fake_get_active_membership)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await leave_workspace(WorkspaceServiceSession(), SimpleNamespace(id=42), 1)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Нельзя выйти из личного workspace"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_member_sends_role_changed_notification_and_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.user import User
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import update_workspace_member
+
+    session = WorkspaceServiceSession()
+    workspace = Workspace(id=7, name="Engineering", type=WorkspaceType.TEAM, owner_id=1)
+    target_user = User(
+        id=42,
+        email="member@example.com",
+        username="member",
+        full_name="Team Member",
+        hashed_password="hashed",
+        avatar_seed="seed-member-42",
+        is_active=True,
+    )
+    member = WorkspaceMember(
+        id=15,
+        workspace_id=7,
+        user_id=42,
+        role=WorkspaceRole.MEMBER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+        user=target_user,
+    )
+    notifications = []
+    published_events = []
+
+    async def fake_require_role(_session, _user_id, _workspace_id, _roles):
+        return SimpleNamespace(role=WorkspaceRole.OWNER)
+
+    async def fake_load_member_or_404(_session, _workspace_id, _member_id):
+        return member
+
+    async def fake_member_read(_session, updated_member):
+        return _member(id=updated_member.id, workspace_id=7, role=updated_member.role)
+
+    async def fake_create_notification(_session, **kwargs):
+        notifications.append(kwargs)
+
+    async def fake_publish_user_event(user_id, event, data):
+        published_events.append((user_id, event, data))
+
+    monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
+    monkeypatch.setattr("src.services.workspace._load_member_or_404", fake_load_member_or_404)
+    monkeypatch.setattr("src.services.workspace._member_read", fake_member_read)
+    monkeypatch.setattr("src.services.workspace.create_notification", fake_create_notification)
+    monkeypatch.setattr("src.services.workspace.publish_user_event", fake_publish_user_event)
+
+    updated = await update_workspace_member(
+        session,
+        SimpleNamespace(id=1),
+        7,
+        15,
+        WorkspaceMemberUpdate(role=WorkspaceRole.VIEWER),
+    )
+
+    assert updated.role == WorkspaceRole.VIEWER
+    assert notifications[0]["type"].value == "workspace_member_role_changed"
+    assert notifications[0]["payload"]["role"] == "viewer"
+    assert published_events[-1] == (
+        42,
+        "workspace.membership.changed",
+        {
+            "reason": "role_changed",
+            "workspace_id": 7,
+            "workspace_name": "Engineering",
+            "user_id": 42,
+            "role": "viewer",
+        },
+    )
 
 
 @pytest.mark.asyncio

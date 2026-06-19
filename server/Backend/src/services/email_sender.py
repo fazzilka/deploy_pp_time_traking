@@ -68,6 +68,9 @@ def _subject(notification: Notification) -> str:
         NotificationType.WORKSPACE_MEMBER_REMOVED: (
             "Time Tracking - вас удалили из рабочего пространства"
         ),
+        NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED: (
+            "Time Tracking - ваша роль в рабочем пространстве изменена"
+        ),
     }
     return subjects.get(notification.type, f"Time Tracking - {notification.title}")
 
@@ -87,8 +90,13 @@ def _body(notification: Notification) -> str:
     elif notification.type in {
         NotificationType.WORKSPACE_MEMBER_ADDED,
         NotificationType.WORKSPACE_MEMBER_REMOVED,
+        NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED,
     }:
         lines.append(f"Workspace: {payload.get('workspace_name', '-')}")
+        if notification.type == NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED:
+            lines.append(
+                f"Новая роль: {payload.get('role_display_name') or payload.get('role') or '-'}"
+            )
         if notification.type == NotificationType.WORKSPACE_MEMBER_REMOVED:
             lines.append("Рабочее пространство больше может быть недоступно вашему профилю.")
 

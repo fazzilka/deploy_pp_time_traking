@@ -73,4 +73,14 @@ def _message_text(notification: Notification) -> str:
                 f"Workspace: {payload.get('workspace_name', '-')}",
             ]
         )
+    if notification.type == NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED:
+        return "\n".join(
+            [
+                "Ваша роль в рабочем пространстве изменена",
+                "",
+                f"Workspace: {payload.get('workspace_name', '-')}",
+                f"Роль: {payload.get('role_display_name') or payload.get('role') or '-'}",
+                f"Открыть: {settings.app_public_url}",
+            ]
+        )
     return f"{notification.title}\n\n{notification.message}"

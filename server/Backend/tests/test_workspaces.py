@@ -261,8 +261,14 @@ async def test_add_workspace_member_service_persists_real_membership(
     async def fake_get_active_membership(_session, _user_id, _workspace_id):
         return None
 
+    published_events = []
+
+    async def fake_publish_user_event(user_id, event, data):
+        published_events.append((user_id, event, data))
+
     monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
     monkeypatch.setattr("src.services.workspace.get_active_membership", fake_get_active_membership)
+    monkeypatch.setattr("src.services.workspace.publish_user_event", fake_publish_user_event)
 
     member = await add_workspace_member_by_email(
         session,
@@ -279,6 +285,13 @@ async def test_add_workspace_member_service_persists_real_membership(
     assert session.committed is True
     assert member.workspace_id == 7
     assert member.user.email == "member@example.com"
+    assert any(
+        user_id == 42
+        and event == "workspace.membership.changed"
+        and data["reason"] == "added"
+        and data["workspace_id"] == 7
+        for user_id, event, data in published_events
+    )
 
 
 @pytest.mark.asyncio

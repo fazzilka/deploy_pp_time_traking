@@ -37,6 +37,7 @@ class Notification(Base):
         Index("ix_notifications_user_id", "user_id"),
         Index("ix_notifications_is_read", "is_read"),
         Index("ix_notifications_created_at", "created_at"),
+        Index("ix_notifications_user_id_is_read_created_at", "user_id", "is_read", "created_at"),
         Index(
             "uq_notifications_dedupe_key_not_null",
             "dedupe_key",

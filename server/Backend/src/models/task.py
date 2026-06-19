@@ -39,6 +39,8 @@ class Task(Base):
         Index("ix_tasks_workspace_id", "workspace_id"),
         Index("ix_tasks_workspace_id_project_id", "workspace_id", "project_id"),
         Index("ix_tasks_workspace_id_assignee_id", "workspace_id", "assignee_id"),
+        Index("ix_tasks_workspace_id_is_completed", "workspace_id", "is_completed"),
+        Index("ix_tasks_workspace_id_deadline", "workspace_id", "deadline"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

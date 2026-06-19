@@ -27,6 +27,7 @@ from src.schemas.workspace import (
     WorkspaceUpdate,
 )
 from src.services.notification import create_notification, enqueue_notification_delivery
+from src.services.user_events import publish_user_event
 
 MUTATION_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER}
 PROJECT_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
@@ -206,7 +207,7 @@ async def get_workspace_or_404(
 async def get_user_workspaces(session: AsyncSession, user: User) -> list[WorkspaceRead]:
     await ensure_personal_workspace(session, user)
     result = await session.execute(
-        select(Workspace)
+        select(Workspace, WorkspaceMember.role)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
         .where(
             WorkspaceMember.user_id == user.id,
@@ -214,8 +215,58 @@ async def get_user_workspaces(session: AsyncSession, user: User) -> list[Workspa
         )
         .order_by(Workspace.type.asc(), Workspace.created_at.asc(), Workspace.id.asc())
     )
+    rows = result.all()
+    workspace_ids = [int(workspace.id) for workspace, _role in rows]
+    members_counts = await _grouped_scalar_ints(
+        session,
+        select(WorkspaceMember.workspace_id, func.count(WorkspaceMember.id))
+        .where(
+            WorkspaceMember.workspace_id.in_(workspace_ids),
+            WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+        )
+        .group_by(WorkspaceMember.workspace_id),
+        workspace_ids,
+    )
+    projects_counts = await _grouped_scalar_ints(
+        session,
+        select(Project.workspace_id, func.count(Project.id))
+        .where(Project.workspace_id.in_(workspace_ids), Project.is_archived.is_(False))
+        .group_by(Project.workspace_id),
+        workspace_ids,
+    )
+    task_stats = await session.execute(
+        select(
+            Task.workspace_id,
+            func.count(Task.id),
+            func.coalesce(func.sum(Task.total_time_seconds), 0),
+        )
+        .where(Task.workspace_id.in_(workspace_ids))
+        .group_by(Task.workspace_id)
+    )
+    task_stat_rows = task_stats.all()
+    tasks_counts = {
+        int(workspace_id): int(count or 0) for workspace_id, count, _total in task_stat_rows
+    }
+    total_time_seconds = {
+        int(workspace_id): int(total or 0) for workspace_id, _count, total in task_stat_rows
+    }
+
     return [
-        await build_workspace_read(session, workspace, user.id) for workspace in result.scalars()
+        WorkspaceRead(
+            id=workspace.id,
+            name=workspace.name,
+            description=workspace.description,
+            type=workspace.type,
+            owner_id=workspace.owner_id,
+            created_at=workspace.created_at,
+            updated_at=workspace.updated_at,
+            members_count=members_counts.get(workspace.id, 0),
+            projects_count=projects_counts.get(workspace.id, 0),
+            tasks_count=tasks_counts.get(workspace.id, 0),
+            total_time_seconds=total_time_seconds.get(workspace.id, 0),
+            current_user_role=role,
+        )
+        for workspace, role in rows
     ]
 
 
@@ -356,6 +407,12 @@ async def add_workspace_member_by_email(
         event="member_added",
         dedupe_key=f"workspace_member_added:workspace:{workspace_id}:user:{target_user.id}",
     )
+    await _publish_workspace_membership_event(
+        user_id=target_user.id,
+        reason="added",
+        workspace_id=workspace_id,
+        workspace_name=workspace_name,
+    )
     return WorkspaceMemberRead(
         id=member.id,
         workspace_id=member.workspace_id,
@@ -387,7 +444,14 @@ async def update_workspace_member(
         setattr(member, key, value)
     await session.commit()
     await session.refresh(member)
-    return await _member_read(session, member)
+    member_read = await _member_read(session, member)
+    await _publish_workspace_membership_event(
+        user_id=member.user_id,
+        reason="role_changed",
+        workspace_id=workspace_id,
+        workspace_name=_workspace_name_from_membership(member, workspace_id),
+    )
+    return member_read
 
 
 async def remove_workspace_member(
@@ -418,6 +482,12 @@ async def remove_workspace_member(
             f"workspace_member_removed:workspace:{removed_workspace_id}:"
             f"user:{removed_user_id}:event:{uuid4()}"
         ),
+    )
+    await _publish_workspace_membership_event(
+        user_id=removed_user_id,
+        reason="removed",
+        workspace_id=removed_workspace_id,
+        workspace_name=workspace_name,
     )
 
 
@@ -593,6 +663,30 @@ async def _safe_create_workspace_notification(
 
     if notification is not None:
         enqueue_notification_delivery(notification.id)
+        await publish_user_event(
+            user_id,
+            "notifications.changed",
+            {"notification_id": notification.id, "workspace_id": workspace_id},
+        )
+
+
+async def _publish_workspace_membership_event(
+    *,
+    user_id: int,
+    reason: str,
+    workspace_id: int,
+    workspace_name: str,
+) -> None:
+    await publish_user_event(
+        user_id,
+        "workspace.membership.changed",
+        {
+            "reason": reason,
+            "workspace_id": workspace_id,
+            "workspace_name": workspace_name,
+            "user_id": user_id,
+        },
+    )
 
 
 async def _member_read(session: AsyncSession, member: WorkspaceMember) -> WorkspaceMemberRead:
@@ -716,6 +810,17 @@ def _interval_duration_expr() -> Any:
 async def _scalar_int(session: AsyncSession, stmt: Any) -> int:
     result = await session.execute(stmt)
     return int(result.scalar_one() or 0)
+
+
+async def _grouped_scalar_ints(
+    session: AsyncSession,
+    stmt: Any,
+    group_ids: list[int],
+) -> dict[int, int]:
+    if not group_ids:
+        return {}
+    result = await session.execute(stmt)
+    return {int(group_id): int(value or 0) for group_id, value in result.all()}
 
 
 def _member_user(user: User) -> WorkspaceMemberUser:

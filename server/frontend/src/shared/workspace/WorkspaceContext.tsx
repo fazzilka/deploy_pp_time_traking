@@ -2,6 +2,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { createWorkspace, getWorkspaces, updateWorkspace } from "../api/workspaces";
 import { resetProjectsDataCache } from "../api/projects";
 import { clearReportsCache } from "../api/reports";
+import { subscribeToUserEvents } from "../events/userEvents";
 import type { Workspace, WorkspaceCreateRequest, WorkspaceRole, WorkspaceUpdateRequest } from "../types/workspace";
 
 const STORAGE_KEY = "time_tracking_current_workspace_id";
@@ -14,7 +15,7 @@ type WorkspaceContextValue = {
   isLoading: boolean;
   error: string | null;
   setCurrentWorkspaceId: (workspaceId: number) => void;
-  refreshWorkspaces: () => Promise<void>;
+  refreshWorkspaces: (options?: { silent?: boolean }) => Promise<void>;
   createOrganization: (payload: WorkspaceCreateRequest) => Promise<Workspace>;
   updateCurrentWorkspace: (payload: WorkspaceUpdateRequest) => Promise<Workspace | null>;
 };
@@ -49,8 +50,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     clearReportsCache();
   }, []);
 
-  const refreshWorkspaces = useCallback(async () => {
-    setIsLoading(true);
+  const refreshWorkspaces = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -69,18 +72,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } catch {
       setError("Не удалось загрузить workspace");
     } finally {
-      setIsLoading(false);
+      if (!options?.silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   const createOrganization = useCallback(
     async (payload: WorkspaceCreateRequest) => {
       const createdWorkspace = await createWorkspace({ ...payload, type: "team" });
-      await refreshWorkspaces();
+      setWorkspaces((currentWorkspaces) => {
+        const withoutDuplicate = currentWorkspaces.filter((workspace) => workspace.id !== createdWorkspace.id);
+        return [...withoutDuplicate, createdWorkspace];
+      });
       setCurrentWorkspaceId(createdWorkspace.id);
       return createdWorkspace;
     },
-    [refreshWorkspaces, setCurrentWorkspaceId],
+    [setCurrentWorkspaceId],
   );
 
   const updateCurrentWorkspace = useCallback(
@@ -90,15 +98,35 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         return null;
       }
       const updatedWorkspace = await updateWorkspace(workspaceId, payload);
-      await refreshWorkspaces();
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) => (workspace.id === updatedWorkspace.id ? updatedWorkspace : workspace)),
+      );
       setCurrentWorkspaceId(updatedWorkspace.id);
       return updatedWorkspace;
     },
-    [currentWorkspace?.id, refreshWorkspaces, setCurrentWorkspaceId],
+    [currentWorkspace?.id, setCurrentWorkspaceId],
   );
 
   useEffect(() => {
     void refreshWorkspaces();
+  }, [refreshWorkspaces]);
+
+  useEffect(() => {
+    return subscribeToUserEvents({
+      onEvent: (event) => {
+        if (event === "workspace.membership.changed") {
+          void refreshWorkspaces({ silent: true });
+        }
+      },
+    });
+  }, [refreshWorkspaces]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refreshWorkspaces({ silent: true });
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
   }, [refreshWorkspaces]);
 
   const value = useMemo<WorkspaceContextValue>(

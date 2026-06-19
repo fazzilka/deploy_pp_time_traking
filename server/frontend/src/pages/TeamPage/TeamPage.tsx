@@ -1,5 +1,5 @@
-import type { FormEvent} from "react";
-import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import {
   addWorkspaceMember,
@@ -20,6 +20,10 @@ import {
   canManageMembers,
   useWorkspace,
 } from "../../shared/workspace/WorkspaceContext";
+import {
+  WORKSPACE_MEMBERSHIP_CHANGED_EVENT,
+  type WorkspaceMembershipChangedPayload,
+} from "../../shared/events/userEvents";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./TeamPage.css";
 
@@ -212,6 +216,7 @@ export function TeamPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<WorkspaceRole>("member");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
 
   const [settingsName, setSettingsName] = useState("");
   const [settingsDescription, setSettingsDescription] = useState("");
@@ -238,7 +243,26 @@ export function TeamPage() {
   const completedTasksCount = workspaceSummary?.completed_tasks_count ?? 0;
   const totalTimeSeconds = workspaceSummary?.total_time_seconds ?? currentWorkspace?.total_time_seconds ?? 0;
 
-  async function loadTeam() {
+  const updateMemberCounts = useCallback((delta: number) => {
+    setWorkspaceSummary((currentSummary) => {
+      if (!currentSummary) {
+        return currentSummary;
+      }
+      const membersCount = Math.max(0, currentSummary.members_count + delta);
+      const activeMembersCount = Math.max(0, currentSummary.active_members_count + delta);
+      return {
+        ...currentSummary,
+        members_count: membersCount,
+        active_members_count: activeMembersCount,
+        workspace: {
+          ...currentSummary.workspace,
+          members_count: membersCount,
+        },
+      };
+    });
+  }, []);
+
+  const loadTeam = useCallback(async () => {
     if (!currentWorkspaceId) {
       setMembers([]);
       setWorkspaceSummary(null);
@@ -271,11 +295,31 @@ export function TeamPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [currentWorkspaceId]);
 
   useEffect(() => {
     void loadTeam();
-  }, [currentWorkspaceId]);
+  }, [loadTeam]);
+
+  useEffect(() => {
+    function handleWorkspaceMembershipChanged(event: Event) {
+      const detail = (event as CustomEvent<WorkspaceMembershipChangedPayload>).detail;
+      if (detail.workspace_id !== currentWorkspaceId) {
+        return;
+      }
+
+      if (detail.reason === "removed") {
+        setMembers([]);
+        setWorkspaceSummary(null);
+        return;
+      }
+
+      void loadTeam();
+    }
+
+    window.addEventListener(WORKSPACE_MEMBERSHIP_CHANGED_EVENT, handleWorkspaceMembershipChanged);
+    return () => window.removeEventListener(WORKSPACE_MEMBERSHIP_CHANGED_EVENT, handleWorkspaceMembershipChanged);
+  }, [currentWorkspaceId, loadTeam]);
 
   useEffect(() => {
     setSettingsName(currentWorkspace?.name ?? "");
@@ -316,19 +360,37 @@ export function TeamPage() {
     }
 
     try {
-      await addWorkspaceMember(currentWorkspaceId, {
+      setIsInviting(true);
+      const addedMember = await addWorkspaceMember(currentWorkspaceId, {
         email: email.trim(),
         role,
       });
 
+      setMembers((currentMembers) => {
+        if (currentMembers.some((member) => member.id === addedMember.id)) {
+          return currentMembers;
+        }
+        return [
+          ...currentMembers,
+          {
+            ...addedMember,
+            projects_count: addedMember.projects_count ?? 0,
+            tasks_count: addedMember.tasks_count ?? 0,
+            completed_tasks_count: addedMember.completed_tasks_count ?? 0,
+            total_time_seconds: addedMember.total_time_seconds ?? 0,
+          },
+        ];
+      });
+      updateMemberCounts(1);
       setEmail("");
       setRole("member");
       setIsInviteOpen(false);
-      setSuccessMessage("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.");
-
-      await Promise.all([loadTeam(), refreshWorkspaces()]);
+      setSuccessMessage("Участник добавлен. Workspace появится у него автоматически.");
+      void refreshWorkspaces({ silent: true });
     } catch (caughtError) {
       setInviteError(caughtError instanceof Error ? caughtError.message : "Не удалось добавить участника");
+    } finally {
+      setIsInviting(false);
     }
   }
 
@@ -358,15 +420,19 @@ export function TeamPage() {
     try {
       setIsSavingSettings(true);
 
-      await updateCurrentWorkspace({
+      const updatedWorkspace = await updateCurrentWorkspace({
         name: settingsName.trim(),
         description: settingsDescription.trim() || null,
       });
+      if (updatedWorkspace) {
+        setWorkspaceSummary((currentSummary) =>
+          currentSummary ? { ...currentSummary, workspace: updatedWorkspace } : currentSummary,
+        );
+      }
 
       setSuccessMessage("Настройки команды сохранены");
       setIsSettingsOpen(false);
-
-      await Promise.all([loadTeam(), refreshWorkspaces()]);
+      void refreshWorkspaces({ silent: true });
     } catch (caughtError) {
       setSettingsError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить настройки");
     } finally {
@@ -379,11 +445,27 @@ export function TeamPage() {
       return;
     }
 
-    await updateWorkspaceMember(currentWorkspaceId, member.id, {
-      role: nextRole,
-    });
+    const previousMembers = members;
+    setMembers((currentMembers) =>
+      currentMembers.map((currentMember) =>
+        currentMember.id === member.id ? { ...currentMember, role: nextRole } : currentMember,
+      ),
+    );
 
-    await loadTeam();
+    try {
+      const updatedMember = await updateWorkspaceMember(currentWorkspaceId, member.id, {
+        role: nextRole,
+      });
+      setMembers((currentMembers) =>
+        currentMembers.map((currentMember) =>
+          currentMember.id === updatedMember.id ? { ...currentMember, ...updatedMember } : currentMember,
+        ),
+      );
+      void refreshWorkspaces({ silent: true });
+    } catch (caughtError) {
+      setMembers(previousMembers);
+      setError(caughtError instanceof Error ? caughtError.message : "Не удалось изменить роль участника");
+    }
   }
 
   async function handleRemoveMember(member: WorkspaceMember) {
@@ -397,8 +479,19 @@ export function TeamPage() {
       return;
     }
 
-    await removeWorkspaceMember(currentWorkspaceId, member.id);
-    await Promise.all([loadTeam(), refreshWorkspaces()]);
+    const previousMembers = members;
+    const previousSummary = workspaceSummary;
+    setMembers((currentMembers) => currentMembers.filter((currentMember) => currentMember.id !== member.id));
+    updateMemberCounts(-1);
+
+    try {
+      await removeWorkspaceMember(currentWorkspaceId, member.id);
+      void refreshWorkspaces({ silent: true });
+    } catch (caughtError) {
+      setMembers(previousMembers);
+      setWorkspaceSummary(previousSummary);
+      setError(caughtError instanceof Error ? caughtError.message : "Не удалось удалить участника");
+    }
   }
 
   return (
@@ -794,8 +887,8 @@ export function TeamPage() {
             {inviteError && <p className="team-modal__error">{inviteError}</p>}
 
             <div className="team-modal__actions">
-              <button className="team-action team-action--primary" type="submit">
-                Добавить
+              <button className="team-action team-action--primary" type="submit" disabled={isInviting}>
+                {isInviting ? "Добавляем..." : "Добавить"}
               </button>
 
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>

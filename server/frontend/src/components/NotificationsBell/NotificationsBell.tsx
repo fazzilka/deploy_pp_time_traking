@@ -6,6 +6,7 @@ import {
   markNotificationRead,
   type NotificationItem,
 } from "../../shared/api/notifications";
+import { NOTIFICATIONS_CHANGED_EVENT } from "../../shared/events/userEvents";
 import "./NotificationsBell.css";
 
 function BellIcon() {
@@ -109,6 +110,24 @@ export function NotificationsBell() {
       void loadNotifications();
     }
   }, [isOpen, loadNotifications]);
+
+  useEffect(() => {
+    let mounted = true;
+    const isMounted = () => mounted;
+
+    function handleNotificationsChanged() {
+      void refreshUnreadCount(isMounted);
+      if (isOpen) {
+        void loadNotifications();
+      }
+    }
+
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, handleNotificationsChanged);
+    return () => {
+      mounted = false;
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, handleNotificationsChanged);
+    };
+  }, [isOpen, loadNotifications, refreshUnreadCount]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

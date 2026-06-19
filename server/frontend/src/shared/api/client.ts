@@ -1,9 +1,19 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
+export function getAccessToken(): string | null {
+  return localStorage.getItem("access_token");
+}
+
+export function handleUnauthorizedSession(): never {
+  localStorage.removeItem("access_token");
+  window.location.href = "/auth";
+  throw new Error("Сессия истекла, войдите снова");
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
   const headers = new Headers(options.headers);
   const isAuthRequest = path.startsWith("/api/v1/auth/login") || path.startsWith("/api/v1/auth/register");
 
@@ -21,9 +31,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   });
 
   if (response.status === 401 && !isAuthRequest) {
-    localStorage.removeItem("access_token");
-    window.location.href = "/auth";
-    throw new Error("Сессия истекла, войдите снова");
+    handleUnauthorizedSession();
   }
 
   if (!response.ok) {

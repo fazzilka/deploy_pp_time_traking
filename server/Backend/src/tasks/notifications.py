@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+# ruff: noqa: UP017
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,12 @@ from sqlalchemy.orm import selectinload
 
 from src.core.celery_app import celery_app
 from src.core.config import settings
+from src.core.deadlines import (
+    ensure_utc,
+    format_deadline_readable,
+    format_utc_iso,
+    utc_now,
+)
 from src.db.session import AsyncSessionFactory
 from src.models.enums import (
     NotificationDeliveryChannel,
@@ -52,54 +59,58 @@ def send_telegram_notification(notification_id: int) -> None:
     )
 
 
-async def scan_deadline_notifications_async() -> int:
+async def scan_deadline_notifications_async(now_utc: datetime | None = None) -> int:
     created_count = 0
     async with AsyncSessionFactory() as session:
-        now = datetime.now(UTC)
+        now = now_utc.astimezone(timezone.utc) if now_utc else utc_now()
         reminder_minutes = settings.deadline_reminder_minutes
         window_end = now + timedelta(minutes=reminder_minutes)
-        tasks = await _load_deadline_candidate_tasks(session, now.date(), window_end.date())
+        lookback_hours = settings.overdue_notification_lookback_hours
+        overdue_window_start = now - timedelta(hours=lookback_hours)
+        logger.info(
+            "deadline_scan_started",
+            extra={
+                "now_utc": format_utc_iso(now),
+                "reminder_minutes": reminder_minutes,
+                "overdue_lookback_hours": lookback_hours,
+            },
+        )
 
-        for task in tasks:
-            deadline_at = _deadline_as_datetime(task.deadline)
-            if deadline_at is None or deadline_at <= now or deadline_at > window_end:
-                continue
-            if task.is_completed:
-                continue
-
-            recipient = task.assignee or task.created_by
-            if recipient is None or not recipient.is_active:
-                continue
-
-            notification = await create_notification(
-                session,
-                user_id=recipient.id,
-                type=NotificationType.DEADLINE_SOON,
-                title="Дедлайн скоро закончится",
-                message=(
-                    f"До дедлайна задачи «{task.title}» осталось меньше {reminder_minutes} минут."
-                ),
-                workspace_id=task.workspace_id,
-                task_id=task.id,
-                payload={
-                    "task_id": task.id,
-                    "task_title": task.title,
-                    "workspace_id": task.workspace_id,
-                    "workspace_name": task.workspace.name if task.workspace else None,
-                    "deadline": deadline_at.isoformat(),
-                    "remind_before_minutes": reminder_minutes,
-                    "event": "deadline_soon",
-                },
-                dedupe_key=(
-                    f"deadline_soon:task:{task.id}:user:{recipient.id}:minutes:{reminder_minutes}"
-                ),
+        upcoming_tasks = await _load_upcoming_deadline_tasks(session, now, window_end)
+        for task in upcoming_tasks:
+            notification = await _create_deadline_notification(
+                session=session,
+                task=task,
+                now=now,
+                notification_type=NotificationType.DEADLINE_SOON,
+                reminder_minutes=reminder_minutes,
             )
-            if notification is None:
-                continue
-            created_count += 1
-            _enqueue_delivery_from_worker(notification.id)
+            if notification is not None:
+                created_count += 1
+                _enqueue_delivery_from_worker(notification.id)
 
-    logger.info("deadline notification scan completed", extra={"created_count": created_count})
+        overdue_tasks = await _load_overdue_deadline_tasks(session, overdue_window_start, now)
+        for task in overdue_tasks:
+            notification = await _create_deadline_notification(
+                session=session,
+                task=task,
+                now=now,
+                notification_type=NotificationType.DEADLINE_OVERDUE,
+                reminder_minutes=reminder_minutes,
+            )
+            if notification is not None:
+                created_count += 1
+                _enqueue_delivery_from_worker(notification.id)
+
+    logger.info(
+        "deadline_scan_finished",
+        extra={
+            "created_count": created_count,
+            "now_utc": format_utc_iso(now),
+            "reminder_minutes": reminder_minutes,
+            "overdue_lookback_hours": settings.overdue_notification_lookback_hours,
+        },
+    )
     return created_count
 
 
@@ -128,18 +139,18 @@ async def deliver_notification_channel_async(
             await _deliver_telegram(session, notification)
 
 
-async def _load_deadline_candidate_tasks(
+async def _load_upcoming_deadline_tasks(
     session: AsyncSession,
-    start_date: date,
-    end_date: date,
+    now: datetime,
+    window_end: datetime,
 ) -> list[Task]:
     result = await session.execute(
         select(Task)
         .where(
             Task.deadline.is_not(None),
             Task.is_completed.is_(False),
-            Task.deadline >= start_date,
-            Task.deadline <= end_date,
+            Task.deadline > now,
+            Task.deadline <= window_end,
         )
         .options(
             selectinload(Task.assignee),
@@ -150,10 +161,134 @@ async def _load_deadline_candidate_tasks(
     return list(result.scalars().unique().all())
 
 
-def _deadline_as_datetime(value: date | None) -> datetime | None:
-    if value is None:
+async def _load_overdue_deadline_tasks(
+    session: AsyncSession,
+    window_start: datetime,
+    now: datetime,
+) -> list[Task]:
+    result = await session.execute(
+        select(Task)
+        .where(
+            Task.deadline.is_not(None),
+            Task.is_completed.is_(False),
+            Task.deadline <= now,
+            Task.deadline >= window_start,
+        )
+        .options(
+            selectinload(Task.assignee),
+            selectinload(Task.created_by),
+            selectinload(Task.workspace),
+        )
+    )
+    return list(result.scalars().unique().all())
+
+
+async def _create_deadline_notification(
+    *,
+    session: AsyncSession,
+    task: Task,
+    now: datetime,
+    notification_type: NotificationType,
+    reminder_minutes: int,
+) -> Notification | None:
+    deadline_at = ensure_utc(task.deadline)
+    if deadline_at is None:
+        logger.info("deadline_notification_skipped_no_deadline", extra={"task_id": task.id})
         return None
-    return datetime.combine(value, time.max, tzinfo=UTC)
+    if task.is_completed:
+        logger.info(
+            "deadline_notification_skipped_completed",
+            extra={"task_id": task.id, "deadline_utc": format_utc_iso(deadline_at)},
+        )
+        return None
+
+    recipient = task.assignee or task.created_by
+    if recipient is None or not recipient.is_active:
+        logger.info(
+            "deadline_notification_skipped_no_recipient",
+            extra={"task_id": task.id, "deadline_utc": format_utc_iso(deadline_at)},
+        )
+        return None
+
+    if notification_type == NotificationType.DEADLINE_SOON:
+        if deadline_at <= now:
+            return None
+        deadline_iso = format_utc_iso(deadline_at)
+        dedupe_key = (
+            f"deadline_soon:task:{task.id}:user:{recipient.id}:"
+            f"deadline:{deadline_iso}:minutes:{reminder_minutes}"
+        )
+        notification = await create_notification(
+            session,
+            user_id=recipient.id,
+            type=NotificationType.DEADLINE_SOON,
+            title="Дедлайн через 1 час",
+            message=(
+                f"До дедлайна задачи «{task.title}» остался примерно 1 час.\n"
+                f"Дедлайн: {format_deadline_readable(deadline_at)}."
+            ),
+            workspace_id=task.workspace_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "task_title": task.title,
+                "workspace_id": task.workspace_id,
+                "workspace_name": task.workspace.name if task.workspace else None,
+                "deadline": deadline_iso,
+                "remind_before_minutes": reminder_minutes,
+                "triggered_at": format_utc_iso(now),
+                "event": "deadline_soon",
+            },
+            dedupe_key=dedupe_key,
+        )
+        log_name = "deadline_soon_created"
+    else:
+        if deadline_at > now:
+            return None
+        deadline_iso = format_utc_iso(deadline_at)
+        overdue_seconds = max(0, int((now - deadline_at).total_seconds()))
+        dedupe_key = f"deadline_overdue:task:{task.id}:user:{recipient.id}:deadline:{deadline_iso}"
+        notification = await create_notification(
+            session,
+            user_id=recipient.id,
+            type=NotificationType.DEADLINE_OVERDUE,
+            title="Дедлайн просрочен",
+            message=(
+                f"Задача «{task.title}» просрочена.\n"
+                f"Дедлайн был {format_deadline_readable(deadline_at)}."
+            ),
+            workspace_id=task.workspace_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "task_title": task.title,
+                "workspace_id": task.workspace_id,
+                "workspace_name": task.workspace.name if task.workspace else None,
+                "deadline": deadline_iso,
+                "triggered_at": format_utc_iso(now),
+                "overdue_by_seconds": overdue_seconds,
+                "event": "deadline_overdue",
+            },
+            dedupe_key=dedupe_key,
+        )
+        log_name = "deadline_overdue_created"
+
+    log_extra = {
+        "task_id": task.id,
+        "user_id": recipient.id,
+        "deadline_utc": deadline_iso,
+        "now_utc": format_utc_iso(now),
+        "remaining_seconds": int((deadline_at - now).total_seconds()),
+        "overdue_seconds": max(0, int((now - deadline_at).total_seconds())),
+        "reminder_minutes": reminder_minutes,
+        "overdue_lookback_hours": settings.overdue_notification_lookback_hours,
+    }
+    if notification is None:
+        logger.info("deadline_notification_skipped_duplicate", extra=log_extra)
+        return None
+
+    logger.info(log_name, extra=log_extra)
+    return notification
 
 
 def _enqueue_delivery_from_worker(notification_id: int) -> None:

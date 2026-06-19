@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -156,24 +156,261 @@ async def test_notifications_api_returns_current_user_notifications(
     assert data["items"][0]["type"] == "deadline_soon"
 
 
+def _deadline_task(
+    *,
+    task_id: int = 10,
+    user_id: int = 5,
+    deadline: datetime | None,
+    is_completed: bool = False,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=task_id,
+        title="Закрыть релиз",
+        deadline=deadline,
+        is_completed=is_completed,
+        workspace_id=2,
+        assignee=SimpleNamespace(id=user_id, is_active=True),
+        created_by=SimpleNamespace(id=1, is_active=True),
+        workspace=SimpleNamespace(name="Engineering"),
+    )
+
+
 @pytest.mark.asyncio
-async def test_deadline_scan_creates_deduped_notification(
+async def test_deadline_soon_created_only_before_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    created: list[dict[str, object]] = []
+    now = datetime(2026, 6, 19, 15, 0, tzinfo=UTC)
+    task = _deadline_task(deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC))
+
+    async def fake_create_notification(_session, **kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(id=99)
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    notification = await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=task,
+        now=now,
+        notification_type=NotificationType.DEADLINE_SOON,
+        reminder_minutes=60,
+    )
+
+    assert notification is not None
+    assert created[0]["type"] == NotificationType.DEADLINE_SOON
+    assert created[0]["title"] == "Дедлайн через 1 час"
+    assert created[0]["payload"]["deadline"] == "2026-06-19T16:00:00Z"
+    assert created[0]["payload"]["triggered_at"] == "2026-06-19T15:00:00Z"
+    assert created[0]["dedupe_key"] == (
+        "deadline_soon:task:10:user:5:deadline:2026-06-19T16:00:00Z:minutes:60"
+    )
+
+
+@pytest.mark.asyncio
+async def test_deadline_soon_not_created_at_or_after_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    created: list[dict[str, object]] = []
+    now = datetime(2026, 6, 19, 16, 0, tzinfo=UTC)
+    task = _deadline_task(deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC))
+
+    async def fake_create_notification(_session, **kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(id=99)
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    notification = await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=task,
+        now=now,
+        notification_type=NotificationType.DEADLINE_SOON,
+        reminder_minutes=60,
+    )
+
+    assert notification is None
+    assert created == []
+
+
+@pytest.mark.asyncio
+async def test_deadline_overdue_created_at_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    created: list[dict[str, object]] = []
+    now = datetime(2026, 6, 19, 16, 0, tzinfo=UTC)
+    task = _deadline_task(deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC))
+
+    async def fake_create_notification(_session, **kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(id=100)
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    notification = await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=task,
+        now=now,
+        notification_type=NotificationType.DEADLINE_OVERDUE,
+        reminder_minutes=60,
+    )
+
+    assert notification is not None
+    assert created[0]["type"] == NotificationType.DEADLINE_OVERDUE
+    assert created[0]["title"] == "Дедлайн просрочен"
+    assert created[0]["payload"]["deadline"] == "2026-06-19T16:00:00Z"
+    assert created[0]["payload"]["overdue_by_seconds"] == 0
+    assert created[0]["dedupe_key"] == (
+        "deadline_overdue:task:10:user:5:deadline:2026-06-19T16:00:00Z"
+    )
+
+
+@pytest.mark.asyncio
+async def test_deadline_overdue_created_after_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    created: list[dict[str, object]] = []
+    now = datetime(2026, 6, 19, 16, 10, tzinfo=UTC)
+    task = _deadline_task(deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC))
+
+    async def fake_create_notification(_session, **kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(id=100)
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=task,
+        now=now,
+        notification_type=NotificationType.DEADLINE_OVERDUE,
+        reminder_minutes=60,
+    )
+
+    assert created[0]["payload"]["overdue_by_seconds"] == 600
+
+
+@pytest.mark.asyncio
+async def test_deadline_notifications_skip_completed_and_missing_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    created: list[dict[str, object]] = []
+    now = datetime(2026, 6, 19, 16, 10, tzinfo=UTC)
+
+    async def fake_create_notification(_session, **kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(id=100)
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    completed = await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=_deadline_task(
+            deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC),
+            is_completed=True,
+        ),
+        now=now,
+        notification_type=NotificationType.DEADLINE_OVERDUE,
+        reminder_minutes=60,
+    )
+    without_deadline = await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=_deadline_task(deadline=None),
+        now=now,
+        notification_type=NotificationType.DEADLINE_OVERDUE,
+        reminder_minutes=60,
+    )
+
+    assert completed is None
+    assert without_deadline is None
+    assert created == []
+
+
+@pytest.mark.asyncio
+async def test_deadline_duplicate_is_not_counted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    now = datetime(2026, 6, 19, 15, 0, tzinfo=UTC)
+    task = _deadline_task(deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC))
+
+    async def fake_create_notification(_session, **_kwargs):
+        return None
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    notification = await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=task,
+        now=now,
+        notification_type=NotificationType.DEADLINE_SOON,
+        reminder_minutes=60,
+    )
+
+    assert notification is None
+
+
+@pytest.mark.asyncio
+async def test_deadline_dedupe_changes_with_deadline_and_assignee(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    created: list[dict[str, object]] = []
+    now = datetime(2026, 6, 19, 15, 0, tzinfo=UTC)
+
+    async def fake_create_notification(_session, **kwargs):
+        created.append(kwargs)
+        return SimpleNamespace(id=len(created))
+
+    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
+    await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=_deadline_task(user_id=5, deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC)),
+        now=now,
+        notification_type=NotificationType.DEADLINE_SOON,
+        reminder_minutes=60,
+    )
+    await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=_deadline_task(user_id=6, deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC)),
+        now=now,
+        notification_type=NotificationType.DEADLINE_SOON,
+        reminder_minutes=60,
+    )
+    await notification_tasks._create_deadline_notification(
+        session=object(),
+        task=_deadline_task(user_id=5, deadline=datetime(2026, 6, 19, 18, 0, tzinfo=UTC)),
+        now=now,
+        notification_type=NotificationType.DEADLINE_SOON,
+        reminder_minutes=60,
+    )
+
+    assert created[0]["dedupe_key"] != created[1]["dedupe_key"]
+    assert created[0]["dedupe_key"] != created[2]["dedupe_key"]
+
+
+@pytest.mark.asyncio
+async def test_deadline_scan_uses_separate_utc_windows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from src.tasks import notifications as notification_tasks
 
     created: list[dict[str, object]] = []
     enqueued: list[int] = []
-    today = datetime.now(UTC).date()
-    task = SimpleNamespace(
-        id=10,
-        title="Закрыть релиз",
-        deadline=today,
-        is_completed=False,
-        workspace_id=2,
-        assignee=SimpleNamespace(id=5, is_active=True),
-        created_by=SimpleNamespace(id=1, is_active=True),
-        workspace=SimpleNamespace(name="Engineering"),
+    now = datetime(2026, 6, 19, 15, 0, tzinfo=UTC)
+    upcoming = _deadline_task(
+        task_id=10,
+        deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC),
+    )
+    overdue = _deadline_task(
+        task_id=11,
+        deadline=datetime(2026, 6, 19, 13, 0, tzinfo=UTC),
     )
 
     class DummyFactory:
@@ -183,79 +420,33 @@ async def test_deadline_scan_creates_deduped_notification(
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-    async def fake_load_tasks(_session, _start_date, _end_date):
-        return [task]
+    async def fake_load_upcoming(_session, window_start, window_end):
+        assert window_start == now
+        assert window_end == now + timedelta(minutes=60)
+        return [upcoming]
+
+    async def fake_load_overdue(_session, window_start, window_end):
+        assert window_start == now - timedelta(hours=24)
+        assert window_end == now
+        return [overdue]
 
     async def fake_create_notification(_session, **kwargs):
         created.append(kwargs)
-        return SimpleNamespace(id=99)
+        return SimpleNamespace(id=len(created))
 
     monkeypatch.setattr(notification_tasks, "AsyncSessionFactory", lambda: DummyFactory())
-    monkeypatch.setattr(notification_tasks, "_load_deadline_candidate_tasks", fake_load_tasks)
+    monkeypatch.setattr(notification_tasks, "_load_upcoming_deadline_tasks", fake_load_upcoming)
+    monkeypatch.setattr(notification_tasks, "_load_overdue_deadline_tasks", fake_load_overdue)
     monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
     monkeypatch.setattr(notification_tasks, "_enqueue_delivery_from_worker", enqueued.append)
-    monkeypatch.setattr(notification_tasks.settings, "deadline_reminder_minutes", 24 * 60)
+    monkeypatch.setattr(notification_tasks.settings, "deadline_reminder_minutes", 60)
+    monkeypatch.setattr(notification_tasks.settings, "overdue_notification_lookback_hours", 24)
 
-    count = await notification_tasks.scan_deadline_notifications_async()
+    count = await notification_tasks.scan_deadline_notifications_async(now)
 
-    assert count == 1
-    assert created[0]["user_id"] == 5
-    assert created[0]["type"] == NotificationType.DEADLINE_SOON
-    assert created[0]["workspace_id"] == 2
-    assert created[0]["task_id"] == 10
-    assert created[0]["dedupe_key"] == "deadline_soon:task:10:user:5:minutes:1440"
-    assert enqueued == [99]
-
-
-@pytest.mark.asyncio
-async def test_deadline_scan_skips_completed_and_overdue_tasks(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from src.tasks import notifications as notification_tasks
-
-    created: list[dict[str, object]] = []
-    yesterday = datetime.now(UTC).date() - timedelta(days=1)
-    completed = SimpleNamespace(
-        id=11,
-        title="Готовая задача",
-        deadline=date.today(),
-        is_completed=True,
-        workspace_id=2,
-        assignee=SimpleNamespace(id=5, is_active=True),
-        created_by=None,
-        workspace=None,
-    )
-    overdue = SimpleNamespace(
-        id=12,
-        title="Просроченная задача",
-        deadline=yesterday,
-        is_completed=False,
-        workspace_id=2,
-        assignee=SimpleNamespace(id=5, is_active=True),
-        created_by=None,
-        workspace=None,
-    )
-
-    class DummyFactory:
-        async def __aenter__(self):
-            return object()
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
-    async def fake_load_tasks(_session, _start_date, _end_date):
-        return [completed, overdue]
-
-    async def fake_create_notification(_session, **kwargs):
-        created.append(kwargs)
-        return SimpleNamespace(id=100)
-
-    monkeypatch.setattr(notification_tasks, "AsyncSessionFactory", lambda: DummyFactory())
-    monkeypatch.setattr(notification_tasks, "_load_deadline_candidate_tasks", fake_load_tasks)
-    monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
-    monkeypatch.setattr(notification_tasks.settings, "deadline_reminder_minutes", 24 * 60)
-
-    count = await notification_tasks.scan_deadline_notifications_async()
-
-    assert count == 0
-    assert created == []
+    assert count == 2
+    assert [item["type"] for item in created] == [
+        NotificationType.DEADLINE_SOON,
+        NotificationType.DEADLINE_OVERDUE,
+    ]
+    assert enqueued == [1, 2]

@@ -62,6 +62,7 @@ def _build_email_message(notification: Notification, user: User) -> EmailMessage
 def _subject(notification: Notification) -> str:
     subjects = {
         NotificationType.DEADLINE_SOON: "Time Tracking - дедлайн задачи скоро закончится",
+        NotificationType.DEADLINE_OVERDUE: "Time Tracking - дедлайн задачи просрочен",
         NotificationType.WORKSPACE_MEMBER_ADDED: (
             "Time Tracking - вас добавили в рабочее пространство"
         ),
@@ -85,6 +86,14 @@ def _body(notification: Notification) -> str:
                 f"Задача: {payload.get('task_title', 'Без названия')}",
                 f"Workspace: {payload.get('workspace_name') or payload.get('workspace_id') or '-'}",
                 f"Дедлайн: {payload.get('deadline', '-')}",
+            ]
+        )
+    elif notification.type == NotificationType.DEADLINE_OVERDUE:
+        lines.extend(
+            [
+                f"Задача: {payload.get('task_title', 'Без названия')}",
+                f"Дедлайн был: {payload.get('deadline', '-')}",
+                "Откройте приложение, чтобы завершить задачу или перенести срок.",
             ]
         )
     elif notification.type in {

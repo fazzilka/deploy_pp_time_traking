@@ -17,9 +17,9 @@
   min-height: 78px;
 
   display: grid;
-  grid-template-columns: minmax(0, auto) minmax(420px, 1fr) auto;
+  grid-template-columns: auto minmax(620px, 1fr) auto;
   align-items: center;
-  column-gap: 30px;
+  column-gap: 44px;
 
   min-width: 0;
   overflow: visible;
@@ -355,16 +355,19 @@
 }
 
 .navigation__links {
-  justify-self: center;
+  justify-self: stretch;
 
+  width: 100%;
   min-width: 0;
 
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(max-content, 1fr));
   align-items: center;
-  justify-content: center;
-  gap: 22px;
+  justify-items: center;
+  column-gap: 12px;
 
   margin: 0;
+  padding: 0 10px;
 }
 
 .navigation__links a {
@@ -384,6 +387,7 @@
   font-size: 15px;
   font-weight: 850;
   line-height: 1;
+  white-space: nowrap;
 
   transition:
     background 160ms ease,
@@ -636,8 +640,8 @@
 
 @media (max-width: 1440px) {
   .navigation__inner {
-    grid-template-columns: minmax(0, auto) minmax(360px, 1fr) auto;
-    column-gap: 22px;
+    grid-template-columns: auto minmax(520px, 1fr) auto;
+    column-gap: 30px;
   }
 
   .navigation__left {
@@ -650,7 +654,8 @@
   }
 
   .navigation__links {
-    gap: 14px;
+    column-gap: 8px;
+    padding: 0 4px;
   }
 
   .navigation__links a {
@@ -660,8 +665,8 @@
 
 @media (max-width: 1280px) {
   .navigation__inner {
-    grid-template-columns: minmax(0, auto) minmax(310px, 1fr) auto;
-    column-gap: 18px;
+    grid-template-columns: auto minmax(440px, 1fr) auto;
+    column-gap: 22px;
   }
 
   .navigation__workspace {
@@ -670,7 +675,8 @@
   }
 
   .navigation__links {
-    gap: 8px;
+    column-gap: 4px;
+    padding: 0;
   }
 
   .navigation__links a {
@@ -700,7 +706,9 @@
     grid-row: 2;
 
     width: 100%;
+    display: flex;
     justify-content: flex-start;
+    gap: 8px;
     overflow-x: auto;
 
     padding-bottom: 2px;

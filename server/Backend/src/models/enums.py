@@ -29,3 +29,21 @@ class WorkspaceRole(StrEnum):
 class WorkspaceMemberStatus(StrEnum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+
+
+class NotificationType(StrEnum):
+    DEADLINE_SOON = "deadline_soon"
+    WORKSPACE_MEMBER_ADDED = "workspace_member_added"
+    WORKSPACE_MEMBER_REMOVED = "workspace_member_removed"
+
+
+class NotificationDeliveryChannel(StrEnum):
+    EMAIL = "email"
+    TELEGRAM = "telegram"
+
+
+class NotificationDeliveryStatus(StrEnum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    SKIPPED = "skipped"

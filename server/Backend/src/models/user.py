@@ -8,6 +8,7 @@ from src.db.session import Base
 from src.models.enums import UserRole
 
 if TYPE_CHECKING:
+    from src.models.notification import Notification
     from src.models.project import Project
     from src.models.task import Task
     from src.models.workspace import Workspace, WorkspaceMember
@@ -36,6 +37,14 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean(), nullable=False, default=True, server_default="true", index=True
     )
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    telegram_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    telegram_notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="false"
+    )
+    telegram_linked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -60,5 +69,8 @@ class User(Base):
         back_populates="owner", cascade="all, delete-orphan"
     )
     workspace_memberships: Mapped[list[WorkspaceMember]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    notifications: Mapped[list[Notification]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

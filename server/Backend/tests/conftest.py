@@ -67,7 +67,12 @@ class DummySession:
     async def commit(self) -> None:
         self.committed = True
 
+    async def rollback(self) -> None:
+        self.committed = False
+
     async def refresh(self, _item: Any) -> None:
+        if getattr(_item, "id", None) is None:
+            _item.id = len(self.items)
         return None
 
 

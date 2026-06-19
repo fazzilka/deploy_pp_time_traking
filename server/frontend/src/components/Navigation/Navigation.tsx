@@ -2,6 +2,7 @@ import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { GeneratedAvatar } from "../GeneratedAvatar";
+import { NotificationsBell } from "../NotificationsBell/NotificationsBell";
 import { getCurrentUser, userProfileUpdatedEvent } from "../../shared/api/profile";
 import { logout } from "../../shared/api/auth";
 import { createWorkspace } from "../../shared/api/workspaces";
@@ -367,6 +368,8 @@ export function Navigation() {
         </nav>
 
         <div className="navigation__user">
+          <NotificationsBell />
+
           <button
             className="navigation__avatar"
             type="button"

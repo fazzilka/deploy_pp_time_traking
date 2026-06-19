@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -13,7 +13,7 @@ class SummaryTask(BaseModel):
     title: str
     description: str | None = None
     total_time_seconds: int
-    deadline: date | None = None
+    deadline: datetime | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
 
 

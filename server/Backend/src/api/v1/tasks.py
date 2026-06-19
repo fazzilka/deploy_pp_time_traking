@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.api.deps import CurrentUserDep
+from src.core.deadlines import normalize_deadline_query
 from src.db.session import get_db_session
 from src.models.enums import TaskPriority, WorkspaceRole
 from src.models.task import Task
@@ -105,8 +106,8 @@ async def fetch_tasks(
     search: str | None = None,
     has_time: bool | None = None,
     priority: TaskPriority | None = None,
-    deadline_before: date | None = None,
-    deadline_after: date | None = None,
+    deadline_before: datetime | None = None,
+    deadline_after: datetime | None = None,
     workspace_id: int | None = None,
     project_id: int | None = None,
     without_project: bool = False,
@@ -169,8 +170,8 @@ async def list_tasks(
     search: Annotated[str | None, Query()] = None,
     has_time: Annotated[bool | None, Query()] = None,
     priority: Annotated[TaskPriority | None, Query()] = None,
-    deadline_before: Annotated[date | None, Query()] = None,
-    deadline_after: Annotated[date | None, Query()] = None,
+    deadline_before: Annotated[str | None, Query()] = None,
+    deadline_after: Annotated[str | None, Query()] = None,
     workspace_id: Annotated[int | None, Query()] = None,
     project_id: Annotated[int | None, Query()] = None,
     without_project: Annotated[bool, Query()] = False,
@@ -184,8 +185,8 @@ async def list_tasks(
         search=search,
         has_time=has_time,
         priority=priority,
-        deadline_before=deadline_before,
-        deadline_after=deadline_after,
+        deadline_before=normalize_deadline_query(deadline_before, boundary="end"),
+        deadline_after=normalize_deadline_query(deadline_after, boundary="start"),
         workspace_id=workspace_id,
         project_id=project_id,
         without_project=without_project,

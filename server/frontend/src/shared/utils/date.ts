@@ -1,13 +1,21 @@
 export type DeadlineStatus = "none" | "overdue" | "today" | "upcoming";
 
-function parseDateOnly(value: string): Date | null {
-  const [year, month, day] = value.split("-").map(Number);
+function parseDeadlineDate(value: string): Date | null {
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
 
-  if (!year || !month || !day) {
-    return null;
+  if (dateOnlyMatch) {
+    const [, rawYear, rawMonth, rawDay] = dateOnlyMatch;
+    const year = Number(rawYear);
+    const month = Number(rawMonth);
+    const day = Number(rawDay);
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day);
   }
 
-  return new Date(year, month - 1, day);
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function startOfToday(): Date {
@@ -20,7 +28,7 @@ export function formatDeadline(deadline: string | null): string {
     return "Без срока";
   }
 
-  const date = parseDateOnly(deadline);
+  const date = parseDeadlineDate(deadline);
 
   if (!date) {
     return deadline;
@@ -30,6 +38,8 @@ export function formatDeadline(deadline: string | null): string {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -38,18 +48,19 @@ export function getDeadlineStatus(deadline: string | null): DeadlineStatus {
     return "none";
   }
 
-  const date = parseDateOnly(deadline);
+  const date = parseDeadlineDate(deadline);
 
   if (!date) {
     return "none";
   }
 
-  const today = startOfToday();
-  const diffDays = Math.round((date.getTime() - today.getTime()) / 86_400_000);
-
-  if (diffDays < 0) {
+  const now = new Date();
+  if (date.getTime() < now.getTime()) {
     return "overdue";
   }
+
+  const today = startOfToday();
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86_400_000);
 
   if (diffDays === 0) {
     return "today";
@@ -63,17 +74,18 @@ export function getDeadlineLabel(deadline: string | null): string {
     return "Без срока";
   }
 
-  const date = parseDateOnly(deadline);
+  const date = parseDeadlineDate(deadline);
 
   if (!date) {
     return "Без срока";
   }
 
-  const diffDays = Math.round((date.getTime() - startOfToday().getTime()) / 86_400_000);
-
-  if (diffDays < 0) {
+  const now = new Date();
+  if (date.getTime() < now.getTime()) {
     return "Просрочено";
   }
+
+  const diffDays = Math.round((date.getTime() - startOfToday().getTime()) / 86_400_000);
 
   if (diffDays === 0) {
     return "Сегодня";

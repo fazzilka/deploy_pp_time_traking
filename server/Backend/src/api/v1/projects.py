@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -6,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.deps import CurrentUserDep
 from src.api.v1.tasks import fetch_tasks
+from src.core.deadlines import normalize_deadline_query
 from src.db.session import get_db_session
 from src.models.enums import TaskPriority
 from src.models.project import Project
@@ -111,8 +111,8 @@ async def get_project_tasks(
     search: Annotated[str | None, Query()] = None,
     has_time: Annotated[bool | None, Query()] = None,
     priority: Annotated[TaskPriority | None, Query()] = None,
-    deadline_before: Annotated[date | None, Query()] = None,
-    deadline_after: Annotated[date | None, Query()] = None,
+    deadline_before: Annotated[str | None, Query()] = None,
+    deadline_after: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[Task]:
@@ -123,8 +123,8 @@ async def get_project_tasks(
         search=search,
         has_time=has_time,
         priority=priority,
-        deadline_before=deadline_before,
-        deadline_after=deadline_after,
+        deadline_before=normalize_deadline_query(deadline_before, boundary="end"),
+        deadline_after=normalize_deadline_query(deadline_after, boundary="start"),
         project_id=project_id,
         limit=limit,
         offset=offset,

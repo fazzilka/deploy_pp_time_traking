@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
+import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
 import { applyProjectsTaskChange, getProjects } from "../../shared/api/projects";
@@ -381,7 +382,7 @@ export function DashboardPage() {
         await createTask({
           title: newTitle,
           description: newDescription || null,
-          deadline: newDeadline || null,
+          deadline: datetimeLocalToUtcIso(newDeadline),
           priority: newPriority,
           workspace_id: currentWorkspaceId,
           project_id: newProjectId === "none" ? null : Number(newProjectId),
@@ -496,7 +497,7 @@ export function DashboardPage() {
                   <span>Срок выполнения</span>
                   <input
                     className="text-field"
-                    type="date"
+                    type="datetime-local"
                     value={newDeadline}
                     onChange={(event) => setNewDeadline(event.target.value)}
                   />

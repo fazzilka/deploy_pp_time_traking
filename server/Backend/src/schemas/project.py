@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -153,7 +153,7 @@ class ProjectSummaryTask(BaseModel):
     title: str
     description: str | None = None
     total_time_seconds: int
-    deadline: date | None = None
+    deadline: datetime | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
 
 

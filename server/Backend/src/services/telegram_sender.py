@@ -56,6 +56,17 @@ def _message_text(notification: Notification) -> str:
                 f"Открыть: {settings.app_public_url}",
             ]
         )
+    if notification.type == NotificationType.DEADLINE_OVERDUE:
+        return "\n".join(
+            [
+                "Дедлайн просрочен",
+                "",
+                f"Задача: {payload.get('task_title', 'Без названия')}",
+                f"Дедлайн был: {payload.get('deadline', '-')}",
+                "",
+                "Откройте Time Tracking, чтобы завершить задачу или перенести срок.",
+            ]
+        )
     if notification.type == NotificationType.WORKSPACE_MEMBER_ADDED:
         return "\n".join(
             [

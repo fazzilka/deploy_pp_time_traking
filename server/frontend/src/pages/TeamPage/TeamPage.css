@@ -151,6 +151,17 @@
   background: rgba(32, 38, 46, 0.95);
 }
 
+.team-action--danger {
+  border-color: rgba(248, 81, 73, 0.48);
+  background: rgba(248, 81, 73, 0.1);
+  color: #ffb4ae;
+}
+
+.team-action--danger:hover:not(:disabled) {
+  border-color: rgba(248, 81, 73, 0.72);
+  background: rgba(248, 81, 73, 0.16);
+}
+
 .team-action--wide {
   width: 100%;
 }
@@ -840,6 +851,33 @@
   color: var(--color-muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.team-leave-card {
+  display: grid;
+  gap: 12px;
+}
+
+.team-leave-card .team-side-card__title {
+  margin-bottom: 0;
+}
+
+.team-leave-card__text,
+.team-leave-card__warning {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.team-leave-card__warning {
+  padding: 12px 14px;
+  border: 1px solid rgba(240, 136, 62, 0.4);
+  border-radius: 10px;
+  background: rgba(240, 136, 62, 0.08);
+  color: #ffb86c;
+  font-weight: 800;
 }
 
 .team-activity-empty {

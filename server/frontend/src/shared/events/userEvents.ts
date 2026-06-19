@@ -5,9 +5,10 @@ export const NOTIFICATIONS_CHANGED_EVENT = "time-tracking:notifications-changed"
 
 export type WorkspaceMembershipChangedPayload = {
   type: "workspace.membership.changed";
-  reason: "added" | "removed" | "role_changed";
+  reason: "added" | "removed" | "role_changed" | "left";
   workspace_id: number;
   workspace_name?: string;
+  role?: "owner" | "team_lead" | "member" | "viewer";
   user_id?: number;
   created_at?: string;
 };

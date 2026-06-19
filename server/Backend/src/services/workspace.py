@@ -33,6 +33,12 @@ MUTATION_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.ME
 PROJECT_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
 MEMBER_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
 logger = logging.getLogger(__name__)
+ROLE_DISPLAY_NAMES = {
+    WorkspaceRole.OWNER: "Owner",
+    WorkspaceRole.TEAM_LEAD: "Team Lead",
+    WorkspaceRole.MEMBER: "Member",
+    WorkspaceRole.VIEWER: "Viewer",
+}
 
 
 def _workspace_not_found() -> HTTPException:
@@ -445,11 +451,36 @@ async def update_workspace_member(
     await session.commit()
     await session.refresh(member)
     member_read = await _member_read(session, member)
+    if next_role is not None:
+        role_display_name = ROLE_DISPLAY_NAMES.get(next_role, str(next_role))
+        await _safe_create_workspace_notification(
+            session,
+            user_id=member.user_id,
+            workspace_id=workspace_id,
+            workspace_name=_workspace_name_from_membership(member, workspace_id),
+            notification_type=NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED,
+            title="Ваша роль в рабочем пространстве изменена",
+            message=(
+                f"Ваша роль в рабочем пространстве "
+                f"«{_workspace_name_from_membership(member, workspace_id)}» "
+                f"изменена на «{role_display_name}»."
+            ),
+            event="role_changed",
+            dedupe_key=(
+                f"workspace_member_role_changed:workspace:{workspace_id}:"
+                f"user:{member.user_id}:role:{next_role}:event:{uuid4()}"
+            ),
+            payload_extra={
+                "role": next_role.value,
+                "role_display_name": role_display_name,
+            },
+        )
     await _publish_workspace_membership_event(
         user_id=member.user_id,
         reason="role_changed",
         workspace_id=workspace_id,
         workspace_name=_workspace_name_from_membership(member, workspace_id),
+        role=member.role,
     )
     return member_read
 
@@ -487,6 +518,38 @@ async def remove_workspace_member(
         user_id=removed_user_id,
         reason="removed",
         workspace_id=removed_workspace_id,
+        workspace_name=workspace_name,
+    )
+
+
+async def leave_workspace(
+    session: AsyncSession,
+    user: User,
+    workspace_id: int,
+) -> None:
+    membership = await get_active_membership(session, user.id, workspace_id)
+    if membership is None:
+        raise _workspace_not_found()
+
+    workspace = membership.workspace
+    if workspace.type == WorkspaceType.PERSONAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя выйти из личного workspace",
+        )
+    if membership.role == WorkspaceRole.OWNER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Перед выходом из организации передайте роль владельца другому участнику.",
+        )
+
+    workspace_name = _workspace_name_from_membership(membership, workspace_id)
+    await session.delete(membership)
+    await session.commit()
+    await _publish_workspace_membership_event(
+        user_id=user.id,
+        reason="left",
+        workspace_id=workspace_id,
         workspace_name=workspace_name,
     )
 
@@ -638,6 +701,7 @@ async def _safe_create_workspace_notification(
     message: str,
     event: str,
     dedupe_key: str,
+    payload_extra: dict[str, Any] | None = None,
 ) -> None:
     try:
         notification = await create_notification(
@@ -651,6 +715,7 @@ async def _safe_create_workspace_notification(
                 "workspace_id": workspace_id,
                 "workspace_name": workspace_name,
                 "event": event,
+                **(payload_extra or {}),
             },
             dedupe_key=dedupe_key,
         )
@@ -676,16 +741,20 @@ async def _publish_workspace_membership_event(
     reason: str,
     workspace_id: int,
     workspace_name: str,
+    role: WorkspaceRole | None = None,
 ) -> None:
+    payload: dict[str, Any] = {
+        "reason": reason,
+        "workspace_id": workspace_id,
+        "workspace_name": workspace_name,
+        "user_id": user_id,
+    }
+    if role is not None:
+        payload["role"] = role.value
     await publish_user_event(
         user_id,
         "workspace.membership.changed",
-        {
-            "reason": reason,
-            "workspace_id": workspace_id,
-            "workspace_name": workspace_name,
-            "user_id": user_id,
-        },
+        payload,
     )
 
 

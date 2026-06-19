@@ -35,6 +35,7 @@ class NotificationType(StrEnum):
     DEADLINE_SOON = "deadline_soon"
     WORKSPACE_MEMBER_ADDED = "workspace_member_added"
     WORKSPACE_MEMBER_REMOVED = "workspace_member_removed"
+    WORKSPACE_MEMBER_ROLE_CHANGED = "workspace_member_role_changed"
 
 
 class NotificationDeliveryChannel(StrEnum):

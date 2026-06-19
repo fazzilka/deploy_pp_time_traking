@@ -23,6 +23,7 @@ from src.services.workspace import (
     create_workspace,
     get_user_workspaces,
     get_workspace_or_404,
+    leave_workspace,
     list_workspace_members,
     remove_workspace_member,
     update_workspace,
@@ -80,6 +81,16 @@ async def get_workspace_summary(
     current_user: CurrentUserDep,
 ) -> WorkspaceSummary:
     return await build_workspace_summary(session, current_user, workspace_id)
+
+
+@router.post("/{workspace_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def post_leave_workspace(
+    workspace_id: int,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> Response:
+    await leave_workspace(session, current_user, workspace_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{workspace_id}/members", response_model=list[WorkspaceMemberRead])

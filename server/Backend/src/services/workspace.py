@@ -1,4 +1,6 @@
+import logging
 from typing import Any
+from uuid import uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -6,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models.enums import WorkspaceMemberStatus, WorkspaceRole, WorkspaceType
+from src.models.enums import NotificationType, WorkspaceMemberStatus, WorkspaceRole, WorkspaceType
 from src.models.project import Project
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
@@ -24,10 +26,12 @@ from src.schemas.workspace import (
     WorkspaceSummary,
     WorkspaceUpdate,
 )
+from src.services.notification import create_notification, enqueue_notification_delivery
 
 MUTATION_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER}
 PROJECT_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
 MEMBER_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
+logger = logging.getLogger(__name__)
 
 
 def _workspace_not_found() -> HTTPException:
@@ -307,6 +311,7 @@ async def add_workspace_member_by_email(
         raise _forbidden()
     if actor_membership.role == WorkspaceRole.TEAM_LEAD and payload.role == WorkspaceRole.TEAM_LEAD:
         raise _forbidden()
+    workspace_name = _workspace_name_from_membership(actor_membership, workspace_id)
 
     result = await session.execute(select(User).where(User.email == payload.email.lower()))
     target_user = result.scalar_one_or_none()
@@ -340,6 +345,17 @@ async def add_workspace_member_by_email(
         ) from exc
     await session.refresh(member)
     member.user = target_user
+    await _safe_create_workspace_notification(
+        session,
+        user_id=target_user.id,
+        workspace_id=workspace_id,
+        workspace_name=workspace_name,
+        notification_type=NotificationType.WORKSPACE_MEMBER_ADDED,
+        title="Вас добавили в рабочее пространство",
+        message=f"Вас добавили в рабочее пространство «{workspace_name}».",
+        event="member_added",
+        dedupe_key=f"workspace_member_added:workspace:{workspace_id}:user:{target_user.id}",
+    )
     return WorkspaceMemberRead(
         id=member.id,
         workspace_id=member.workspace_id,
@@ -384,8 +400,25 @@ async def remove_workspace_member(
     member = await _load_member_or_404(session, workspace_id, member_id)
     if member.role == WorkspaceRole.OWNER:
         await _ensure_another_owner(session, workspace_id, member.user_id)
+    removed_user_id = member.user_id
+    removed_workspace_id = member.workspace_id
+    workspace_name = _workspace_name_from_membership(member, workspace_id)
     await session.delete(member)
     await session.commit()
+    await _safe_create_workspace_notification(
+        session,
+        user_id=removed_user_id,
+        workspace_id=removed_workspace_id,
+        workspace_name=workspace_name,
+        notification_type=NotificationType.WORKSPACE_MEMBER_REMOVED,
+        title="Вас удалили из рабочего пространства",
+        message=f"Вас удалили из рабочего пространства «{workspace_name}».",
+        event="member_removed",
+        dedupe_key=(
+            f"workspace_member_removed:workspace:{removed_workspace_id}:"
+            f"user:{removed_user_id}:event:{uuid4()}"
+        ),
+    )
 
 
 async def build_workspace_read(
@@ -508,12 +541,58 @@ async def _load_member_or_404(
     result = await session.execute(
         select(WorkspaceMember)
         .where(WorkspaceMember.id == member_id, WorkspaceMember.workspace_id == workspace_id)
-        .options(selectinload(WorkspaceMember.user))
+        .options(selectinload(WorkspaceMember.user), selectinload(WorkspaceMember.workspace))
     )
     member = result.scalar_one_or_none()
     if member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Участник не найден")
     return member
+
+
+def _workspace_name_from_membership(membership: Any, workspace_id: int) -> str:
+    workspace = getattr(membership, "workspace", None)
+    workspace_name = getattr(workspace, "name", None)
+    if isinstance(workspace_name, str) and workspace_name:
+        return workspace_name
+    return f"Workspace {workspace_id}"
+
+
+async def _safe_create_workspace_notification(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    workspace_id: int,
+    workspace_name: str,
+    notification_type: NotificationType,
+    title: str,
+    message: str,
+    event: str,
+    dedupe_key: str,
+) -> None:
+    try:
+        notification = await create_notification(
+            session,
+            user_id=user_id,
+            type=notification_type,
+            title=title,
+            message=message,
+            workspace_id=workspace_id,
+            payload={
+                "workspace_id": workspace_id,
+                "workspace_name": workspace_name,
+                "event": event,
+            },
+            dedupe_key=dedupe_key,
+        )
+    except Exception:
+        logger.exception(
+            "failed to create workspace notification",
+            extra={"workspace_id": workspace_id, "user_id": user_id, "event": event},
+        )
+        return
+
+    if notification is not None:
+        enqueue_notification_delivery(notification.id)
 
 
 async def _member_read(session: AsyncSession, member: WorkspaceMember) -> WorkspaceMemberRead:

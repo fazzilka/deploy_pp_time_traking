@@ -1,10 +1,9 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -47,7 +46,9 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str] = mapped_column(Text(), nullable=False, default="")
     total_time_seconds: Mapped[int] = mapped_column(BigInteger(), nullable=False, default=0)
-    deadline: Mapped[date | None] = mapped_column(Date(), nullable=True, index=True)
+    deadline: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     priority: Mapped[TaskPriority] = mapped_column(
         Enum(
             TaskPriority,

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +17,7 @@ class SummaryTaskData:
     title: str
     description: str | None
     total_time_seconds: int
-    deadline: date | None
+    deadline: datetime | None
     priority: TaskPriority
 
 

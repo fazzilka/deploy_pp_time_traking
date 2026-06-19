@@ -15,11 +15,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
     cors_allow_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    app_timezone: str = "Europe/Moscow"
     app_public_url: str = "https://time-tracking.online"
     celery_broker_url: str = "amqp://time_tracking:time_tracking@rabbitmq:5672//"
     celery_task_always_eager: bool = False
     celery_timezone: str = "UTC"
     deadline_reminder_minutes: int = 60
+    overdue_notification_lookback_hours: int = 24
     email_notifications_enabled: bool = False
     smtp_host: str = ""
     smtp_port: int = 587

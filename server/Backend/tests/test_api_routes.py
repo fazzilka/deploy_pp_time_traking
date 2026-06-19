@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -83,7 +83,7 @@ async def test_list_tasks_filters_and_search(
                     title="Задача",
                     description="",
                     total_time_seconds=5,
-                    deadline=date(2026, 5, 30),
+                    deadline=datetime(2026, 5, 30, 16, 0, tzinfo=UTC),
                     priority="high",
                     intervals=[],
                 )
@@ -117,7 +117,7 @@ async def test_list_tasks_filters_and_search(
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Задача"
-    assert data[0]["deadline"] == "2026-05-30"
+    assert data[0]["deadline"] == "2026-05-30T16:00:00Z"
     assert data[0]["priority"] == "high"
 
 
@@ -196,7 +196,7 @@ async def test_create_task_accepts_deadline_and_priority(test_client, dummy_sess
                 title="Дедлайн задача",
                 description="Описание",
                 total_time_seconds=0,
-                deadline=date(2026, 5, 30),
+                deadline=datetime(2026, 6, 19, 16, 0, tzinfo=UTC),
                 priority="highest",
                 intervals=[],
             )
@@ -217,7 +217,7 @@ async def test_create_task_accepts_deadline_and_priority(test_client, dummy_sess
             json={
                 "title": "Дедлайн задача",
                 "description": "Описание",
-                "deadline": "2026-05-30",
+                "deadline": "2026-06-19T19:00:00+03:00",
                 "priority": "highest",
             },
         )
@@ -225,10 +225,10 @@ async def test_create_task_accepts_deadline_and_priority(test_client, dummy_sess
         app.dependency_overrides.clear()
 
     assert response.status_code == 201
-    assert dummy_session.items[0].deadline == date(2026, 5, 30)
+    assert dummy_session.items[0].deadline == datetime(2026, 6, 19, 16, 0, tzinfo=UTC)
     assert dummy_session.items[0].priority == "highest"
     data = response.json()
-    assert data["deadline"] == "2026-05-30"
+    assert data["deadline"] == "2026-06-19T16:00:00Z"
     assert data["priority"] == "highest"
 
 
@@ -296,16 +296,16 @@ async def test_update_task_changes_deadline_and_priority(test_client, dummy_sess
     try:
         response = await test_client.patch(
             "/api/v1/tasks/12",
-            json={"deadline": "2026-06-01", "priority": "low"},
+            json={"deadline": "2026-06-01T12:30:00Z", "priority": "low"},
         )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert task.deadline == date(2026, 6, 1)
+    assert task.deadline == datetime(2026, 6, 1, 12, 30, tzinfo=UTC)
     assert task.priority == "low"
     data = response.json()
-    assert data["deadline"] == "2026-06-01"
+    assert data["deadline"] == "2026-06-01T12:30:00Z"
     assert data["priority"] == "low"
 
 

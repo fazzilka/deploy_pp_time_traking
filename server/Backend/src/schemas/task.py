@@ -1,17 +1,32 @@
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
+from src.core.deadlines import format_utc_iso, normalize_deadline
 from src.models.enums import TaskPriority
 from src.schemas.project import ProjectBadge
 from src.schemas.time_interval import TimeIntervalRead
 
 
-class TaskBase(BaseModel):
+class DeadlineNormalizer(BaseModel):
+    @field_validator("deadline", mode="before", check_fields=False)
+    @classmethod
+    def normalize_deadline_value(cls, value: object) -> datetime | None:
+        return normalize_deadline(value)  # type: ignore[arg-type]
+
+
+class TaskBase(DeadlineNormalizer):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
-    deadline: date | None = None
+    deadline: datetime | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
     workspace_id: int | None = None
     project_id: int | None = None
@@ -22,10 +37,10 @@ class TaskCreate(TaskBase):
     pass
 
 
-class TaskUpdate(BaseModel):
+class TaskUpdate(DeadlineNormalizer):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
-    deadline: date | None = None
+    deadline: datetime | None = None
     priority: TaskPriority | None = None
     project_id: int | None = None
     assignee_id: int | None = None
@@ -39,7 +54,7 @@ class TaskRead(BaseModel):
     title: str
     description: str | None
     total_time_seconds: int
-    deadline: date | None = None
+    deadline: datetime | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
     workspace_id: int | None = None
     project_id: int | None = None
@@ -50,6 +65,12 @@ class TaskRead(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     time_intervals: list[TimeIntervalRead] = Field(default_factory=list)
+
+    @field_serializer("deadline")
+    def serialize_deadline(self, value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        return format_utc_iso(value)
 
     @model_validator(mode="before")
     @classmethod

@@ -71,6 +71,29 @@ nano .env
 - `GRAFANA_ADMIN_PASSWORD`;
 - `CORS_ALLOW_ORIGINS`.
 
+Для уведомлений доступны переменные:
+
+```env
+RABBITMQ_DEFAULT_USER=time_tracking
+RABBITMQ_DEFAULT_PASS=replace-with-strong-rabbitmq-password
+CELERY_BROKER_URL=amqp://time_tracking:replace-with-strong-rabbitmq-password@rabbitmq:5672//
+DEADLINE_REMINDER_MINUTES=60
+EMAIL_NOTIFICATIONS_ENABLED=false
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=
+SMTP_FROM_NAME=Time Tracking
+SMTP_USE_TLS=true
+SMTP_USE_SSL=false
+TELEGRAM_NOTIFICATIONS_ENABLED=false
+TELEGRAM_BOT_TOKEN=
+APP_PUBLIC_URL=https://example.ru
+```
+
+RabbitMQ management port в production compose наружу не публикуется.
+
 Пример для сервера без домена:
 
 ```env
@@ -204,7 +227,7 @@ bash scripts/deploy.sh
 - собирает сервисы;
 - запускает миграции, если `RUN_MIGRATIONS=true`;
 - поднимает контейнеры через `docker compose up -d --remove-orphans`;
-- проверяет critical services `postgres`, `backend`, `frontend`;
+- проверяет critical services `postgres`, `rabbitmq`, `backend`, `celery-worker`, `celery-beat`, `frontend`;
 - проверяет backend `/health` и frontend page;
 - выполняет `docker image prune -f` только после успешного healthcheck.
 

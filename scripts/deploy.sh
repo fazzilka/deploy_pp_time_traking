@@ -203,7 +203,10 @@ wait_for_container_health() {
 
 check_critical_services() {
   wait_for_container_health postgres
+  wait_for_container_health rabbitmq
   wait_for_container_health backend
+  wait_for_container_health celery-worker
+  wait_for_container_health celery-beat
   wait_for_container_health frontend
 }
 

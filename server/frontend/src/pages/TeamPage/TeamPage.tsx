@@ -1,13 +1,12 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import {
   addWorkspaceMember,
   getWorkspaceMembers,
   getWorkspaceMemberSummary,
   getWorkspaceSummary,
-  leaveWorkspace,
   removeWorkspaceMember,
   updateWorkspaceMember,
 } from "../../shared/api/workspaces";
@@ -22,10 +21,6 @@ import {
   canManageMembers,
   useWorkspace,
 } from "../../shared/workspace/WorkspaceContext";
-import {
-  WORKSPACE_MEMBERSHIP_CHANGED_EVENT,
-  type WorkspaceMembershipChangedPayload,
-} from "../../shared/events/userEvents";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./TeamPage.css";
 
@@ -62,6 +57,23 @@ const statusLabels: Record<WorkspaceMemberStatus, string> = {
   active: "Активен",
   inactive: "Оффлайн",
 };
+
+type ActionMenuPosition = {
+  left: number;
+  top: number;
+  opensUp: boolean;
+};
+
+type OpenMemberMenu = {
+  member: WorkspaceMember;
+  trigger: HTMLButtonElement;
+  position: ActionMenuPosition;
+};
+
+const ACTION_MENU_WIDTH = 264;
+const ACTION_MENU_ESTIMATED_HEIGHT = 178;
+const ACTION_MENU_GAP = 10;
+const ACTION_MENU_VIEWPORT_PADDING = 16;
 
 function TeamIcon({ name }: { name: TeamIconName }) {
   const commonProps = {
@@ -202,11 +214,9 @@ export function TeamPage() {
     currentWorkspace,
     currentWorkspaceId,
     currentUserRole,
-    removeWorkspaceFromState,
     refreshWorkspaces,
     updateCurrentWorkspace,
   } = useWorkspace();
-  const navigate = useNavigate();
 
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [workspaceSummary, setWorkspaceSummary] = useState<WorkspaceSummary | null>(null);
@@ -220,24 +230,20 @@ export function TeamPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<WorkspaceRole>("member");
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [isInviting, setIsInviting] = useState(false);
 
   const [settingsName, setSettingsName] = useState("");
   const [settingsDescription, setSettingsDescription] = useState("");
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [isLeaveOpen, setIsLeaveOpen] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false);
-  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | WorkspaceRole>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkspaceMemberStatus>("all");
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [openMemberMenu, setOpenMemberMenu] = useState<OpenMemberMenu | null>(null);
 
   const canManage = canManageMembers(currentUserRole);
   const canEdit = canEditWorkspace(currentUserRole);
-  const isTeamWorkspace = currentWorkspace?.type === "team";
-  const canLeaveOrganization = isTeamWorkspace && currentUserRole !== "owner";
 
   const membersCount = workspaceSummary?.members_count ?? currentWorkspace?.members_count ?? members.length;
   const activeMembersCount =
@@ -252,26 +258,7 @@ export function TeamPage() {
   const completedTasksCount = workspaceSummary?.completed_tasks_count ?? 0;
   const totalTimeSeconds = workspaceSummary?.total_time_seconds ?? currentWorkspace?.total_time_seconds ?? 0;
 
-  const updateMemberCounts = useCallback((delta: number) => {
-    setWorkspaceSummary((currentSummary) => {
-      if (!currentSummary) {
-        return currentSummary;
-      }
-      const membersCount = Math.max(0, currentSummary.members_count + delta);
-      const activeMembersCount = Math.max(0, currentSummary.active_members_count + delta);
-      return {
-        ...currentSummary,
-        members_count: membersCount,
-        active_members_count: activeMembersCount,
-        workspace: {
-          ...currentSummary.workspace,
-          members_count: membersCount,
-        },
-      };
-    });
-  }, []);
-
-  const loadTeam = useCallback(async () => {
+  async function loadTeam() {
     if (!currentWorkspaceId) {
       setMembers([]);
       setWorkspaceSummary(null);
@@ -304,37 +291,61 @@ export function TeamPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkspaceId]);
+  }
 
   useEffect(() => {
     void loadTeam();
-  }, [loadTeam]);
-
-  useEffect(() => {
-    function handleWorkspaceMembershipChanged(event: Event) {
-      const detail = (event as CustomEvent<WorkspaceMembershipChangedPayload>).detail;
-      if (detail.workspace_id !== currentWorkspaceId) {
-        return;
-      }
-
-      if (detail.reason === "removed" || detail.reason === "left") {
-        setMembers([]);
-        setWorkspaceSummary(null);
-        return;
-      }
-
-      void loadTeam();
-    }
-
-    window.addEventListener(WORKSPACE_MEMBERSHIP_CHANGED_EVENT, handleWorkspaceMembershipChanged);
-    return () => window.removeEventListener(WORKSPACE_MEMBERSHIP_CHANGED_EVENT, handleWorkspaceMembershipChanged);
-  }, [currentWorkspaceId, loadTeam]);
+  }, [currentWorkspaceId]);
 
   useEffect(() => {
     setSettingsName(currentWorkspace?.name ?? "");
     setSettingsDescription(currentWorkspace?.description ?? "");
     setSettingsError(null);
   }, [currentWorkspace]);
+
+  useEffect(() => {
+    if (!openMemberMenu) {
+      return;
+    }
+
+    const menuTrigger = openMemberMenu.trigger;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (actionMenuRef.current?.contains(target) || menuTrigger.contains(target)) {
+        return;
+      }
+
+      setOpenMemberMenu(null);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenMemberMenu(null);
+      }
+    }
+
+    function handleViewportChange() {
+      setOpenMemberMenu(null);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [openMemberMenu]);
 
   const filteredMembers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -369,37 +380,19 @@ export function TeamPage() {
     }
 
     try {
-      setIsInviting(true);
-      const addedMember = await addWorkspaceMember(currentWorkspaceId, {
+      await addWorkspaceMember(currentWorkspaceId, {
         email: email.trim(),
         role,
       });
 
-      setMembers((currentMembers) => {
-        if (currentMembers.some((member) => member.id === addedMember.id)) {
-          return currentMembers;
-        }
-        return [
-          ...currentMembers,
-          {
-            ...addedMember,
-            projects_count: addedMember.projects_count ?? 0,
-            tasks_count: addedMember.tasks_count ?? 0,
-            completed_tasks_count: addedMember.completed_tasks_count ?? 0,
-            total_time_seconds: addedMember.total_time_seconds ?? 0,
-          },
-        ];
-      });
-      updateMemberCounts(1);
       setEmail("");
       setRole("member");
       setIsInviteOpen(false);
-      setSuccessMessage("Участник добавлен. Workspace появится у него автоматически.");
-      void refreshWorkspaces({ silent: true });
+      setSuccessMessage("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.");
+
+      await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
       setInviteError(caughtError instanceof Error ? caughtError.message : "Не удалось добавить участника");
-    } finally {
-      setIsInviting(false);
     }
   }
 
@@ -429,19 +422,15 @@ export function TeamPage() {
     try {
       setIsSavingSettings(true);
 
-      const updatedWorkspace = await updateCurrentWorkspace({
+      await updateCurrentWorkspace({
         name: settingsName.trim(),
         description: settingsDescription.trim() || null,
       });
-      if (updatedWorkspace) {
-        setWorkspaceSummary((currentSummary) =>
-          currentSummary ? { ...currentSummary, workspace: updatedWorkspace } : currentSummary,
-        );
-      }
 
       setSuccessMessage("Настройки команды сохранены");
       setIsSettingsOpen(false);
-      void refreshWorkspaces({ silent: true });
+
+      await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
       setSettingsError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить настройки");
     } finally {
@@ -449,31 +438,62 @@ export function TeamPage() {
     }
   }
 
+  function getActionMenuPosition(trigger: HTMLButtonElement): ActionMenuPosition {
+    const rect = trigger.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const canOpenUp = rect.top >= ACTION_MENU_ESTIMATED_HEIGHT + ACTION_MENU_GAP + ACTION_MENU_VIEWPORT_PADDING;
+    const opensUp =
+      rect.bottom + ACTION_MENU_GAP + ACTION_MENU_ESTIMATED_HEIGHT + ACTION_MENU_VIEWPORT_PADDING > viewportHeight &&
+      canOpenUp;
+
+    const left = Math.min(
+      Math.max(rect.right - ACTION_MENU_WIDTH, ACTION_MENU_VIEWPORT_PADDING),
+      viewportWidth - ACTION_MENU_WIDTH - ACTION_MENU_VIEWPORT_PADDING,
+    );
+
+    return {
+      left,
+      top: opensUp ? rect.top - ACTION_MENU_GAP : rect.bottom + ACTION_MENU_GAP,
+      opensUp,
+    };
+  }
+
+  function toggleMemberMenu(member: WorkspaceMember, trigger: HTMLButtonElement) {
+    setOpenMemberMenu((currentMenu) => {
+      if (currentMenu?.member.id === member.id) {
+        return null;
+      }
+
+      return {
+        member,
+        trigger,
+        position: getActionMenuPosition(trigger),
+      };
+    });
+  }
+
   async function handleRoleChange(member: WorkspaceMember, nextRole: WorkspaceRole) {
     if (!currentWorkspaceId || member.role === nextRole) {
+      setOpenMemberMenu(null);
       return;
     }
 
-    const previousMembers = members;
-    setMembers((currentMembers) =>
-      currentMembers.map((currentMember) =>
-        currentMember.id === member.id ? { ...currentMember, role: nextRole } : currentMember,
-      ),
-    );
+    setError(null);
+    setSuccessMessage(null);
 
     try {
-      const updatedMember = await updateWorkspaceMember(currentWorkspaceId, member.id, {
+      await updateWorkspaceMember(currentWorkspaceId, member.id, {
         role: nextRole,
       });
-      setMembers((currentMembers) =>
-        currentMembers.map((currentMember) =>
-          currentMember.id === updatedMember.id ? { ...currentMember, ...updatedMember } : currentMember,
-        ),
-      );
-      void refreshWorkspaces({ silent: true });
+
+      setSuccessMessage(`Роль участника ${getMemberName(member)} обновлена.`);
+      await loadTeam();
     } catch (caughtError) {
-      setMembers(previousMembers);
       setError(caughtError instanceof Error ? caughtError.message : "Не удалось изменить роль участника");
+    } finally {
+      setOpenMemberMenu(null);
     }
   }
 
@@ -482,53 +502,29 @@ export function TeamPage() {
       return;
     }
 
+    setOpenMemberMenu(null);
+
     const confirmed = window.confirm(`Удалить ${member.user.email} из команды?`);
 
     if (!confirmed) {
       return;
     }
 
-    const previousMembers = members;
-    const previousSummary = workspaceSummary;
-    setMembers((currentMembers) => currentMembers.filter((currentMember) => currentMember.id !== member.id));
-    updateMemberCounts(-1);
+    setError(null);
+    setSuccessMessage(null);
 
     try {
       await removeWorkspaceMember(currentWorkspaceId, member.id);
-      void refreshWorkspaces({ silent: true });
+      setSuccessMessage(`Участник ${getMemberName(member)} удалён из команды.`);
+      await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
-      setMembers(previousMembers);
-      setWorkspaceSummary(previousSummary);
-      setError(caughtError instanceof Error ? caughtError.message : "Не удалось удалить участника");
-    }
-  }
-
-  async function handleLeaveWorkspace() {
-    if (!currentWorkspaceId || !currentWorkspace || !canLeaveOrganization || isLeaving) {
-      return;
-    }
-
-    setIsLeaving(true);
-    setLeaveError(null);
-
-    try {
-      const leavingWorkspaceId = currentWorkspaceId;
-      await leaveWorkspace(leavingWorkspaceId);
-      removeWorkspaceFromState(leavingWorkspaceId);
-      setMembers([]);
-      setWorkspaceSummary(null);
-      setIsLeaveOpen(false);
-      void refreshWorkspaces({ silent: true });
-      navigate("/dashboard");
-    } catch (caughtError) {
-      setLeaveError(caughtError instanceof Error ? caughtError.message : "Не удалось выйти из организации");
-    } finally {
-      setIsLeaving(false);
+      setError(caughtError instanceof Error ? caughtError.message : "Не удалось удалить участника из команды");
     }
   }
 
   return (
-    <main className="team-page">
+    <>
+      <main className="team-page">
       <section className="team-hero">
         <div className="team-hero__copy">
           <p className="team-hero__eyebrow">Командная работа</p>
@@ -699,29 +695,19 @@ export function TeamPage() {
 
                   <div className="team-row-actions">
                     {canManage && member.role !== "owner" ? (
-                      <details>
-                        <summary aria-label={`Действия ${member.user.email}`}>
-                          <TeamIcon name="more" />
-                        </summary>
-
-                        <div className="team-row-actions__menu">
-                          <label>
-                            Роль
-                            <select
-                              value={member.role}
-                              onChange={(event) => void handleRoleChange(member, event.target.value as WorkspaceRole)}
-                            >
-                              <option value="team_lead">Team Lead</option>
-                              <option value="member">Member</option>
-                              <option value="viewer">Viewer</option>
-                            </select>
-                          </label>
-
-                          <button type="button" onClick={() => void handleRemoveMember(member)}>
-                            Удалить из команды
-                          </button>
-                        </div>
-                      </details>
+                      <button
+                        type="button"
+                        className={
+                          openMemberMenu?.member.id === member.id
+                            ? "team-row-actions__button team-row-actions__button--active"
+                            : "team-row-actions__button"
+                        }
+                        aria-label={`Действия ${member.user.email}`}
+                        aria-expanded={openMemberMenu?.member.id === member.id}
+                        onClick={(event) => toggleMemberMenu(member, event.currentTarget)}
+                      >
+                        <TeamIcon name="more" />
+                      </button>
                     ) : (
                       <button type="button" className="team-row-actions__button" disabled aria-label="Нет действий">
                         <TeamIcon name="more" />
@@ -867,37 +853,6 @@ export function TeamPage() {
             </button>
           </section>
 
-          {isTeamWorkspace && (
-            <section className="team-side-card team-leave-card">
-              <div className="team-side-card__title">
-                <TeamIcon name="shield" />
-                <h2>Доступ</h2>
-              </div>
-
-              <p className="team-leave-card__text">
-                После выхода вы потеряете доступ к проектам, задачам и участникам этой организации.
-              </p>
-
-              {currentUserRole === "owner" && (
-                <p className="team-leave-card__warning">
-                  Владелец не может выйти из организации без передачи прав другому участнику.
-                </p>
-              )}
-
-              <button
-                className="team-action team-action--danger team-action--wide"
-                type="button"
-                onClick={() => {
-                  setLeaveError(null);
-                  setIsLeaveOpen(true);
-                }}
-                disabled={!canLeaveOrganization}
-              >
-                Выйти из организации
-              </button>
-            </section>
-          )}
-
           <section className="team-side-card">
             <div className="team-side-card__title">
               <TeamIcon name="activity" />
@@ -951,8 +906,8 @@ export function TeamPage() {
             {inviteError && <p className="team-modal__error">{inviteError}</p>}
 
             <div className="team-modal__actions">
-              <button className="team-action team-action--primary" type="submit" disabled={isInviting}>
-                {isInviting ? "Добавляем..." : "Добавить"}
+              <button className="team-action team-action--primary" type="submit">
+                Добавить
               </button>
 
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
@@ -960,49 +915,6 @@ export function TeamPage() {
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {isLeaveOpen && currentWorkspace && (
-        <div className="team-modal-backdrop" role="presentation" onClick={() => setIsLeaveOpen(false)}>
-          <div className="team-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <div className="team-modal__header">
-              <span>
-                <TeamIcon name="shield" />
-              </span>
-
-              <div>
-                <h2>Выйти из организации?</h2>
-                <p>Вы уверены, что хотите выйти из организации «{currentWorkspace.name}»?</p>
-              </div>
-            </div>
-
-            <p>
-              После выхода вы потеряете доступ к проектам, задачам и участникам этой организации.
-            </p>
-
-            {leaveError && <p className="team-modal__error">{leaveError}</p>}
-
-            <div className="team-modal__actions">
-              <button
-                className="team-action team-action--secondary"
-                type="button"
-                onClick={() => setIsLeaveOpen(false)}
-                disabled={isLeaving}
-              >
-                Отмена
-              </button>
-
-              <button
-                className="team-action team-action--danger"
-                type="button"
-                onClick={() => void handleLeaveWorkspace()}
-                disabled={isLeaving || !canLeaveOrganization}
-              >
-                {isLeaving ? "Выходим..." : "Выйти"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1081,6 +993,45 @@ export function TeamPage() {
           </form>
         </div>
       )}
-    </main>
+      </main>
+
+      {openMemberMenu && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={actionMenuRef}
+              className={
+                openMemberMenu.position.opensUp
+                  ? "team-row-actions__menu team-row-actions__menu--portal team-row-actions__menu--opens-up"
+                  : "team-row-actions__menu team-row-actions__menu--portal"
+              }
+              style={{
+                left: openMemberMenu.position.left,
+                top: openMemberMenu.position.top,
+              }}
+              role="dialog"
+              aria-label={`Действия для ${openMemberMenu.member.user.email}`}
+            >
+              <label>
+                <span>Роль</span>
+                <select
+                  value={openMemberMenu.member.role}
+                  onChange={(event) =>
+                    void handleRoleChange(openMemberMenu.member, event.target.value as WorkspaceRole)
+                  }
+                >
+                  <option value="team_lead">Team Lead</option>
+                  <option value="member">Member</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </label>
+
+              <button type="button" onClick={() => void handleRemoveMember(openMemberMenu.member)}>
+                Удалить из команды
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from src.schemas.user import UserProfileBase
+from src.schemas.user import PASSWORD_MIN_LENGTH, UserProfileBase
 
 
 class RegisterRequest(BaseModel):
@@ -8,7 +8,7 @@ class RegisterRequest(BaseModel):
 
     email: EmailStr
     username: str = Field(min_length=1, max_length=64)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=128)
     full_name: str | None = Field(default=None, max_length=255)
 
 

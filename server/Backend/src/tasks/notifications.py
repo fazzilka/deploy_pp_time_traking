@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 # ruff: noqa: UP017
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta, timezone
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from src.core.celery_app import celery_app
@@ -18,7 +17,6 @@ from src.core.deadlines import (
     format_utc_iso,
     utc_now,
 )
-from src.db.session import AsyncSessionFactory
 from src.models.enums import (
     NotificationDeliveryChannel,
     NotificationDeliveryStatus,
@@ -31,37 +29,61 @@ from src.services.delivery_result import DeliveryResult
 from src.services.email_sender import send_notification_email
 from src.services.notification import create_notification
 from src.services.telegram_sender import send_notification_telegram
+from src.tasks.db import run_async_celery_task, run_celery_db_task
 
 logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="src.tasks.notifications.scan_deadline_notifications")  # type: ignore[untyped-decorator]
 def scan_deadline_notifications() -> int:
-    return asyncio.run(scan_deadline_notifications_async())
+    return run_async_celery_task(
+        lambda: run_celery_db_task(
+            lambda session_factory: scan_deadline_notifications_async(session_factory)
+        )
+    )
 
 
 @celery_app.task(name="src.tasks.notifications.deliver_notification")  # type: ignore[untyped-decorator]
 def deliver_notification(notification_id: int) -> None:
-    asyncio.run(deliver_notification_async(notification_id))
+    run_async_celery_task(
+        lambda: run_celery_db_task(
+            lambda session_factory: deliver_notification_async(session_factory, notification_id)
+        )
+    )
 
 
 @celery_app.task(name="src.tasks.notifications.send_email_notification")  # type: ignore[untyped-decorator]
 def send_email_notification(notification_id: int) -> None:
-    asyncio.run(
-        deliver_notification_channel_async(notification_id, NotificationDeliveryChannel.EMAIL)
+    run_async_celery_task(
+        lambda: run_celery_db_task(
+            lambda session_factory: deliver_notification_channel_async(
+                session_factory,
+                notification_id,
+                NotificationDeliveryChannel.EMAIL,
+            )
+        )
     )
 
 
 @celery_app.task(name="src.tasks.notifications.send_telegram_notification")  # type: ignore[untyped-decorator]
 def send_telegram_notification(notification_id: int) -> None:
-    asyncio.run(
-        deliver_notification_channel_async(notification_id, NotificationDeliveryChannel.TELEGRAM)
+    run_async_celery_task(
+        lambda: run_celery_db_task(
+            lambda session_factory: deliver_notification_channel_async(
+                session_factory,
+                notification_id,
+                NotificationDeliveryChannel.TELEGRAM,
+            )
+        )
     )
 
 
-async def scan_deadline_notifications_async(now_utc: datetime | None = None) -> int:
+async def scan_deadline_notifications_async(
+    session_factory: async_sessionmaker[AsyncSession],
+    now_utc: datetime | None = None,
+) -> int:
     created_count = 0
-    async with AsyncSessionFactory() as session:
+    async with session_factory() as session:
         now = now_utc.astimezone(timezone.utc) if now_utc else utc_now()
         reminder_minutes = settings.deadline_reminder_minutes
         window_end = now + timedelta(minutes=reminder_minutes)
@@ -114,8 +136,11 @@ async def scan_deadline_notifications_async(now_utc: datetime | None = None) -> 
     return created_count
 
 
-async def deliver_notification_async(notification_id: int) -> None:
-    async with AsyncSessionFactory() as session:
+async def deliver_notification_async(
+    session_factory: async_sessionmaker[AsyncSession],
+    notification_id: int,
+) -> None:
+    async with session_factory() as session:
         notification = await _load_notification(session, notification_id)
         if notification is None:
             logger.info("notification delivery skipped: notification missing")
@@ -125,10 +150,11 @@ async def deliver_notification_async(notification_id: int) -> None:
 
 
 async def deliver_notification_channel_async(
+    session_factory: async_sessionmaker[AsyncSession],
     notification_id: int,
     channel: NotificationDeliveryChannel,
 ) -> None:
-    async with AsyncSessionFactory() as session:
+    async with session_factory() as session:
         notification = await _load_notification(session, notification_id)
         if notification is None:
             logger.info("notification channel delivery skipped: notification missing")

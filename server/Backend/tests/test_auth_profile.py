@@ -102,7 +102,7 @@ async def test_register_duplicate_email_returns_409() -> None:
         )
 
     assert exc.value.status_code == 409
-    assert exc.value.detail == "Email уже занят"
+    assert exc.value.detail == auth_service.REGISTRATION_CONFLICT_DETAIL
     assert session.execute_count == 1
 
 
@@ -118,8 +118,30 @@ async def test_register_duplicate_username_returns_409() -> None:
         )
 
     assert exc.value.status_code == 409
-    assert exc.value.detail == "Username уже занят"
+    assert exc.value.detail == auth_service.REGISTRATION_CONFLICT_DETAIL
     assert session.execute_count == 1
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_and_username_share_public_message() -> None:
+    email_session = DummySession()
+    username_session = DummySession()
+    email_session.execute_results = [DummyResult(scalar_one=[make_user()])]
+    username_session.execute_results = [DummyResult(scalar_one=[make_user()])]
+
+    with pytest.raises(HTTPException) as email_exc:
+        await register_user(
+            email_session,
+            RegisterRequest(email="user@example.com", username="other", password="password123"),
+        )
+    with pytest.raises(HTTPException) as username_exc:
+        await register_user(
+            username_session,
+            RegisterRequest(email="other@example.com", username="user", password="password123"),
+        )
+
+    assert email_exc.value.status_code == username_exc.value.status_code == 409
+    assert email_exc.value.detail == username_exc.value.detail
 
 
 @pytest.mark.asyncio

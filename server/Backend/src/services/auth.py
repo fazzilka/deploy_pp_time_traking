@@ -17,6 +17,7 @@ from src.services.workspace import ensure_personal_workspace
 
 AuthStageDurations = list[tuple[str, float]]
 AuthDurationObserver = Callable[[str, str, float], None]
+REGISTRATION_CONFLICT_DETAIL = "Email или username уже занят"
 
 
 async def register_user(session: AsyncSession, payload: RegisterRequest) -> User:
@@ -31,11 +32,10 @@ async def register_user(session: AsyncSession, payload: RegisterRequest) -> User
         stage_durations.append(("uniqueness_check", perf_counter() - stage_started_at))
 
         for existing_user in existing_users:
-            if existing_user.email == email:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email уже занят")
-            if existing_user.username == payload.username:
+            if existing_user.email == email or existing_user.username == payload.username:
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT, detail="Username уже занят"
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=REGISTRATION_CONFLICT_DETAIL,
                 )
 
         stage_started_at = perf_counter()
@@ -60,7 +60,7 @@ async def register_user(session: AsyncSession, payload: RegisterRequest) -> User
             await session.rollback()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Email или username уже занят",
+                detail=REGISTRATION_CONFLICT_DETAIL,
             ) from exc
         await session.refresh(user)
         await ensure_personal_workspace(session, user)

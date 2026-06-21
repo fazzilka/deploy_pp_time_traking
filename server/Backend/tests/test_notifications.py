@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -413,12 +414,15 @@ async def test_deadline_scan_uses_separate_utc_windows(
         deadline=datetime(2026, 6, 19, 13, 0, tzinfo=UTC),
     )
 
-    class DummyFactory:
+    class DummySessionContext:
         async def __aenter__(self):
             return object()
 
         async def __aexit__(self, exc_type, exc, tb):
             return False
+
+    def session_factory():
+        return DummySessionContext()
 
     async def fake_load_upcoming(_session, window_start, window_end):
         assert window_start == now
@@ -434,7 +438,6 @@ async def test_deadline_scan_uses_separate_utc_windows(
         created.append(kwargs)
         return SimpleNamespace(id=len(created))
 
-    monkeypatch.setattr(notification_tasks, "AsyncSessionFactory", lambda: DummyFactory())
     monkeypatch.setattr(notification_tasks, "_load_upcoming_deadline_tasks", fake_load_upcoming)
     monkeypatch.setattr(notification_tasks, "_load_overdue_deadline_tasks", fake_load_overdue)
     monkeypatch.setattr(notification_tasks, "create_notification", fake_create_notification)
@@ -442,7 +445,7 @@ async def test_deadline_scan_uses_separate_utc_windows(
     monkeypatch.setattr(notification_tasks.settings, "deadline_reminder_minutes", 60)
     monkeypatch.setattr(notification_tasks.settings, "overdue_notification_lookback_hours", 24)
 
-    count = await notification_tasks.scan_deadline_notifications_async(now)
+    count = await notification_tasks.scan_deadline_notifications_async(session_factory, now)
 
     assert count == 2
     assert [item["type"] for item in created] == [
@@ -450,3 +453,40 @@ async def test_deadline_scan_uses_separate_utc_windows(
         NotificationType.DEADLINE_OVERDUE,
     ]
     assert enqueued == [1, 2]
+
+
+def test_deadline_scan_sync_task_runs_repeatedly_with_new_event_loops(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.tasks import notifications as notification_tasks
+
+    loop_ids: list[int] = []
+
+    class DummySessionContext:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    def session_factory():
+        return DummySessionContext()
+
+    async def fake_run_celery_db_task(handler):
+        loop_ids.append(id(asyncio.get_running_loop()))
+        return await handler(session_factory)
+
+    async def fake_load_upcoming(_session, _window_start, _window_end):
+        return []
+
+    async def fake_load_overdue(_session, _window_start, _window_end):
+        return []
+
+    monkeypatch.setattr(notification_tasks, "run_celery_db_task", fake_run_celery_db_task)
+    monkeypatch.setattr(notification_tasks, "_load_upcoming_deadline_tasks", fake_load_upcoming)
+    monkeypatch.setattr(notification_tasks, "_load_overdue_deadline_tasks", fake_load_overdue)
+
+    assert notification_tasks.scan_deadline_notifications() == 0
+    assert notification_tasks.scan_deadline_notifications() == 0
+    assert notification_tasks.scan_deadline_notifications() == 0
+    assert len(loop_ids) == 3

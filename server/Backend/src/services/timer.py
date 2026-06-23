@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
-from src.services.workspace import require_workspace_mutation
+from src.services.task_authorization import require_task_update_permission
 
 
 def utc_now() -> datetime:
@@ -65,7 +65,7 @@ async def _get_task_for_update(session: AsyncSession, task_id: int, user_id: int
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
-    await require_workspace_mutation(session, user_id, task.workspace_id)
+    await require_task_update_permission(session, user_id, task)
     return task
 
 

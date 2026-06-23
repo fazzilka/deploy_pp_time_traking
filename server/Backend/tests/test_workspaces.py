@@ -56,7 +56,7 @@ def _member(**overrides) -> WorkspaceMemberRead:
             is_active=True,
         ),
         role=overrides.get("role", WorkspaceRole.MEMBER),
-        status=WorkspaceMemberStatus.ACTIVE,
+        status=overrides.get("status", WorkspaceMemberStatus.ACTIVE),
         joined_at=NOW,
         projects_count=overrides.get("projects_count", 0),
         tasks_count=overrides.get("tasks_count", 0),
@@ -505,6 +505,169 @@ async def test_update_workspace_member_sends_role_changed_notification_and_event
             "role": "viewer",
         },
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        WorkspaceMemberUpdate(status=WorkspaceMemberStatus.INACTIVE),
+        WorkspaceMemberUpdate(role=WorkspaceRole.MEMBER),
+    ],
+)
+async def test_update_workspace_member_rejects_removing_last_active_owner(
+    monkeypatch: pytest.MonkeyPatch,
+    payload: WorkspaceMemberUpdate,
+) -> None:
+    from src.models.user import User
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import update_workspace_member
+
+    session = WorkspaceServiceSession()
+    session.execute_results = [DummyResult(scalar_one=0)]
+    workspace = Workspace(id=7, name="Engineering", type=WorkspaceType.TEAM, owner_id=42)
+    member = WorkspaceMember(
+        id=15,
+        workspace_id=7,
+        user_id=42,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+        user=User(
+            id=42,
+            email="owner@example.com",
+            username="owner",
+            full_name="Owner",
+            hashed_password="hashed",
+            is_active=True,
+        ),
+    )
+
+    async def fake_require_role(_session, _user_id, _workspace_id, _roles):
+        return SimpleNamespace(role=WorkspaceRole.OWNER)
+
+    async def fake_load_member_or_404(_session, _workspace_id, _member_id):
+        return member
+
+    monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
+    monkeypatch.setattr("src.services.workspace._load_member_or_404", fake_load_member_or_404)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await update_workspace_member(session, SimpleNamespace(id=1), 7, 15, payload)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "В workspace должен оставаться хотя бы один active owner"
+    assert session.committed is False
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_member_allows_inactive_when_another_active_owner_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.user import User
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import update_workspace_member
+
+    session = WorkspaceServiceSession()
+    session.execute_results = [DummyResult(scalar_one=1)]
+    workspace = Workspace(id=7, name="Engineering", type=WorkspaceType.TEAM, owner_id=42)
+    member = WorkspaceMember(
+        id=15,
+        workspace_id=7,
+        user_id=42,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+        user=User(
+            id=42,
+            email="owner@example.com",
+            username="owner",
+            full_name="Owner",
+            hashed_password="hashed",
+            is_active=True,
+        ),
+    )
+
+    async def fake_require_role(_session, _user_id, _workspace_id, _roles):
+        return SimpleNamespace(role=WorkspaceRole.OWNER)
+
+    async def fake_load_member_or_404(_session, _workspace_id, _member_id):
+        return member
+
+    async def fake_member_read(_session, updated_member):
+        return _member(
+            id=updated_member.id,
+            workspace_id=7,
+            user_id=updated_member.user_id,
+            role=updated_member.role,
+            status=updated_member.status,
+        )
+
+    async def fake_publish_user_event(_user_id, _event, _data):
+        return None
+
+    monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
+    monkeypatch.setattr("src.services.workspace._load_member_or_404", fake_load_member_or_404)
+    monkeypatch.setattr("src.services.workspace._member_read", fake_member_read)
+    monkeypatch.setattr("src.services.workspace.publish_user_event", fake_publish_user_event)
+
+    updated = await update_workspace_member(
+        session,
+        SimpleNamespace(id=1),
+        7,
+        15,
+        WorkspaceMemberUpdate(status=WorkspaceMemberStatus.INACTIVE),
+    )
+
+    assert updated.status == WorkspaceMemberStatus.INACTIVE
+    assert member.status == WorkspaceMemberStatus.INACTIVE
+    assert session.committed is True
+
+
+@pytest.mark.asyncio
+async def test_remove_workspace_member_rejects_last_active_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.models.user import User
+    from src.models.workspace import Workspace, WorkspaceMember
+    from src.services.workspace import remove_workspace_member
+
+    session = WorkspaceServiceSession()
+    session.execute_results = [DummyResult(scalar_one=0)]
+    workspace = Workspace(id=7, name="Engineering", type=WorkspaceType.TEAM, owner_id=42)
+    member = WorkspaceMember(
+        id=15,
+        workspace_id=7,
+        user_id=42,
+        role=WorkspaceRole.OWNER,
+        status=WorkspaceMemberStatus.ACTIVE,
+        workspace=workspace,
+        user=User(
+            id=42,
+            email="owner@example.com",
+            username="owner",
+            full_name="Owner",
+            hashed_password="hashed",
+            is_active=True,
+        ),
+    )
+
+    async def fake_require_role(_session, _user_id, _workspace_id, _roles):
+        return SimpleNamespace(role=WorkspaceRole.OWNER)
+
+    async def fake_load_member_or_404(_session, _workspace_id, _member_id):
+        return member
+
+    monkeypatch.setattr("src.services.workspace.require_workspace_role", fake_require_role)
+    monkeypatch.setattr("src.services.workspace._load_member_or_404", fake_load_member_or_404)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await remove_workspace_member(session, SimpleNamespace(id=1), 7, 15)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "В workspace должен оставаться хотя бы один active owner"
+    assert session.deleted == []
+    assert session.committed is False
 
 
 @pytest.mark.asyncio

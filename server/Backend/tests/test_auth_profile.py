@@ -65,14 +65,14 @@ async def test_register_user_creates_regular_user() -> None:
         RegisterRequest(
             email="USER@example.com",
             username="user",
-            password="password123",
+            password="password1234",
             full_name="Дмитрий",
         ),
     )
 
     assert user.email == "user@example.com"
     assert user.role == UserRole.USER
-    assert user.hashed_password != "password123"
+    assert user.hashed_password != "password1234"
     assert user.avatar_seed
     assert session.committed is True
     assert session.execute_count == 1
@@ -84,7 +84,7 @@ def test_register_schema_rejects_admin_role() -> None:
             {
                 "email": "user@example.com",
                 "username": "user",
-                "password": "password123",
+                "password": "password1234",
                 "role": "admin",
             }
         )
@@ -98,11 +98,11 @@ async def test_register_duplicate_email_returns_409() -> None:
     with pytest.raises(HTTPException) as exc:
         await register_user(
             session,
-            RegisterRequest(email="user@example.com", username="other", password="password123"),
+            RegisterRequest(email="user@example.com", username="other", password="password1234"),
         )
 
     assert exc.value.status_code == 409
-    assert exc.value.detail == "Email уже занят"
+    assert exc.value.detail == auth_service.REGISTRATION_CONFLICT_DETAIL
     assert session.execute_count == 1
 
 
@@ -114,12 +114,47 @@ async def test_register_duplicate_username_returns_409() -> None:
     with pytest.raises(HTTPException) as exc:
         await register_user(
             session,
-            RegisterRequest(email="other@example.com", username="user", password="password123"),
+            RegisterRequest(email="other@example.com", username="user", password="password1234"),
         )
 
     assert exc.value.status_code == 409
-    assert exc.value.detail == "Username уже занят"
+    assert exc.value.detail == auth_service.REGISTRATION_CONFLICT_DETAIL
     assert session.execute_count == 1
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_and_username_share_public_message() -> None:
+    email_session = DummySession()
+    username_session = DummySession()
+    email_session.execute_results = [DummyResult(scalar_one=[make_user()])]
+    username_session.execute_results = [DummyResult(scalar_one=[make_user()])]
+
+    with pytest.raises(HTTPException) as email_exc:
+        await register_user(
+            email_session,
+            RegisterRequest(email="user@example.com", username="other", password="password1234"),
+        )
+    with pytest.raises(HTTPException) as username_exc:
+        await register_user(
+            username_session,
+            RegisterRequest(email="other@example.com", username="user", password="password1234"),
+        )
+
+    assert email_exc.value.status_code == username_exc.value.status_code == 409
+    assert email_exc.value.detail == username_exc.value.detail
+
+
+def test_register_schema_requires_12_character_password() -> None:
+    with pytest.raises(ValidationError):
+        RegisterRequest(email="user@example.com", username="user", password="12345678901")
+
+    request = RegisterRequest(
+        email="user@example.com",
+        username="user",
+        password="123456789012",
+    )
+
+    assert request.password == "123456789012"
 
 
 @pytest.mark.asyncio
@@ -252,8 +287,8 @@ async def test_change_password_endpoint_requires_token(test_client) -> None:
         "/api/v1/users/me/change-password",
         json={
             "old_password": "oldpass123",
-            "new_password": "newpass456",
-            "confirm_password": "newpass456",
+            "new_password": "newpass456789",
+            "confirm_password": "newpass456789",
         },
     )
 
@@ -280,8 +315,8 @@ async def test_change_password_endpoint_success_hides_password_fields(
             "/api/v1/users/me/change-password",
             json={
                 "old_password": "oldpass123",
-                "new_password": "newpass456",
-                "confirm_password": "newpass456",
+                "new_password": "newpass456789",
+                "confirm_password": "newpass456789",
             },
         )
     finally:
@@ -292,8 +327,8 @@ async def test_change_password_endpoint_success_hides_password_fields(
     response_text = response.text
     assert "hashed_password" not in response_text
     assert "oldpass123" not in response_text
-    assert "newpass456" not in response_text
-    assert auth_service.verify_password("newpass456", user.hashed_password)
+    assert "newpass456789" not in response_text
+    assert auth_service.verify_password("newpass456789", user.hashed_password)
 
 
 @pytest.mark.asyncio
@@ -316,8 +351,8 @@ async def test_change_password_endpoint_wrong_old_password_returns_400(
             "/api/v1/users/me/change-password",
             json={
                 "old_password": "wrongpass",
-                "new_password": "newpass456",
-                "confirm_password": "newpass456",
+                "new_password": "newpass456789",
+                "confirm_password": "newpass456789",
             },
         )
     finally:
@@ -374,14 +409,33 @@ async def test_change_password_endpoint_rejects_mismatched_confirmation(
             "/api/v1/users/me/change-password",
             json={
                 "old_password": "oldpass123",
-                "new_password": "newpass456",
-                "confirm_password": "another456",
+                "new_password": "newpass456789",
+                "confirm_password": "another456789",
             },
         )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 422
+
+
+def test_change_password_schema_requires_12_character_new_password() -> None:
+    from src.schemas.user import ChangePasswordRequest
+
+    with pytest.raises(ValidationError):
+        ChangePasswordRequest(
+            old_password="oldpass123",
+            new_password="12345678901",
+            confirm_password="12345678901",
+        )
+
+    request = ChangePasswordRequest(
+        old_password="oldpass123",
+        new_password="123456789012",
+        confirm_password="123456789012",
+    )
+
+    assert request.new_password == "123456789012"
 
 
 def test_user_public_contains_avatar_letter() -> None:

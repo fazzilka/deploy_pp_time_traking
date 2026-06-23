@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.session import Base
@@ -9,8 +9,13 @@ from src.db.session import Base
 class TimeInterval(Base):
     __tablename__ = "time_intervals"
     __table_args__ = (
+        CheckConstraint(
+            "finished_at IS NULL OR finished_at >= started_at",
+            name="ck_time_intervals_finished_after_started",
+        ),
         Index("ix_time_intervals_task_id", "task_id"),
         Index("ix_time_intervals_user_id", "user_id"),
+        Index("ix_time_intervals_user_id_finished_at", "user_id", "finished_at"),
         Index("ix_time_intervals_started_at", "started_at"),
         Index("ix_time_intervals_finished_at", "finished_at"),
         Index("ix_time_intervals_task_id_finished_at", "task_id", "finished_at"),

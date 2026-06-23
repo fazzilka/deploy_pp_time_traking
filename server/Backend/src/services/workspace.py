@@ -440,10 +440,11 @@ async def update_workspace_member(
     member = await _load_member_or_404(session, workspace_id, member_id)
     values = payload.model_dump(exclude_unset=True)
     next_role = values.get("role")
+    next_status = values.get("status")
     if next_role == WorkspaceRole.OWNER:
         raise _forbidden()
 
-    if member.role == WorkspaceRole.OWNER and next_role != WorkspaceRole.OWNER:
+    if _removes_active_owner(member, next_role, next_status):
         await _ensure_another_owner(session, workspace_id, member.user_id)
 
     for key, value in values.items():
@@ -792,8 +793,20 @@ async def _ensure_another_owner(
     if owners_count < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Нельзя удалить или понизить единственного owner",
+            detail="В workspace должен оставаться хотя бы один active owner",
         )
+
+
+def _removes_active_owner(
+    member: WorkspaceMember,
+    next_role: WorkspaceRole | None,
+    next_status: WorkspaceMemberStatus | None,
+) -> bool:
+    if member.role != WorkspaceRole.OWNER or member.status != WorkspaceMemberStatus.ACTIVE:
+        return False
+    role_after = next_role if next_role is not None else member.role
+    status_after = next_status if next_status is not None else member.status
+    return role_after != WorkspaceRole.OWNER or status_after != WorkspaceMemberStatus.ACTIVE
 
 
 async def _member_summaries_by_user_id(

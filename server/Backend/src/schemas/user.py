@@ -5,6 +5,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from src.models.enums import UserRole
 
+PASSWORD_MIN_LENGTH = 12
+
 
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -53,8 +55,8 @@ class ChangePasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     old_password: str = Field(min_length=6, max_length=128)
-    new_password: str = Field(min_length=6, max_length=128)
-    confirm_password: str = Field(min_length=6, max_length=128)
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=128)
+    confirm_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=128)
 
     @model_validator(mode="after")
     def validate_passwords(self) -> Self:

@@ -1,7 +1,17 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.session import Base
@@ -15,6 +25,7 @@ if TYPE_CHECKING:
 class Project(Base):
     __tablename__ = "projects"
     __table_args__ = (
+        CheckConstraint("char_length(name) > 0", name="ck_projects_name_not_blank"),
         UniqueConstraint("owner_id", "name", name="uq_projects_owner_id_name"),
         Index("ix_projects_owner_id_created_at", "owner_id", "created_at"),
         Index("ix_projects_owner_id_is_archived", "owner_id", "is_archived"),

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -29,6 +30,11 @@ if TYPE_CHECKING:
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
+        CheckConstraint("total_time_seconds >= 0", name="ck_tasks_total_time_non_negative"),
+        CheckConstraint(
+            "priority IN ('lowest', 'low', 'medium', 'high', 'highest')",
+            name="ck_tasks_priority_allowed",
+        ),
         Index("ix_tasks_user_id_created_at", "user_id", "created_at"),
         Index("ix_tasks_user_id_deadline", "user_id", "deadline"),
         Index("ix_tasks_user_id_priority", "user_id", "priority"),

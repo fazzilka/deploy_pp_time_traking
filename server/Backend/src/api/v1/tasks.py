@@ -14,6 +14,7 @@ from src.models.task import Task
 from src.models.time_interval import TimeInterval
 from src.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from src.services.project import get_active_project_or_404, get_project_or_404
+from src.services.task_authorization import require_task_update_permission
 from src.services.timer import start_timer, stop_timer
 from src.services.workspace import (
     get_accessible_workspace_id,
@@ -65,25 +66,6 @@ async def _has_active_interval(session: AsyncSession, task_id: int) -> bool:
         .limit(1)
     )
     return result.scalar_one_or_none() is not None
-
-
-async def _require_task_update_permission(session: AsyncSession, user_id: int, task: Task) -> None:
-    workspace_id = getattr(task, "workspace_id", None)
-    if workspace_id is None:
-        return
-
-    membership = await get_active_membership(session, user_id, workspace_id)
-    if membership is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
-    if membership.role in {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}:
-        return
-    if membership.role == WorkspaceRole.MEMBER and (
-        getattr(task, "created_by_id", None) == user_id
-        or getattr(task, "assignee_id", None) == user_id
-        or getattr(task, "user_id", None) == user_id
-    ):
-        return
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
 
 
 async def _require_task_delete_permission(session: AsyncSession, user_id: int, task: Task) -> None:
@@ -253,7 +235,7 @@ async def update_task(
 ) -> Task:
     task = await _load_owned_task_or_404(session, task_id, current_user.id)
     task_workspace_id = getattr(task, "workspace_id", None)
-    await _require_task_update_permission(session, current_user.id, task)
+    await require_task_update_permission(session, current_user.id, task)
     update_data = payload.model_dump(exclude_unset=True)
     if update_data.get("is_completed") is True and await _has_active_interval(session, task_id):
         raise HTTPException(

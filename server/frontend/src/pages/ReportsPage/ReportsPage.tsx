@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { StatCard } from "../../components/StatCard/StatCard";
 import { getReportsData } from "../../shared/api/reports";
+import {
+  getUserEventsConnectionStatus,
+  USER_EVENT_RECEIVED_EVENT,
+  USER_EVENTS_STATUS_EVENT,
+  type UserEventPayload,
+  type UserEventsConnectionStatus,
+} from "../../shared/events/userEvents";
 import type { ActivityDay, ProjectsTimeSummaryResponse, SummaryResponse } from "../../shared/types/reports";
 import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import { getBestActivityDay } from "../../shared/utils/activity";
@@ -10,6 +17,30 @@ import "./ReportsPage.css";
 
 const currentYear = new Date().getFullYear();
 const weekdayLabels = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const REPORTS_REFRESH_DEBOUNCE_MS = 400;
+const FALLBACK_POLL_INTERVAL_MS = 180000;
+const STALE_REFRESH_MS = 60000;
+const REPORT_RELEVANT_EVENTS = new Set([
+  "task_created",
+  "task_updated",
+  "task_deleted",
+  "task_status_changed",
+  "task_assignee_changed",
+  "project_created",
+  "project_updated",
+  "project_deleted",
+  "timer_started",
+  "timer_stopped",
+  "time_interval_created",
+  "time_interval_updated",
+  "time_interval_deleted",
+  "workspace_member_added",
+  "workspace_member_removed",
+  "workspace_member_role_changed",
+  "workspace_member_left",
+  "workspace_changed",
+  "workspace.membership.changed",
+]);
 
 type ReportsState = {
   summary: SummaryResponse;
@@ -109,38 +140,152 @@ function buildProjectConicGradient(projectsSummary: ProjectsTimeSummaryResponse)
   return `conic-gradient(${segments.join(", ")})`;
 }
 
+function eventWorkspaceId(payload: UserEventPayload): number | null {
+  const workspaceId = "workspace_id" in payload ? payload.workspace_id : null;
+  return typeof workspaceId === "number" ? workspaceId : null;
+}
+
+function isReportRelevantEvent(event: string, payload: UserEventPayload, currentWorkspaceId: number | null): boolean {
+  if (!REPORT_RELEVANT_EVENTS.has(event) || currentWorkspaceId === null) {
+    return false;
+  }
+
+  const workspaceId = eventWorkspaceId(payload);
+  return workspaceId === null || workspaceId === currentWorkspaceId;
+}
+
 export function ReportsPage() {
   const { currentWorkspaceId } = useWorkspace();
   const [reports, setReports] = useState<ReportsState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<ReportPeriod>(7);
+  const [eventsStatus, setEventsStatus] = useState<UserEventsConnectionStatus>(getUserEventsConnectionStatus);
+  const currentWorkspaceIdRef = useRef<number | null>(currentWorkspaceId);
+  const isMountedRef = useRef(true);
+  const lastLoadedAtRef = useRef(0);
+  const refreshDebounceRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    async function loadReports() {
-      if (!currentWorkspaceId) {
+  const loadReports = useCallback(
+    async (options: { force?: boolean; silent?: boolean } = {}) => {
+      const workspaceId = currentWorkspaceIdRef.current;
+      if (!workspaceId) {
+        setReports(null);
+        setIsLoading(false);
         return;
       }
 
-      setIsLoading(true);
+      if (!options.silent) {
+        setIsLoading(true);
+      }
       setError(null);
 
       try {
-        const data = await getReportsData(currentYear, { workspaceId: currentWorkspaceId ?? undefined });
+        const data = await getReportsData(currentYear, {
+          workspaceId,
+          force: options.force,
+        });
+        if (!isMountedRef.current || currentWorkspaceIdRef.current !== workspaceId) {
+          return;
+        }
         setReports({
           summary: data.summary,
           days: data.activity.days,
           projectsSummary: data.projectsSummary,
         });
+        lastLoadedAtRef.current = Date.now();
       } catch {
-        setError("Не удалось загрузить отчёты");
+        if (isMountedRef.current && currentWorkspaceIdRef.current === workspaceId) {
+          setError("Не удалось загрузить отчёты");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMountedRef.current && currentWorkspaceIdRef.current === workspaceId && !options.silent) {
+          setIsLoading(false);
+        }
       }
+    },
+    [],
+  );
+
+  const scheduleReportsRefresh = useCallback(() => {
+    if (refreshDebounceRef.current !== null) {
+      window.clearTimeout(refreshDebounceRef.current);
+    }
+    refreshDebounceRef.current = window.setTimeout(() => {
+      refreshDebounceRef.current = null;
+      void loadReports({ force: true, silent: true });
+    }, REPORTS_REFRESH_DEBOUNCE_MS);
+  }, [loadReports]);
+
+  useEffect(() => {
+    currentWorkspaceIdRef.current = currentWorkspaceId;
+    void loadReports({ force: true });
+  }, [currentWorkspaceId, loadReports]);
+
+  useEffect(() => {
+    const handleUserEvent = (event: Event) => {
+      const detail = (event as CustomEvent<{ event: string; payload: UserEventPayload }>).detail;
+      if (!detail || !isReportRelevantEvent(detail.event, detail.payload, currentWorkspaceIdRef.current)) {
+        return;
+      }
+      scheduleReportsRefresh();
+    };
+
+    window.addEventListener(USER_EVENT_RECEIVED_EVENT, handleUserEvent);
+    return () => window.removeEventListener(USER_EVENT_RECEIVED_EVENT, handleUserEvent);
+  }, [scheduleReportsRefresh]);
+
+  useEffect(() => {
+    const handleStatusEvent = (event: Event) => {
+      const status = (event as CustomEvent<{ status: UserEventsConnectionStatus }>).detail?.status;
+      if (status) {
+        setEventsStatus(status);
+      }
+    };
+
+    window.addEventListener(USER_EVENTS_STATUS_EVENT, handleStatusEvent);
+    return () => window.removeEventListener(USER_EVENTS_STATUS_EVENT, handleStatusEvent);
+  }, []);
+
+  useEffect(() => {
+    if (eventsStatus === "connected") {
+      return undefined;
     }
 
-    void loadReports();
-  }, [currentWorkspaceId]);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || currentWorkspaceIdRef.current === null) {
+        return;
+      }
+      void loadReports({ force: true, silent: true });
+    }, FALLBACK_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [eventsStatus, loadReports]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === "visible"
+        && currentWorkspaceIdRef.current !== null
+        && Date.now() - lastLoadedAtRef.current > STALE_REFRESH_MS
+      ) {
+        void loadReports({ force: true, silent: true });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [loadReports]);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+      if (refreshDebounceRef.current !== null) {
+        window.clearTimeout(refreshDebounceRef.current);
+      }
+    },
+    [],
+  );
 
   const stats = useMemo(() => {
     if (!reports) {
@@ -192,15 +337,25 @@ export function ReportsPage() {
           <p className="page-copy">Сводка времени, динамика за неделю и задачи, которые забрали больше всего внимания.</p>
         </div>
 
-        <select
-          className="reports-period"
-          value={String(period)}
-          aria-label="Период отчёта"
-          onChange={(event) => setPeriod(event.target.value === "30" ? 30 : 7)}
-        >
-          <option value="7">Последние 7 дней</option>
-          <option value="30">Последние 30 дней</option>
-        </select>
+        <div className="reports-header__actions">
+          <button
+            className="reports-refresh"
+            type="button"
+            disabled={isLoading}
+            onClick={() => void loadReports({ force: true })}
+          >
+            Обновить
+          </button>
+          <select
+            className="reports-period"
+            value={String(period)}
+            aria-label="Период отчёта"
+            onChange={(event) => setPeriod(event.target.value === "30" ? 30 : 7)}
+          >
+            <option value="7">Последние 7 дней</option>
+            <option value="30">Последние 30 дней</option>
+          </select>
+        </div>
       </section>
 
       {error && <div className="status-message status-message--error reports-error">{error}</div>}

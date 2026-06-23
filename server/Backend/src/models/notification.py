@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -34,6 +35,21 @@ if TYPE_CHECKING:
 class Notification(Base):
     __tablename__ = "notifications"
     __table_args__ = (
+        CheckConstraint(
+            "type IN ("
+            "'deadline_soon', "
+            "'deadline_overdue', "
+            "'workspace_member_added', "
+            "'workspace_member_removed', "
+            "'workspace_member_role_changed', "
+            "'workspace_role_changed'"
+            ")",
+            name="ck_notifications_type_allowed",
+        ),
+        CheckConstraint(
+            "is_read = true OR read_at IS NULL",
+            name="ck_notifications_unread_without_read_at",
+        ),
         Index("ix_notifications_user_id", "user_id"),
         Index("ix_notifications_is_read", "is_read"),
         Index("ix_notifications_created_at", "created_at"),
@@ -91,6 +107,15 @@ class Notification(Base):
 class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
     __table_args__ = (
+        CheckConstraint(
+            "channel IN ('email', 'telegram')",
+            name="ck_notification_deliveries_channel_allowed",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'sent', 'failed', 'skipped')",
+            name="ck_notification_deliveries_status_allowed",
+        ),
+        CheckConstraint("attempts >= 0", name="ck_notification_deliveries_attempts_non_negative"),
         UniqueConstraint(
             "notification_id",
             "channel",

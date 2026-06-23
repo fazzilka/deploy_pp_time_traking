@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, String, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.session import Base
@@ -16,10 +16,21 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("role IN ('user', 'admin')", name="ck_users_role_allowed"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
-    username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    email: Mapped[str] = mapped_column(
+        String(320),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    username: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_seed: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -35,7 +46,11 @@ class User(Base):
         index=True,
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean(), nullable=False, default=True, server_default="true", index=True
+        Boolean(),
+        nullable=False,
+        default=True,
+        server_default="true",
+        index=True,
     )
     telegram_chat_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     telegram_username: Mapped[str | None] = mapped_column(String(128), nullable=True)

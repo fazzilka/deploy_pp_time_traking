@@ -1,7 +1,17 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.session import Base
@@ -17,6 +27,7 @@ if TYPE_CHECKING:
 class Workspace(Base):
     __tablename__ = "workspaces"
     __table_args__ = (
+        CheckConstraint("type IN ('personal', 'team')", name="ck_workspaces_type_allowed"),
         Index("ix_workspaces_owner_id", "owner_id"),
         Index("ix_workspaces_owner_id_type", "owner_id", "type"),
     )
@@ -60,10 +71,24 @@ class Workspace(Base):
 class WorkspaceMember(Base):
     __tablename__ = "workspace_members"
     __table_args__ = (
+        CheckConstraint(
+            "role IN ('owner', 'team_lead', 'member', 'viewer')",
+            name="ck_workspace_members_role_allowed",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'inactive')",
+            name="ck_workspace_members_status_allowed",
+        ),
         UniqueConstraint("workspace_id", "user_id", name="uq_workspace_members_workspace_user"),
         Index("ix_workspace_members_workspace_id", "workspace_id"),
         Index("ix_workspace_members_user_id", "user_id"),
         Index("ix_workspace_members_workspace_id_status", "workspace_id", "status"),
+        Index(
+            "ix_workspace_members_workspace_id_role_status",
+            "workspace_id",
+            "role",
+            "status",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

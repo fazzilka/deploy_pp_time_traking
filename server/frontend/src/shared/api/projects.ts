@@ -342,7 +342,10 @@ export async function getProjectTasks(projectId: number, query: TaskQuery = {}):
   return apiRequest<Task[]>(`/api/v1/projects/${projectId}/tasks${serializeTaskQuery(query)}`);
 }
 
-export async function getProjectsTimeSummary(workspaceId?: number): Promise<ProjectsTimeSummaryResponse> {
+export async function getProjectsTimeSummary(
+  workspaceId?: number,
+  options: { force?: boolean } = {},
+): Promise<ProjectsTimeSummaryResponse> {
   const query = workspaceId !== undefined ? `?workspace_id=${workspaceId}` : "";
   const path = `/api/v1/summary/projects${query}`;
 
@@ -386,13 +389,20 @@ export async function getProjectsTimeSummary(workspaceId?: number): Promise<Proj
     };
   }
 
-  const cachedSummary = workspaceId === undefined ? getCachedProjectsTimeSummary() : null;
+  if (options.force) {
+    if (workspaceId === undefined) {
+      invalidateProjectsTimeSummaryCache();
+    }
+    pendingProjectRequests.delete(path);
+  }
+
+  const cachedSummary = !options.force && workspaceId === undefined ? getCachedProjectsTimeSummary() : null;
   if (cachedSummary) {
     return cachedSummary;
   }
 
   const pendingRequest = getPending<ProjectsTimeSummaryResponse>(path);
-  if (pendingRequest) {
+  if (!options.force && pendingRequest) {
     return pendingRequest;
   }
 

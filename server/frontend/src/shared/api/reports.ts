@@ -109,7 +109,7 @@ export async function getReportsData(year: number, options: CacheOptions & { wor
   const [summary, activity, projectsSummary] = await Promise.all([
     getSummary(3, options),
     getUserActivity(year, options),
-    getProjectsTimeSummary(options.workspaceId),
+    getProjectsTimeSummary(options.workspaceId, { force: options.force }),
   ]);
 
   return {

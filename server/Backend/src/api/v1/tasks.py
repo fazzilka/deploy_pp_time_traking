@@ -16,6 +16,7 @@ from src.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from src.services.project import get_active_project_or_404, get_project_or_404
 from src.services.task_authorization import require_task_update_permission
 from src.services.timer import start_timer, stop_timer
+from src.services.user_events import publish_workspace_event
 from src.services.workspace import (
     get_accessible_workspace_id,
     get_active_membership,
@@ -25,6 +26,37 @@ from src.services.workspace import (
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+def _task_update_event(changed_fields: set[str]) -> str:
+    if "is_completed" in changed_fields:
+        return "task_status_changed"
+    if "assignee_id" in changed_fields:
+        return "task_assignee_changed"
+    return "task_updated"
+
+
+async def _publish_task_event(
+    session: AsyncSession,
+    task: Task,
+    event: str,
+    *,
+    changed_fields: set[str] | None = None,
+) -> None:
+    workspace_id = getattr(task, "workspace_id", None)
+    if workspace_id is None:
+        return
+
+    await publish_workspace_event(
+        session,
+        workspace_id,
+        event,
+        {
+            "task_id": task.id,
+            "project_id": getattr(task, "project_id", None),
+            "changed_fields": sorted(changed_fields or set()),
+        },
+    )
 
 
 def _task_detail_stmt(task_id: int, user_id: int) -> Select[tuple[Task]]:
@@ -223,7 +255,9 @@ async def create_task(
     )
     session.add(task)
     await session.commit()
-    return await _load_task_or_404(session, task.id, current_user.id)
+    loaded_task = await _load_task_or_404(session, task.id, current_user.id)
+    await _publish_task_event(session, task, "task_created")
+    return loaded_task
 
 
 @router.patch("/{task_id}", response_model=TaskRead)
@@ -263,7 +297,14 @@ async def update_task(
                 )
         setattr(task, key, value)
     await session.commit()
-    return await _load_task_or_404(session, task_id, current_user.id)
+    loaded_task = await _load_task_or_404(session, task_id, current_user.id)
+    await _publish_task_event(
+        session,
+        task,
+        _task_update_event(set(update_data)),
+        changed_fields=set(update_data),
+    )
+    return loaded_task
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -272,16 +313,19 @@ async def delete_task(task_id: int, session: SessionDep, current_user: CurrentUs
     await _require_task_delete_permission(session, current_user.id, task)
     await session.delete(task)
     await session.commit()
+    await _publish_task_event(session, task, "task_deleted")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{task_id}/timer/start", response_model=TaskRead)
 async def start_task_timer(task_id: int, session: SessionDep, current_user: CurrentUserDep) -> Task:
-    await start_timer(session, task_id, current_user.id)
+    task = await start_timer(session, task_id, current_user.id)
+    await _publish_task_event(session, task, "timer_started")
     return await _load_task_or_404(session, task_id, current_user.id)
 
 
 @router.post("/{task_id}/timer/stop", response_model=TaskRead)
 async def stop_task_timer(task_id: int, session: SessionDep, current_user: CurrentUserDep) -> Task:
-    await stop_timer(session, task_id, current_user.id)
+    task = await stop_timer(session, task_id, current_user.id)
+    await _publish_task_event(session, task, "timer_stopped")
     return await _load_task_or_404(session, task_id, current_user.id)

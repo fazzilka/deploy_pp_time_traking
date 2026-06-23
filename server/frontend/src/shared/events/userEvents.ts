@@ -2,6 +2,8 @@ import { API_URL, getAccessToken, handleUnauthorizedSession, USE_MOCKS } from ".
 
 export const WORKSPACE_MEMBERSHIP_CHANGED_EVENT = "time-tracking:workspace-membership-changed";
 export const NOTIFICATIONS_CHANGED_EVENT = "time-tracking:notifications-changed";
+export const USER_EVENT_RECEIVED_EVENT = "time-tracking:user-event-received";
+export const USER_EVENTS_STATUS_EVENT = "time-tracking:user-events-status";
 
 export type WorkspaceMembershipChangedPayload = {
   type: "workspace.membership.changed";
@@ -20,7 +22,13 @@ export type NotificationsChangedPayload = {
   created_at?: string;
 };
 
+export type UserEventsConnectionStatus = "idle" | "connecting" | "connected" | "reconnecting" | "closed";
 export type UserEventPayload = WorkspaceMembershipChangedPayload | NotificationsChangedPayload | Record<string, unknown>;
+
+export type UserEventReceivedPayload = {
+  event: string;
+  payload: UserEventPayload;
+};
 
 type SubscribeOptions = {
   onEvent: (event: string, payload: UserEventPayload) => void;
@@ -30,6 +38,17 @@ type ParsedSseEvent = {
   event: string;
   data: string;
 };
+
+let currentConnectionStatus: UserEventsConnectionStatus = "idle";
+
+export function getUserEventsConnectionStatus(): UserEventsConnectionStatus {
+  return currentConnectionStatus;
+}
+
+function setUserEventsConnectionStatus(status: UserEventsConnectionStatus) {
+  currentConnectionStatus = status;
+  window.dispatchEvent(new CustomEvent(USER_EVENTS_STATUS_EVENT, { detail: { status } }));
+}
 
 function parseSseEvent(rawEvent: string): ParsedSseEvent | null {
   const lines = rawEvent.split("\n");
@@ -62,6 +81,10 @@ function dispatchNotificationsEvent(payload: NotificationsChangedPayload) {
   window.dispatchEvent(new CustomEvent(NOTIFICATIONS_CHANGED_EVENT, { detail: payload }));
 }
 
+function dispatchUserEvent(event: string, payload: UserEventPayload) {
+  window.dispatchEvent(new CustomEvent(USER_EVENT_RECEIVED_EVENT, { detail: { event, payload } }));
+}
+
 export function subscribeToUserEvents({ onEvent }: SubscribeOptions): () => void {
   if (USE_MOCKS) {
     return () => undefined;
@@ -78,6 +101,7 @@ export function subscribeToUserEvents({ onEvent }: SubscribeOptions): () => void
       return;
     }
 
+    setUserEventsConnectionStatus(currentConnectionStatus === "idle" ? "connecting" : "reconnecting");
     controller = new AbortController();
 
     try {
@@ -98,6 +122,7 @@ export function subscribeToUserEvents({ onEvent }: SubscribeOptions): () => void
       }
 
       reconnectDelayMs = 1000;
+      setUserEventsConnectionStatus("connected");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -121,6 +146,7 @@ export function subscribeToUserEvents({ onEvent }: SubscribeOptions): () => void
           try {
             const payload = JSON.parse(parsed.data) as UserEventPayload;
             onEvent(parsed.event, payload);
+            dispatchUserEvent(parsed.event, payload);
             if (parsed.event === "workspace.membership.changed") {
               dispatchWorkspaceEvent(payload as WorkspaceMembershipChangedPayload);
             } else if (parsed.event === "notifications.changed") {
@@ -140,6 +166,7 @@ export function subscribeToUserEvents({ onEvent }: SubscribeOptions): () => void
     }
 
     if (!isClosed) {
+      setUserEventsConnectionStatus("reconnecting");
       reconnectTimer = window.setTimeout(() => {
         reconnectDelayMs = Math.min(reconnectDelayMs * 2, 30000);
         void connect();
@@ -155,5 +182,6 @@ export function subscribeToUserEvents({ onEvent }: SubscribeOptions): () => void
       window.clearTimeout(reconnectTimer);
     }
     controller?.abort();
+    setUserEventsConnectionStatus("closed");
   };
 }

@@ -26,9 +26,32 @@ from src.services.project import (
     list_projects,
     update_project,
 )
+from src.services.user_events import publish_workspace_event
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+async def _publish_project_event(
+    session: AsyncSession,
+    project: Project,
+    event: str,
+    *,
+    changed_fields: set[str] | None = None,
+) -> None:
+    workspace_id = getattr(project, "workspace_id", None)
+    if workspace_id is None:
+        return
+
+    await publish_workspace_event(
+        session,
+        workspace_id,
+        event,
+        {
+            "project_id": project.id,
+            "changed_fields": sorted(changed_fields or set()),
+        },
+    )
 
 
 @router.get("", response_model=list[ProjectListItem])
@@ -61,7 +84,9 @@ async def post_project(
     session: SessionDep,
     current_user: CurrentUserDep,
 ) -> Project:
-    return await create_project(session, current_user.id, payload)
+    project = await create_project(session, current_user.id, payload)
+    await _publish_project_event(session, project, "project_created")
+    return project
 
 
 @router.get("/{project_id}", response_model=ProjectRead)
@@ -80,7 +105,15 @@ async def patch_project(
     session: SessionDep,
     current_user: CurrentUserDep,
 ) -> Project:
-    return await update_project(session, current_user.id, project_id, payload)
+    changed_fields = set(payload.model_dump(exclude_unset=True))
+    project = await update_project(session, current_user.id, project_id, payload)
+    await _publish_project_event(
+        session,
+        project,
+        "project_updated",
+        changed_fields=changed_fields,
+    )
+    return project
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -89,7 +122,15 @@ async def delete_project(
     session: SessionDep,
     current_user: CurrentUserDep,
 ) -> Response:
+    project = await get_project_or_404(session, current_user.id, project_id)
+    workspace_id = project.workspace_id
     await archive_project(session, current_user.id, project_id)
+    await publish_workspace_event(
+        session,
+        workspace_id,
+        "project_deleted",
+        {"project_id": project_id},
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

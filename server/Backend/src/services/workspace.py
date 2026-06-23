@@ -27,7 +27,7 @@ from src.schemas.workspace import (
     WorkspaceUpdate,
 )
 from src.services.notification import create_notification, enqueue_notification_delivery
-from src.services.user_events import publish_user_event
+from src.services.user_events import publish_user_event, publish_workspace_event
 
 MUTATION_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER}
 PROJECT_MANAGEMENT_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD}
@@ -419,6 +419,12 @@ async def add_workspace_member_by_email(
         workspace_id=workspace_id,
         workspace_name=workspace_name,
     )
+    await publish_workspace_event(
+        session,
+        workspace_id,
+        "workspace_member_added",
+        {"user_id": target_user.id},
+    )
     return WorkspaceMemberRead(
         id=member.id,
         workspace_id=member.workspace_id,
@@ -483,6 +489,12 @@ async def update_workspace_member(
         workspace_name=_workspace_name_from_membership(member, workspace_id),
         role=member.role,
     )
+    await publish_workspace_event(
+        session,
+        workspace_id,
+        "workspace_member_role_changed",
+        {"user_id": member.user_id, "role": member.role.value},
+    )
     return member_read
 
 
@@ -521,6 +533,12 @@ async def remove_workspace_member(
         workspace_id=removed_workspace_id,
         workspace_name=workspace_name,
     )
+    await publish_workspace_event(
+        session,
+        removed_workspace_id,
+        "workspace_member_removed",
+        {"user_id": removed_user_id},
+    )
 
 
 async def leave_workspace(
@@ -552,6 +570,12 @@ async def leave_workspace(
         reason="left",
         workspace_id=workspace_id,
         workspace_name=workspace_name,
+    )
+    await publish_workspace_event(
+        session,
+        workspace_id,
+        "workspace_member_left",
+        {"user_id": user.id},
     )
 
 

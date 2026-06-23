@@ -7,6 +7,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.enums import WorkspaceMemberStatus
+from src.models.workspace import WorkspaceMember
+
 logger = logging.getLogger(__name__)
 
 MAX_QUEUE_SIZE = 100
@@ -80,3 +86,27 @@ user_event_manager = UserEventManager()
 
 async def publish_user_event(user_id: int, event: str, data: dict[str, Any]) -> None:
     await user_event_manager.publish(user_id, event, data)
+
+
+async def publish_workspace_event(
+    session: AsyncSession,
+    workspace_id: int,
+    event: str,
+    data: dict[str, Any],
+) -> None:
+    result = await session.execute(
+        select(WorkspaceMember.user_id).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.status == WorkspaceMemberStatus.ACTIVE,
+        )
+    )
+    user_ids = [int(user_id) for user_id in result.scalars().all()]
+    for user_id in user_ids:
+        await publish_user_event(
+            user_id,
+            event,
+            {
+                "workspace_id": workspace_id,
+                **data,
+            },
+        )

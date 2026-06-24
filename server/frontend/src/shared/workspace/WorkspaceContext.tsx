@@ -1,8 +1,17 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createWorkspace, getWorkspaces, updateWorkspace } from "../api/workspaces";
 import { resetProjectsDataCache } from "../api/projects";
-import { clearReportsCache } from "../api/reports";
-import { subscribeToUserEvents } from "../events/userEvents";
+import {
+  cancelScheduledReportsRefresh,
+  ensureReportsLoaded,
+  handleReportsEvent,
+  scheduleReportsRefreshForWorkspace,
+} from "../api/reports";
+import {
+  subscribeToUserEvents,
+  USER_EVENTS_STATUS_EVENT,
+  type UserEventsConnectionStatus,
+} from "../events/userEvents";
 import type { Workspace, WorkspaceCreateRequest, WorkspaceRole, WorkspaceUpdateRequest } from "../types/workspace";
 
 const STORAGE_KEY = "time_tracking_current_workspace_id";
@@ -39,6 +48,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const refreshDebounceRef = useRef<number | null>(null);
+  const currentWorkspaceIdRef = useRef<number | null>(currentWorkspaceId);
+  const hasConnectedEventsRef = useRef(false);
+  const lastEventsStatusRef = useRef<UserEventsConnectionStatus>("idle");
 
   const currentWorkspace = useMemo(
     () => workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? workspaces[0] ?? null,
@@ -49,7 +61,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, String(workspaceId));
     setCurrentWorkspaceIdState(workspaceId);
     resetProjectsDataCache();
-    clearReportsCache();
   }, []);
 
   const setResolvedCurrentWorkspaceId = useCallback((workspaceId: number | null) => {
@@ -57,7 +68,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
       setCurrentWorkspaceIdState(null);
       resetProjectsDataCache();
-      clearReportsCache();
       return;
     }
 
@@ -65,7 +75,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setCurrentWorkspaceIdState((currentId) => {
       if (currentId !== workspaceId) {
         resetProjectsDataCache();
-        clearReportsCache();
       }
       return workspaceId;
     });
@@ -167,15 +176,46 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
           scheduleSilentRefresh();
         }
+        handleReportsEvent(event, payload, currentWorkspaceIdRef.current);
       },
     });
   }, [removeWorkspaceFromState, scheduleSilentRefresh]);
+
+  useEffect(() => {
+    currentWorkspaceIdRef.current = currentWorkspace?.id ?? null;
+    if (currentWorkspace?.id !== undefined) {
+      cancelScheduledReportsRefresh();
+      void ensureReportsLoaded(currentWorkspace.id).catch(() => undefined);
+    }
+  }, [currentWorkspace?.id]);
+
+  useEffect(() => {
+    const handleEventsStatus = (event: Event) => {
+      const status = (event as CustomEvent<{ status: UserEventsConnectionStatus }>).detail?.status;
+      if (!status) {
+        return;
+      }
+
+      const previousStatus = lastEventsStatusRef.current;
+      lastEventsStatusRef.current = status;
+      if (status === "connected") {
+        if (hasConnectedEventsRef.current && previousStatus !== "connected" && currentWorkspaceIdRef.current !== null) {
+          scheduleReportsRefreshForWorkspace(currentWorkspaceIdRef.current);
+        }
+        hasConnectedEventsRef.current = true;
+      }
+    };
+
+    window.addEventListener(USER_EVENTS_STATUS_EVENT, handleEventsStatus);
+    return () => window.removeEventListener(USER_EVENTS_STATUS_EVENT, handleEventsStatus);
+  }, []);
 
   useEffect(() => {
     return () => {
       if (refreshDebounceRef.current !== null) {
         window.clearTimeout(refreshDebounceRef.current);
       }
+      cancelScheduledReportsRefresh();
     };
   }, []);
 

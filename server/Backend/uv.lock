@@ -1376,7 +1376,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0.0" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
-    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3.0" },
+    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-json-logger", specifier = ">=3.2.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.51" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },

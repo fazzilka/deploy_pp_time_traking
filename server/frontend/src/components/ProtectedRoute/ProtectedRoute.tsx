@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Navigation } from "../Navigation/Navigation";
+import { ProtectedSpaceGate } from "../ProtectedSpaceGate/ProtectedSpaceGate";
 import { isAuthenticated } from "../../shared/api/auth";
 import { WorkspaceProvider } from "../../shared/workspace/WorkspaceContext";
 
@@ -14,7 +15,9 @@ export function ProtectedRoute() {
     <div className="app-page">
       <WorkspaceProvider>
         <Navigation />
-        <Outlet />
+        <ProtectedSpaceGate>
+          <Outlet />
+        </ProtectedSpaceGate>
       </WorkspaceProvider>
     </div>
   );

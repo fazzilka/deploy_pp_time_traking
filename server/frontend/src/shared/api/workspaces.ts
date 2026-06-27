@@ -41,6 +41,7 @@ export async function createWorkspace(payload: WorkspaceCreateRequest): Promise<
       name: payload.name.trim(),
       description: payload.description?.trim() || null,
       type: "team",
+      is_protected: false,
       owner_id: 1,
       created_at: now,
       updated_at: now,

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { GeneratedAvatar } from "../GeneratedAvatar";
 import { NotificationsBell } from "../NotificationsBell/NotificationsBell";
+import { PasswordInput } from "../PasswordInput/PasswordInput";
 import { getCurrentUser, userProfileUpdatedEvent } from "../../shared/api/profile";
 import { logout } from "../../shared/api/auth";
 import { createWorkspace } from "../../shared/api/workspaces";
@@ -11,7 +12,7 @@ import type { Workspace } from "../../shared/types/workspace";
 import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import "./Navigation.css";
 
-type NavigationIconName = "home" | "building" | "plus" | "chevron" | "check" | "users";
+type NavigationIconName = "home" | "building" | "plus" | "chevron" | "check" | "users" | "lock";
 
 function NavigationIcon({ name }: { name: NavigationIconName }) {
   const props = {
@@ -75,12 +76,22 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       );
+    case "lock":
+      return (
+        <svg {...props}>
+          <rect x="4" y="10" width="16" height="10" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
     default:
       return null;
   }
 }
 
 function getWorkspaceIcon(workspace: Workspace | null) {
+  if (workspace?.is_protected) {
+    return "lock";
+  }
   if (!workspace || workspace.type === "personal") {
     return "home";
   }
@@ -89,6 +100,9 @@ function getWorkspaceIcon(workspace: Workspace | null) {
 }
 
 function getWorkspaceSubtitle(workspace: Workspace) {
+  if (workspace.is_protected) {
+    return "Требует защитный пароль";
+  }
   if (workspace.type === "personal") {
     return "Личное пространство";
   }
@@ -103,10 +117,14 @@ export function Navigation() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isCreateProtectedOpen, setIsCreateProtectedOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState("");
   const [createWorkspaceError, setCreateWorkspaceError] = useState<string | null>(null);
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [protectedPassword, setProtectedPassword] = useState("");
+  const [protectedError, setProtectedError] = useState<string | null>(null);
+  const [isCreatingProtected, setIsCreatingProtected] = useState(false);
 
   const {
     workspaces,
@@ -115,6 +133,8 @@ export function Navigation() {
     setCurrentWorkspaceId,
     refreshWorkspaces,
     isLoading,
+    protectedSpaceStatus,
+    createProtectedPersonalSpace,
   } = useWorkspace();
 
   useEffect(() => {
@@ -162,6 +182,7 @@ export function Navigation() {
       if (event.key === "Escape") {
         setIsWorkspaceMenuOpen(false);
         setIsCreateWorkspaceOpen(false);
+        setIsCreateProtectedOpen(false);
       }
     }
 
@@ -175,12 +196,17 @@ export function Navigation() {
   }, []);
 
   const personalWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => workspace.type === "personal"),
+    () => workspaces.filter((workspace) => workspace.type === "personal" && !workspace.is_protected),
+    [workspaces],
+  );
+
+  const protectedWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.is_protected) ?? null,
     [workspaces],
   );
 
   const teamWorkspaces = useMemo(
-    () => workspaces.filter((workspace) => workspace.type !== "personal"),
+    () => workspaces.filter((workspace) => workspace.type !== "personal" && !workspace.is_protected),
     [workspaces],
   );
 
@@ -198,6 +224,13 @@ export function Navigation() {
     setIsWorkspaceMenuOpen(false);
     setCreateWorkspaceError(null);
     setIsCreateWorkspaceOpen(true);
+  }
+
+  function openCreateProtectedModal() {
+    setIsWorkspaceMenuOpen(false);
+    setProtectedPassword("");
+    setProtectedError(null);
+    setIsCreateProtectedOpen(true);
   }
 
   async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
@@ -232,6 +265,29 @@ export function Navigation() {
       setCreateWorkspaceError(error instanceof Error ? error.message : "Не удалось создать организацию");
     } finally {
       setIsCreatingWorkspace(false);
+    }
+  }
+
+  async function handleCreateProtectedSpace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (protectedPassword.length < 12) {
+      setProtectedError("Защитный пароль должен быть не короче 12 символов");
+      return;
+    }
+
+    setIsCreatingProtected(true);
+    setProtectedError(null);
+
+    try {
+      await createProtectedPersonalSpace(protectedPassword);
+      setProtectedPassword("");
+      setIsCreateProtectedOpen(false);
+      await refreshWorkspaces({ silent: true });
+    } catch (error) {
+      setProtectedError(error instanceof Error ? error.message : "Не удалось создать защищённое пространство");
+    } finally {
+      setIsCreatingProtected(false);
     }
   }
 
@@ -303,8 +359,51 @@ export function Navigation() {
                         )}
                       </button>
                     ))}
-                  </div>
-                )}
+	                  </div>
+	                )}
+
+                <div className="navigation__workspace-group">
+                  <p>Защищённое пространство</p>
+
+                  {protectedWorkspace ? (
+                    <button
+                      className={`navigation__workspace-item${
+                        protectedWorkspace.id === currentWorkspaceId ? " navigation__workspace-item--active" : ""
+                      }`}
+                      type="button"
+                      key={protectedWorkspace.id}
+                      onClick={() => handleWorkspaceSelect(protectedWorkspace.id)}
+                      role="menuitem"
+                    >
+                      <span className="navigation__workspace-item-icon navigation__workspace-item-icon--protected">
+                        <NavigationIcon name="lock" />
+                      </span>
+
+                      <span className="navigation__workspace-item-copy">
+                        <strong>{protectedWorkspace.name}</strong>
+                        <em>{protectedSpaceStatus?.is_unlocked ? "Разблокировано" : "Заблокировано"}</em>
+                      </span>
+
+                      {protectedWorkspace.id === currentWorkspaceId && (
+                        <span className="navigation__workspace-item-check">
+                          <NavigationIcon name="check" />
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      className="navigation__workspace-create"
+                      type="button"
+                      onClick={openCreateProtectedModal}
+                      role="menuitem"
+                    >
+                      <span>
+                        <NavigationIcon name="lock" />
+                      </span>
+                      Создать защищённое пространство
+                    </button>
+                  )}
+                </div>
 
                 <div className="navigation__workspace-group">
                   <p>Организации</p>
@@ -446,6 +545,60 @@ export function Navigation() {
                 className="navigation-modal__button navigation-modal__button--secondary"
                 type="button"
                 onClick={() => setIsCreateWorkspaceOpen(false)}
+              >
+                Отмена
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isCreateProtectedOpen && (
+        <div
+          className="navigation-modal-backdrop"
+          role="presentation"
+          onClick={() => setIsCreateProtectedOpen(false)}
+        >
+          <form
+            className="navigation-modal"
+            onSubmit={handleCreateProtectedSpace}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="navigation-modal__header">
+              <span>
+                <NavigationIcon name="lock" />
+              </span>
+              <div>
+                <h2>Создать защищённое пространство</h2>
+                <p>Используйте отдельный пароль, не совпадающий с паролем аккаунта.</p>
+              </div>
+            </div>
+
+            <PasswordInput
+              name="protected-password"
+              label="Защитный пароль"
+              value={protectedPassword}
+              minLength={12}
+              required
+              autoComplete="new-password"
+              placeholder="Минимум 12 символов"
+              onChange={setProtectedPassword}
+              error={protectedError ?? undefined}
+            />
+
+            <div className="navigation-modal__actions">
+              <button
+                className="navigation-modal__button navigation-modal__button--primary"
+                type="submit"
+                disabled={isCreatingProtected}
+              >
+                {isCreatingProtected ? "Создаём..." : "Создать"}
+              </button>
+
+              <button
+                className="navigation-modal__button navigation-modal__button--secondary"
+                type="button"
+                onClick={() => setIsCreateProtectedOpen(false)}
               >
                 Отмена
               </button>

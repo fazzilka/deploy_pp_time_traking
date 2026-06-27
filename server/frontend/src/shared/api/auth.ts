@@ -1,6 +1,7 @@
 import { apiRequest, USE_MOCKS } from "./client";
 import { clearUserCaches, hydrateUserCachesFromAuth } from "./profile";
 import { clearReportsCache } from "./reports";
+import { clearProtectedVaultToken } from "./protectedSpace";
 import { mockUser } from "./mockData";
 import type { AuthResponse, LoginRequest, RegisterRequest, RegisterResponse } from "../types/auth";
 
@@ -24,6 +25,7 @@ export function saveAccessToken(token: string): void {
 
 export function logout(): void {
   localStorage.removeItem(tokenKey);
+  clearProtectedVaultToken();
   clearUserCaches();
   clearReportsCache();
 }

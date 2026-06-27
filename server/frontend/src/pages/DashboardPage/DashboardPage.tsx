@@ -2,6 +2,7 @@ import type { FormEvent} from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
+import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
@@ -423,6 +424,8 @@ export function DashboardPage() {
           Создать задачу
         </button>
       </section>
+
+      <ProtectedSpaceStatus />
 
       {error && <div className="status-message status-message--error dashboard-status">{error}</div>}
 

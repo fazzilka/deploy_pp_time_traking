@@ -1,5 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
+import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { StatCard } from "../../components/StatCard/StatCard";
 import {
   getReportsSnapshot,
@@ -204,6 +205,8 @@ export function ReportsPage() {
           </select>
         </div>
       </section>
+
+      <ProtectedSpaceStatus />
 
       {error && <div className="status-message status-message--error reports-error">{error}</div>}
 

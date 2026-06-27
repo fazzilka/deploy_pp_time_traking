@@ -8,6 +8,7 @@ import {
   type ProjectIconName,
 } from "../../components/ProjectIcon/ProjectIcon";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
+import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
@@ -698,6 +699,8 @@ export function ProjectDetailPage() {
           </button>
         </div>
       </section>
+
+      <ProtectedSpaceStatus />
 
       {error && <div className="status-message status-message--error project-detail-status">{error}</div>}
 

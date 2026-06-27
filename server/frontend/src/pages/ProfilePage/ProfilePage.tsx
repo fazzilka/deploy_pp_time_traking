@@ -4,6 +4,7 @@ import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
+import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { StatCard } from "../../components/StatCard/StatCard";
 import {
   changePassword,
@@ -223,6 +224,7 @@ export function ProfilePage() {
           />
           <h1 className="profile-name">{displayName}</h1>
           <p className="profile-username">@{user.username}</p>
+          <ProtectedSpaceStatus />
 
           <div className="profile-actions">
             <button className="profile-edit" type="button" onClick={() => setIsEditing((value) => !value)}>

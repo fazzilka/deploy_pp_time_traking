@@ -7,6 +7,7 @@ import {
   getProjectFallbackIcon,
   type ProjectIconName,
 } from "../../components/ProjectIcon/ProjectIcon";
+import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import {
   createProject,
   ensureProjectsLoaded,
@@ -177,6 +178,8 @@ export function ProjectsPage() {
           Создать проект
         </button>
       </section>
+
+      <ProtectedSpaceStatus />
 
       {error && <div className="status-message status-message--error projects-status">{error}</div>}
 

@@ -1,4 +1,11 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  clearProtectedVaultToken,
+  createProtectedSpace,
+  getProtectedSpaceStatus,
+  lockProtectedSpace as lockProtectedSpaceRequest,
+  unlockProtectedSpace,
+} from "../api/protectedSpace";
 import { createWorkspace, getWorkspaces, updateWorkspace } from "../api/workspaces";
 import { resetProjectsDataCache } from "../api/projects";
 import {
@@ -13,6 +20,7 @@ import {
   type UserEventsConnectionStatus,
 } from "../events/userEvents";
 import type { Workspace, WorkspaceCreateRequest, WorkspaceRole, WorkspaceUpdateRequest } from "../types/workspace";
+import type { ProtectedSpaceStatus } from "../types/protectedSpace";
 
 const STORAGE_KEY = "time_tracking_current_workspace_id";
 
@@ -28,6 +36,12 @@ type WorkspaceContextValue = {
   removeWorkspaceFromState: (workspaceId: number) => void;
   createOrganization: (payload: WorkspaceCreateRequest) => Promise<Workspace>;
   updateCurrentWorkspace: (payload: WorkspaceUpdateRequest) => Promise<Workspace | null>;
+  protectedSpaceStatus: ProtectedSpaceStatus | null;
+  isCurrentWorkspaceProtectedLocked: boolean;
+  refreshProtectedSpaceStatus: () => Promise<void>;
+  createProtectedPersonalSpace: (password: string) => Promise<void>;
+  unlockProtectedPersonalSpace: (password: string) => Promise<void>;
+  lockProtectedPersonalSpace: () => Promise<void>;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -47,7 +61,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [currentWorkspaceId, setCurrentWorkspaceIdState] = useState<number | null>(readStoredWorkspaceId);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [protectedSpaceStatus, setProtectedSpaceStatus] = useState<ProtectedSpaceStatus | null>(null);
   const refreshDebounceRef = useRef<number | null>(null);
+  const protectedExpiryTimerRef = useRef<number | null>(null);
+  const hiddenLockTimerRef = useRef<number | null>(null);
   const currentWorkspaceIdRef = useRef<number | null>(currentWorkspaceId);
   const hasConnectedEventsRef = useRef(false);
   const lastEventsStatusRef = useRef<UserEventsConnectionStatus>("idle");
@@ -56,6 +73,18 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     () => workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? workspaces[0] ?? null,
     [currentWorkspaceId, workspaces],
   );
+  const isCurrentWorkspaceProtectedLocked = Boolean(
+    currentWorkspace?.is_protected
+      && (!protectedSpaceStatus?.is_unlocked || protectedSpaceStatus.workspace_id !== currentWorkspace.id),
+  );
+
+  const refreshProtectedSpaceStatus = useCallback(async () => {
+    try {
+      setProtectedSpaceStatus(await getProtectedSpaceStatus());
+    } catch {
+      setProtectedSpaceStatus(null);
+    }
+  }, []);
 
   const setCurrentWorkspaceId = useCallback((workspaceId: number) => {
     localStorage.setItem(STORAGE_KEY, String(workspaceId));
@@ -87,7 +116,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const nextWorkspaces = await getWorkspaces();
+      const [nextWorkspaces] = await Promise.all([
+        getWorkspaces(),
+        refreshProtectedSpaceStatus(),
+      ]);
       setWorkspaces(nextWorkspaces);
       const storedWorkspaceId = readStoredWorkspaceId();
       const nextCurrentWorkspace =
@@ -104,7 +136,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     }
-  }, [setResolvedCurrentWorkspaceId]);
+  }, [refreshProtectedSpaceStatus, setResolvedCurrentWorkspaceId]);
 
   const removeWorkspaceFromState = useCallback(
     (workspaceId: number) => {
@@ -158,6 +190,44 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [currentWorkspace?.id, setCurrentWorkspaceId],
   );
 
+  const createProtectedPersonalSpace = useCallback(
+    async (password: string) => {
+      await createProtectedSpace(password);
+      await refreshProtectedSpaceStatus();
+      await refreshWorkspaces({ silent: true });
+    },
+    [refreshProtectedSpaceStatus, refreshWorkspaces],
+  );
+
+  const unlockProtectedPersonalSpace = useCallback(
+    async (password: string) => {
+      const response = await unlockProtectedSpace(password);
+      setProtectedSpaceStatus({
+        exists: true,
+        workspace_id: response.workspace_id,
+        is_unlocked: true,
+        expires_at: response.expires_at,
+      });
+      await refreshWorkspaces({ silent: true });
+      setResolvedCurrentWorkspaceId(response.workspace_id);
+    },
+    [refreshWorkspaces, setResolvedCurrentWorkspaceId],
+  );
+
+  const lockProtectedPersonalSpace = useCallback(async () => {
+    const lockedWorkspaceId = protectedSpaceStatus?.workspace_id ?? null;
+    await lockProtectedSpaceRequest();
+    setProtectedSpaceStatus((currentStatus) =>
+      currentStatus
+        ? { ...currentStatus, is_unlocked: false, expires_at: null }
+        : currentStatus,
+    );
+    if (lockedWorkspaceId !== null && currentWorkspaceIdRef.current === lockedWorkspaceId) {
+      const fallbackWorkspace = workspaces.find((workspace) => !workspace.is_protected) ?? null;
+      setResolvedCurrentWorkspaceId(fallbackWorkspace?.id ?? null);
+    }
+  }, [protectedSpaceStatus?.workspace_id, setResolvedCurrentWorkspaceId, workspaces]);
+
   useEffect(() => {
     void refreshWorkspaces();
   }, [refreshWorkspaces]);
@@ -176,10 +246,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           }
           scheduleSilentRefresh();
         }
+        if (event === "protected_space.locked") {
+          clearProtectedVaultToken();
+          setProtectedSpaceStatus((currentStatus) =>
+            currentStatus
+              ? { ...currentStatus, is_unlocked: false, expires_at: null }
+              : currentStatus,
+          );
+        }
+        if (event === "protected_space.changed" || event === "protected_space.unlocked") {
+          void refreshProtectedSpaceStatus();
+        }
         handleReportsEvent(event, payload, currentWorkspaceIdRef.current);
       },
     });
-  }, [removeWorkspaceFromState, scheduleSilentRefresh]);
+  }, [refreshProtectedSpaceStatus, removeWorkspaceFromState, scheduleSilentRefresh]);
 
   useEffect(() => {
     currentWorkspaceIdRef.current = currentWorkspace?.id ?? null;
@@ -216,8 +297,55 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         window.clearTimeout(refreshDebounceRef.current);
       }
       cancelScheduledReportsRefresh();
+      clearProtectedVaultToken();
     };
   }, []);
+
+  useEffect(() => {
+    if (protectedExpiryTimerRef.current !== null) {
+      window.clearTimeout(protectedExpiryTimerRef.current);
+      protectedExpiryTimerRef.current = null;
+    }
+    if (!protectedSpaceStatus?.is_unlocked || !protectedSpaceStatus.expires_at) {
+      return undefined;
+    }
+    const expiresInMs = new Date(protectedSpaceStatus.expires_at).getTime() - Date.now();
+    protectedExpiryTimerRef.current = window.setTimeout(() => {
+      void lockProtectedPersonalSpace().catch(() => undefined);
+    }, Math.max(0, expiresInMs));
+    return () => {
+      if (protectedExpiryTimerRef.current !== null) {
+        window.clearTimeout(protectedExpiryTimerRef.current);
+        protectedExpiryTimerRef.current = null;
+      }
+    };
+  }, [lockProtectedPersonalSpace, protectedSpaceStatus?.expires_at, protectedSpaceStatus?.is_unlocked]);
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (!protectedSpaceStatus?.is_unlocked) {
+        return;
+      }
+      if (document.visibilityState === "hidden") {
+        hiddenLockTimerRef.current = window.setTimeout(() => {
+          void lockProtectedPersonalSpace().catch(() => undefined);
+        }, 120000);
+        return;
+      }
+      if (hiddenLockTimerRef.current !== null) {
+        window.clearTimeout(hiddenLockTimerRef.current);
+        hiddenLockTimerRef.current = null;
+      }
+      void refreshProtectedSpaceStatus();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (hiddenLockTimerRef.current !== null) {
+        window.clearTimeout(hiddenLockTimerRef.current);
+      }
+    };
+  }, [lockProtectedPersonalSpace, protectedSpaceStatus?.is_unlocked, refreshProtectedSpaceStatus]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -240,6 +368,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       removeWorkspaceFromState,
       createOrganization,
       updateCurrentWorkspace,
+      protectedSpaceStatus,
+      isCurrentWorkspaceProtectedLocked,
+      refreshProtectedSpaceStatus,
+      createProtectedPersonalSpace,
+      unlockProtectedPersonalSpace,
+      lockProtectedPersonalSpace,
     }),
     [
       createOrganization,
@@ -250,6 +384,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       refreshWorkspaces,
       setCurrentWorkspaceId,
       updateCurrentWorkspace,
+      protectedSpaceStatus,
+      isCurrentWorkspaceProtectedLocked,
+      refreshProtectedSpaceStatus,
+      createProtectedPersonalSpace,
+      unlockProtectedPersonalSpace,
+      lockProtectedPersonalSpace,
       workspaces,
     ],
   );

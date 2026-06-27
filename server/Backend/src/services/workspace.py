@@ -27,6 +27,10 @@ from src.schemas.workspace import (
     WorkspaceUpdate,
 )
 from src.services.notification import create_notification, enqueue_notification_delivery
+from src.services.protected_space import (
+    is_protected_space_unlocked,
+    require_protected_space_unlocked,
+)
 from src.services.user_events import publish_user_event, publish_workspace_event
 
 MUTATION_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.TEAM_LEAD, WorkspaceRole.MEMBER}
@@ -56,6 +60,7 @@ async def ensure_personal_workspace(session: AsyncSession, user: User) -> Worksp
             name="Личное пространство",
             description=None,
             type=WorkspaceType.PERSONAL,
+            is_protected=False,
             owner_id=getattr(user, "id", None) or 0,
         )
 
@@ -73,6 +78,7 @@ async def ensure_personal_workspace(session: AsyncSession, user: User) -> Worksp
         name="Личное пространство",
         description=None,
         type=WorkspaceType.PERSONAL,
+        is_protected=False,
         owner_id=user.id,
     )
     session.add(workspace)
@@ -141,6 +147,7 @@ async def get_active_membership(
             name="Личное пространство",
             description=None,
             type=WorkspaceType.PERSONAL,
+            is_protected=False,
             owner_id=user_id,
         )
         return WorkspaceMember(
@@ -162,6 +169,14 @@ async def get_active_membership(
         .options(selectinload(WorkspaceMember.workspace), selectinload(WorkspaceMember.user))
     )
     membership = result.scalar_one_or_none()
+    if membership is not None and getattr(membership.workspace, "is_protected", False):
+        if membership.user_id != membership.workspace.owner_id:
+            raise _workspace_not_found()
+        await require_protected_space_unlocked(
+            session,
+            user_id=user_id,
+            workspace_id=workspace_id,
+        )
     return membership
 
 
@@ -257,23 +272,33 @@ async def get_user_workspaces(session: AsyncSession, user: User) -> list[Workspa
         int(workspace_id): int(total or 0) for workspace_id, _count, total in task_stat_rows
     }
 
-    return [
-        WorkspaceRead(
-            id=workspace.id,
-            name=workspace.name,
-            description=workspace.description,
-            type=workspace.type,
-            owner_id=workspace.owner_id,
-            created_at=workspace.created_at,
-            updated_at=workspace.updated_at,
-            members_count=members_counts.get(workspace.id, 0),
-            projects_count=projects_counts.get(workspace.id, 0),
-            tasks_count=tasks_counts.get(workspace.id, 0),
-            total_time_seconds=total_time_seconds.get(workspace.id, 0),
-            current_user_role=role,
+    items: list[WorkspaceRead] = []
+    for workspace, role in rows:
+        protected_locked = bool(workspace.is_protected) and not await is_protected_space_unlocked(
+            session,
+            user_id=user.id,
+            workspace_id=workspace.id,
         )
-        for workspace, role in rows
-    ]
+        items.append(
+            WorkspaceRead(
+                id=workspace.id,
+                name=workspace.name,
+                description=workspace.description,
+                type=workspace.type,
+                is_protected=workspace.is_protected,
+                owner_id=workspace.owner_id,
+                created_at=workspace.created_at,
+                updated_at=workspace.updated_at,
+                members_count=1 if protected_locked else members_counts.get(workspace.id, 0),
+                projects_count=0 if protected_locked else projects_counts.get(workspace.id, 0),
+                tasks_count=0 if protected_locked else tasks_counts.get(workspace.id, 0),
+                total_time_seconds=0
+                if protected_locked
+                else total_time_seconds.get(workspace.id, 0),
+                current_user_role=role,
+            )
+        )
+    return items
 
 
 async def create_workspace(
@@ -311,6 +336,11 @@ async def update_workspace(
 ) -> WorkspaceRead:
     await require_workspace_role(session, user.id, workspace_id, {WorkspaceRole.OWNER})
     workspace = await get_workspace_or_404(session, user, workspace_id)
+    if workspace.is_protected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Защищённое пространство нельзя изменить как обычный workspace",
+        )
     values = payload.model_dump(exclude_unset=True)
     for key, value in values.items():
         setattr(workspace, key, value)
@@ -364,6 +394,7 @@ async def add_workspace_member_by_email(
         workspace_id,
         MEMBER_MANAGEMENT_ROLES,
     )
+    _ensure_not_protected_member_workspace(actor_membership)
     if payload.role == WorkspaceRole.OWNER:
         raise _forbidden()
     if actor_membership.role == WorkspaceRole.TEAM_LEAD and payload.role == WorkspaceRole.TEAM_LEAD:
@@ -444,6 +475,7 @@ async def update_workspace_member(
 ) -> WorkspaceMemberRead:
     await require_workspace_role(session, user.id, workspace_id, {WorkspaceRole.OWNER})
     member = await _load_member_or_404(session, workspace_id, member_id)
+    _ensure_not_protected_member_workspace(member)
     values = payload.model_dump(exclude_unset=True)
     next_role = values.get("role")
     next_status = values.get("status")
@@ -506,6 +538,7 @@ async def remove_workspace_member(
 ) -> None:
     await require_workspace_role(session, user.id, workspace_id, {WorkspaceRole.OWNER})
     member = await _load_member_or_404(session, workspace_id, member_id)
+    _ensure_not_protected_member_workspace(member)
     if member.role == WorkspaceRole.OWNER:
         await _ensure_another_owner(session, workspace_id, member.user_id)
     removed_user_id = member.user_id
@@ -551,6 +584,11 @@ async def leave_workspace(
         raise _workspace_not_found()
 
     workspace = membership.workspace
+    if workspace.is_protected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нельзя выйти из защищённого пространства",
+        )
     if workspace.type == WorkspaceType.PERSONAL:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -617,6 +655,7 @@ async def build_workspace_read(
         name=workspace.name,
         description=workspace.description,
         type=workspace.type,
+        is_protected=workspace.is_protected,
         owner_id=workspace.owner_id,
         created_at=workspace.created_at,
         updated_at=workspace.updated_at,
@@ -831,6 +870,14 @@ def _removes_active_owner(
     role_after = next_role if next_role is not None else member.role
     status_after = next_status if next_status is not None else member.status
     return role_after != WorkspaceRole.OWNER or status_after != WorkspaceMemberStatus.ACTIVE
+
+
+def _ensure_not_protected_member_workspace(member: WorkspaceMember) -> None:
+    if getattr(getattr(member, "workspace", None), "is_protected", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Защищённое пространство не поддерживает участников команды",
+        )
 
 
 async def _member_summaries_by_user_id(

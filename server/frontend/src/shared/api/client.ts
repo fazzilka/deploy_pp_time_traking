@@ -1,3 +1,5 @@
+import { getVaultToken } from "./vaultToken";
+
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
@@ -23,6 +25,10 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+  const vaultToken = getVaultToken();
+  if (vaultToken) {
+    headers.set("X-Vault-Token", vaultToken);
   }
 
   const response = await fetch(`${API_URL}${path}`, {

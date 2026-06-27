@@ -1,6 +1,7 @@
+from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,7 @@ from src.core.security import decode_access_token
 from src.db.session import get_db_session
 from src.models.enums import UserRole
 from src.models.user import User
+from src.services.protected_context import reset_request_vault_token, set_request_vault_token
 
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -61,3 +63,13 @@ async def get_current_admin_user(
 
 CurrentUserDep = Annotated[User, Depends(get_current_active_user)]
 CurrentAdminDep = Annotated[User, Depends(get_current_admin_user)]
+
+
+async def bind_vault_token(
+    x_vault_token: Annotated[str | None, Header(alias="X-Vault-Token")] = None,
+) -> AsyncIterator[None]:
+    context_token = set_request_vault_token(x_vault_token)
+    try:
+        yield
+    finally:
+        reset_request_vault_token(context_token)

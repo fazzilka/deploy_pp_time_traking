@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -30,6 +32,7 @@ class Workspace(Base):
         CheckConstraint("type IN ('personal', 'team')", name="ck_workspaces_type_allowed"),
         Index("ix_workspaces_owner_id", "owner_id"),
         Index("ix_workspaces_owner_id_type", "owner_id", "type"),
+        Index("ix_workspaces_owner_id_is_protected", "owner_id", "is_protected"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -45,6 +48,13 @@ class Workspace(Base):
         nullable=False,
         default=WorkspaceType.PERSONAL,
         server_default=WorkspaceType.PERSONAL.value,
+        index=True,
+    )
+    is_protected: Mapped[bool] = mapped_column(
+        Boolean(),
+        nullable=False,
+        default=False,
+        server_default=false(),
         index=True,
     )
     owner_id: Mapped[int] = mapped_column(

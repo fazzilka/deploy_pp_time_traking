@@ -2,6 +2,7 @@ from sqlalchemy import Table
 
 from src.models.notification import Notification, NotificationDelivery
 from src.models.project import Project
+from src.models.protected_space import ProtectedSpaceSession, ProtectedSpaceSettings
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
 from src.models.user import User
@@ -59,3 +60,16 @@ def test_notification_models_have_type_read_and_delivery_constraints() -> None:
     assert "ck_notification_deliveries_channel_allowed" in delivery_constraints
     assert "ck_notification_deliveries_status_allowed" in delivery_constraints
     assert "ck_notification_deliveries_attempts_non_negative" in delivery_constraints
+
+
+def test_protected_space_models_have_integrity_constraints_and_indexes() -> None:
+    settings_constraints = _constraint_names(ProtectedSpaceSettings.__table__)
+    assert "uq_protected_settings_user_id" in settings_constraints
+    assert "uq_protected_settings_workspace_id" in settings_constraints
+    assert "ck_protected_settings_failed_attempts" in settings_constraints
+
+    session_constraints = _constraint_names(ProtectedSpaceSession.__table__)
+    assert "ck_protected_sessions_expires_after_create" in session_constraints
+    assert "ix_protected_sessions_user_workspace" in _index_names(
+        ProtectedSpaceSession.__table__,
+    )

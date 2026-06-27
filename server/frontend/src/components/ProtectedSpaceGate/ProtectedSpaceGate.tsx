@@ -5,12 +5,7 @@ import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import "./ProtectedSpaceGate.css";
 
 export function ProtectedSpaceGate({ children }: { children: ReactNode }) {
-  const {
-    currentWorkspace,
-    isCurrentWorkspaceProtectedLocked,
-    unlockProtectedPersonalSpace,
-    lockProtectedPersonalSpace,
-  } = useWorkspace();
+  const { isCurrentWorkspaceProtectedLocked, unlockProtectedPersonalSpace } = useWorkspace();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,24 +25,7 @@ export function ProtectedSpaceGate({ children }: { children: ReactNode }) {
   }
 
   if (!isCurrentWorkspaceProtectedLocked) {
-    return (
-      <>
-        {currentWorkspace?.is_protected && (
-          <div className="protected-space-toolbar app-container">
-            <span>Защищённое пространство разблокировано</span>
-            <button
-              type="button"
-              onClick={() => {
-                void lockProtectedPersonalSpace().catch(() => undefined);
-              }}
-            >
-              Заблокировать
-            </button>
-          </div>
-        )}
-        {children}
-      </>
-    );
+    return <>{children}</>;
   }
 
   return (

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
+import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import {
   addWorkspaceMember,
   getWorkspaceMembers,
@@ -551,6 +552,8 @@ export function TeamPage() {
           </button>
         </div>
       </section>
+
+      <ProtectedSpaceStatus />
 
       {error && <div className="status-message status-message--error team-page__status">{error}</div>}
       {successMessage && <div className="team-page__notice">{successMessage}</div>}

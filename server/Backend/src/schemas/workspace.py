@@ -63,6 +63,7 @@ class WorkspaceRead(BaseModel):
     name: str
     description: str | None = None
     type: WorkspaceType
+    is_protected: bool = False
     owner_id: int
     created_at: datetime
     updated_at: datetime

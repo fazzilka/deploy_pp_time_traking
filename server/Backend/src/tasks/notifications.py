@@ -25,6 +25,7 @@ from src.models.enums import (
 from src.models.notification import Notification, NotificationDelivery
 from src.models.task import Task
 from src.models.user import User
+from src.models.workspace import Workspace
 from src.services.delivery_result import DeliveryResult
 from src.services.email_sender import send_notification_email
 from src.services.notification import create_notification
@@ -172,7 +173,9 @@ async def _load_upcoming_deadline_tasks(
 ) -> list[Task]:
     result = await session.execute(
         select(Task)
+        .join(Workspace, Workspace.id == Task.workspace_id)
         .where(
+            Workspace.is_protected.is_(False),
             Task.deadline.is_not(None),
             Task.is_completed.is_(False),
             Task.deadline > now,
@@ -194,7 +197,9 @@ async def _load_overdue_deadline_tasks(
 ) -> list[Task]:
     result = await session.execute(
         select(Task)
+        .join(Workspace, Workspace.id == Task.workspace_id)
         .where(
+            Workspace.is_protected.is_(False),
             Task.deadline.is_not(None),
             Task.is_completed.is_(False),
             Task.deadline <= now,

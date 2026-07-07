@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from src.models.enums import WorkspaceRole
 from src.models.task import Task
 from src.models.task_comment import TaskComment
+from src.models.user import User
 from src.models.workspace import WorkspaceMember
 from src.schemas.task_comment import (
     MAX_COMMENT_BODY_LENGTH,
@@ -112,6 +113,11 @@ def _can_delete(comment: TaskComment, user_id: int, role: WorkspaceRole) -> bool
     )
 
 
+def _avatar_letter(author: User) -> str:
+    source = author.full_name.strip() if author.full_name else author.username
+    return source[:1].upper()
+
+
 def _to_read(comment: TaskComment, user_id: int, role: WorkspaceRole) -> TaskCommentRead:
     is_deleted = comment.deleted_at is not None
     author = comment.author
@@ -124,6 +130,8 @@ def _to_read(comment: TaskComment, user_id: int, role: WorkspaceRole) -> TaskCom
             username=author.username,
             full_name=author.full_name,
             avatar_url=None,
+            avatar_letter=_avatar_letter(author),
+            avatar_seed=author.avatar_seed,
         ),
         body=None if is_deleted else comment.body,
         created_at=comment.created_at,

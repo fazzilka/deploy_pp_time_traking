@@ -11,6 +11,8 @@ class TaskCommentAuthor(BaseModel):
     username: str
     full_name: str | None = None
     avatar_url: str | None = None
+    avatar_letter: str = ""
+    avatar_seed: str | None = None
 
 
 class TaskCommentCreate(BaseModel):

@@ -223,5 +223,16 @@ def test_deleted_comment_dto_hides_body() -> None:
     assert dto.body is None
 
 
+def test_comment_dto_exposes_minimal_avatar_fields_without_private_user_data() -> None:
+    comment = _comment(author_id=5)
+    dto = task_comments._to_read(comment, user_id=5, role=WorkspaceRole.MEMBER)
+    payload = dto.model_dump()
+
+    assert payload["author"]["avatar_letter"] == "U"
+    assert payload["author"]["avatar_seed"] == "seed"
+    assert "email" not in payload["author"]
+    assert "hashed_password" not in payload["author"]
+
+
 async def _noop_event(*_args, **_kwargs) -> None:
     return None

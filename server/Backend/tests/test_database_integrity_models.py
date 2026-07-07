@@ -4,6 +4,7 @@ from src.models.notification import Notification, NotificationDelivery
 from src.models.project import Project
 from src.models.protected_space import ProtectedSpaceSession, ProtectedSpaceSettings
 from src.models.task import Task
+from src.models.task_comment import TaskComment
 from src.models.time_interval import TimeInterval
 from src.models.user import User
 from src.models.workspace import Workspace, WorkspaceMember
@@ -40,6 +41,16 @@ def test_task_model_has_time_and_priority_constraints() -> None:
     task_constraints = _constraint_names(Task.__table__)
     assert "ck_tasks_total_time_non_negative" in task_constraints
     assert "ck_tasks_priority_allowed" in task_constraints
+
+
+def test_task_comment_model_has_integrity_constraints_and_indexes() -> None:
+    comment_constraints = _constraint_names(TaskComment.__table__)
+    assert "ck_task_comments_deleted_consistency" in comment_constraints
+
+    comment_indexes = _index_names(TaskComment.__table__)
+    assert "ix_task_comments_task_id_created_at" in comment_indexes
+    assert "ix_task_comments_workspace_id_created_at" in comment_indexes
+    assert "ix_task_comments_author_id_created_at" in comment_indexes
 
 
 def test_time_interval_model_has_duration_constraint_and_user_finished_index() -> None:

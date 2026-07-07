@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from src.models.notification import Notification
     from src.models.project import Project
     from src.models.task import Task
+    from src.models.task_comment import TaskComment
     from src.models.user import User
 
 
@@ -75,6 +76,7 @@ class Workspace(Base):
     )
     projects: Mapped[list[Project]] = relationship(back_populates="workspace")
     tasks: Mapped[list[Task]] = relationship(back_populates="workspace")
+    task_comments: Mapped[list[TaskComment]] = relationship(back_populates="workspace")
     notifications: Mapped[list[Notification]] = relationship(back_populates="workspace")
 
 

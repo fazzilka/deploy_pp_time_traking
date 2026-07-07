@@ -8,6 +8,7 @@ import {
 } from "../api/protectedSpace";
 import { createWorkspace, getWorkspaces, updateWorkspace } from "../api/workspaces";
 import { resetProjectsDataCache } from "../api/projects";
+import { clearTaskCommentsCacheForWorkspace } from "../api/taskComments";
 import {
   cancelScheduledReportsRefresh,
   ensureReportsLoaded,
@@ -247,6 +248,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           scheduleSilentRefresh();
         }
         if (event === "protected_space.locked") {
+          const lockedWorkspaceId =
+            "workspace_id" in payload && typeof payload.workspace_id === "number"
+              ? payload.workspace_id
+              : protectedSpaceStatus?.workspace_id;
+          if (typeof lockedWorkspaceId === "number") {
+            clearTaskCommentsCacheForWorkspace(lockedWorkspaceId);
+          }
           clearProtectedVaultToken();
           setProtectedSpaceStatus((currentStatus) =>
             currentStatus
@@ -260,7 +268,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         handleReportsEvent(event, payload, currentWorkspaceIdRef.current);
       },
     });
-  }, [refreshProtectedSpaceStatus, removeWorkspaceFromState, scheduleSilentRefresh]);
+  }, [protectedSpaceStatus?.workspace_id, refreshProtectedSpaceStatus, removeWorkspaceFromState, scheduleSilentRefresh]);
 
   useEffect(() => {
     currentWorkspaceIdRef.current = currentWorkspace?.id ?? null;

@@ -1,25 +1,44 @@
 .modal-backdrop {
+  /*
+   * Navigation имеет z-index: 5000 и высоту 68px.
+   * Поэтому overlay начинается ниже navbar, а модалка
+   * центрируется только в свободной области страницы.
+   */
   position: fixed;
-  inset: 0;
-  z-index: 50;
+  top: 68px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+
+  z-index: 4999;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(1, 4, 9, 0.72);
+
   padding: 24px;
+  box-sizing: border-box;
+
+  background: rgba(1, 4, 9, 0.72);
 }
 
 .task-details-modal {
   position: relative;
-  width: min(760px, calc(100vw - 40px));
-  max-height: calc(100dvh - 48px);
+
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100dvh - 68px - 48px);
+
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+
   overflow: hidden;
+
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-panel);
+
+  box-shadow: 0 24px 70px rgba(1, 4, 9, 0.42);
 }
 
 .task-details-modal__close {
@@ -452,6 +471,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border-radius: 50%;
 }
 
@@ -595,12 +615,14 @@
 
 @media (max-width: 700px) {
   .modal-backdrop {
-    padding: 14px;
+    top: 68px;
+    padding: 12px;
   }
 
   .task-details-modal {
-    width: calc(100vw - 24px);
-    max-height: calc(100dvh - 28px);
+    width: 100%;
+    max-height: calc(100dvh - 68px - 24px);
+    border-radius: 14px;
   }
 
   .task-details-modal__header {

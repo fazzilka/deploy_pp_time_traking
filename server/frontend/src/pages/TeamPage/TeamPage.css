@@ -999,21 +999,43 @@
 }
 
 .team-modal-backdrop {
+  /*
+   * Верхняя навигация остаётся выше модалки.
+   * Overlay начинается сразу под navbar, чтобы окно
+   * не пряталось за верхней панелью.
+   */
   position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+  top: 76px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px 24px 24px;
+  box-sizing: border-box;
+  overflow: hidden;
+
   background: rgba(1, 4, 9, 0.76);
   backdrop-filter: blur(10px);
 }
 
 .team-modal {
   width: min(100%, 480px);
-  display: grid;
+  max-height: calc(100dvh - 76px - 44px);
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+
   padding: 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+
   border: 1px solid rgba(48, 54, 61, 0.95);
   border-radius: 20px;
   background:
@@ -1238,6 +1260,18 @@
 
   .team-modal__actions {
     flex-direction: column;
+  }
+
+  .team-modal-backdrop {
+    top: 76px;
+    padding: 12px;
+  }
+
+  .team-modal {
+    width: 100%;
+    max-height: calc(100dvh - 76px - 24px);
+    padding: 20px;
+    border-radius: 16px;
   }
 }
 

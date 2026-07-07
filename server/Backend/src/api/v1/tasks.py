@@ -13,8 +13,20 @@ from src.models.enums import TaskPriority, WorkspaceRole
 from src.models.task import Task
 from src.models.time_interval import TimeInterval
 from src.schemas.task import TaskCreate, TaskRead, TaskUpdate
+from src.schemas.task_comment import (
+    TaskCommentCreate,
+    TaskCommentRead,
+    TaskCommentsPage,
+    TaskCommentUpdate,
+)
 from src.services.project import get_active_project_or_404, get_project_or_404
 from src.services.task_authorization import require_task_update_permission
+from src.services.task_comments import (
+    create_task_comment,
+    delete_task_comment,
+    list_task_comments,
+    update_task_comment,
+)
 from src.services.timer import start_timer, stop_timer
 from src.services.user_events import publish_workspace_event
 from src.services.workspace import (
@@ -213,6 +225,64 @@ async def list_tasks(
 @router.get("/{task_id}", response_model=TaskRead)
 async def get_task(task_id: int, session: SessionDep, current_user: CurrentUserDep) -> Task:
     return await _load_task_or_404(session, task_id, current_user.id)
+
+
+@router.get("/{task_id}/comments", response_model=TaskCommentsPage)
+async def get_task_comments(
+    task_id: int,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+    cursor: Annotated[str | None, Query()] = None,
+) -> TaskCommentsPage:
+    items, total_active, next_cursor = await list_task_comments(
+        session,
+        current_user.id,
+        task_id,
+        limit=limit,
+        cursor=cursor,
+    )
+    return TaskCommentsPage(
+        items=items,
+        total_active=total_active,
+        limit=limit,
+        next_cursor=next_cursor,
+    )
+
+
+@router.post(
+    "/{task_id}/comments",
+    response_model=TaskCommentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def post_task_comment(
+    task_id: int,
+    payload: TaskCommentCreate,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> TaskCommentRead:
+    return await create_task_comment(session, current_user.id, task_id, payload.body)
+
+
+@router.patch("/{task_id}/comments/{comment_id}", response_model=TaskCommentRead)
+async def patch_task_comment(
+    task_id: int,
+    comment_id: int,
+    payload: TaskCommentUpdate,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> TaskCommentRead:
+    return await update_task_comment(session, current_user.id, task_id, comment_id, payload.body)
+
+
+@router.delete("/{task_id}/comments/{comment_id}", response_model=TaskCommentRead)
+async def remove_task_comment(
+    task_id: int,
+    comment_id: int,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> TaskCommentRead:
+    return await delete_task_comment(session, current_user.id, task_id, comment_id)
 
 
 @router.post(

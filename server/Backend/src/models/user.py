@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from src.models.notification import Notification
     from src.models.project import Project
     from src.models.task import Task
+    from src.models.task_comment import TaskComment
     from src.models.workspace import Workspace, WorkspaceMember
 
 
@@ -88,4 +89,9 @@ class User(Base):
     )
     notifications: Mapped[list[Notification]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    authored_task_comments: Mapped[list[TaskComment]] = relationship(
+        foreign_keys="TaskComment.author_id",
+        cascade="all, delete-orphan",
+        overlaps="author",
     )

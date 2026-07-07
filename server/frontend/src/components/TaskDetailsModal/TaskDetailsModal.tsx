@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { GeneratedAvatar } from "../GeneratedAvatar/GeneratedAvatar";
 import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import { PriorityIcon, priorityMeta } from "../PriorityIcon/PriorityIcon";
 import { updateTask } from "../../shared/api/tasks";
@@ -32,6 +33,18 @@ type TaskDetailsModalProps = {
   canDeleteTask?: boolean;
   canEditTask?: boolean;
 };
+
+function getAuthorDisplayName(comment: TaskComment): string {
+  return comment.author.full_name || comment.author.username;
+}
+
+function getAuthorAvatarLetter(comment: TaskComment): string {
+  return comment.author.avatar_letter || getAuthorDisplayName(comment).slice(0, 1).toUpperCase();
+}
+
+function getAuthorAvatarSeed(comment: TaskComment): string | number {
+  return comment.author.avatar_seed ?? comment.author.username ?? comment.author.id;
+}
 
 export function TaskDetailsModal({
   task,
@@ -317,22 +330,25 @@ export function TaskDetailsModal({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section className="task-details-modal" role="dialog" aria-modal="true" aria-labelledby="task-details-title" onClick={(event) => event.stopPropagation()}>
-        <button className="task-details-modal__close" type="button" onClick={onClose} aria-label="Закрыть">
-          ×
-        </button>
-
-        <div className="task-details-modal__content">
+        <header className="task-details-modal__header">
           <p className="task-details-modal__status">{statusText}</p>
-          <h2
-            className={`task-details-modal__title${isCompleted ? " task-details-modal__title--completed" : ""}`}
-            id="task-details-title"
-          >
-            {task.title}
-          </h2>
+          <div className="task-details-modal__heading">
+            <h2
+              className={`task-details-modal__title${isCompleted ? " task-details-modal__title--completed" : ""}`}
+              id="task-details-title"
+            >
+              {task.title}
+            </h2>
+            <button className="task-details-modal__close" type="button" onClick={onClose} aria-label="Закрыть">
+              ×
+            </button>
+          </div>
           <div className="task-details-modal__project">
             <ProjectBadge project={task.project} fallback />
           </div>
+        </header>
 
+        <div className="task-details-modal__body">
           <div className="task-details-modal__tabs" role="tablist" aria-label="Разделы задачи">
             <button
               className={`task-details-modal__tab${activeTab === "about" ? " task-details-modal__tab--active" : ""}`}
@@ -356,121 +372,99 @@ export function TaskDetailsModal({
 
           {activeTab === "about" ? (
             <>
-          <section className={`task-description${isDescriptionEditing ? " task-description--editing" : ""}`}>
-            <h3 className="task-description__title">Описание</h3>
+              <section className={`task-description${isDescriptionEditing ? " task-description--editing" : ""}`}>
+                <h3 className="task-description__title">Описание</h3>
 
-            {isDescriptionEditing ? (
-              <div className="task-description__editor">
-                <textarea
-                  className="task-description__textarea"
-                  value={descriptionDraft}
-                  onChange={(event) => setDescriptionDraft(event.target.value)}
-                  onKeyDown={handleDescriptionKeyDown}
-                  autoFocus
-                  placeholder="Добавьте описание..."
-                  disabled={isSavingDescription}
-                />
+                {isDescriptionEditing ? (
+                  <div className="task-description__editor">
+                    <textarea
+                      className="task-description__textarea"
+                      value={descriptionDraft}
+                      onChange={(event) => setDescriptionDraft(event.target.value)}
+                      onKeyDown={handleDescriptionKeyDown}
+                      autoFocus
+                      placeholder="Добавьте описание..."
+                      disabled={isSavingDescription}
+                    />
 
-                <div className="task-description__actions">
+                    <div className="task-description__actions">
+                      <button
+                        className="task-description__save"
+                        type="button"
+                        onClick={() => void handleSaveDescription()}
+                        disabled={isSavingDescription}
+                      >
+                        {isSavingDescription ? "Сохраняем..." : "Сохранить"}
+                      </button>
+                      <button
+                        className="task-description__cancel"
+                        type="button"
+                        onClick={handleCancelDescriptionEdit}
+                        disabled={isSavingDescription}
+                      >
+                        Отмена
+                      </button>
+                    </div>
+
+                    {descriptionError && <div className="task-description__error">{descriptionError}</div>}
+                  </div>
+                ) : (
                   <button
-                    className="task-description__save"
+                    className={`task-description__preview${hasDescription ? "" : " task-description__preview--empty"}`}
                     type="button"
-                    onClick={() => void handleSaveDescription()}
-                    disabled={isSavingDescription}
+                    onClick={handleStartDescriptionEdit}
+                    disabled={!canEditTask}
                   >
-                    {isSavingDescription ? "Сохраняем..." : "Сохранить"}
+                    {hasDescription ? task.description : "Описание не указано"}
                   </button>
-                  <button
-                    className="task-description__cancel"
-                    type="button"
-                    onClick={handleCancelDescriptionEdit}
-                    disabled={isSavingDescription}
-                  >
-                    Отмена
-                  </button>
+                )}
+              </section>
+
+              <div className="task-details-modal__info-grid">
+                <div className="task-info-card">
+                  <span className="task-info-card__label">Суммарное время</span>
+                  <strong className="task-info-card__value">{formatDuration(displaySeconds)}</strong>
                 </div>
 
-                {descriptionError && <div className="task-description__error">{descriptionError}</div>}
+                <div className="task-info-card">
+                  <span className="task-info-card__label">Формат</span>
+                  <strong className="task-info-card__value">{formatHumanDuration(displaySeconds)}</strong>
+                </div>
+
+                <div className="task-info-card">
+                  <span className="task-info-card__label">Срок выполнения</span>
+                  <strong className="task-info-card__value">{formatDeadline(task.deadline)}</strong>
+                  <span className={`task-info-card__hint ${deadlineHintClass}`}>{getDeadlineLabel(task.deadline)}</span>
+                </div>
+
+                <div className="task-info-card">
+                  <span className="task-info-card__label">Приоритет</span>
+                  <div className="task-info-card__priority">
+                    <PriorityIcon priority={task.priority} />
+                    <span>{priorityMeta[task.priority].label}</span>
+                  </div>
+                </div>
+
+                <div className="task-info-card">
+                  <span className="task-info-card__label">Проект</span>
+                  <select
+                    className="task-info-card__select"
+                    value={task.project_id == null ? "none" : String(task.project_id)}
+                    onChange={(event) => void handleProjectChange(event.target.value)}
+                    disabled={isSavingProject || !canEditTask}
+                  >
+                    <option value="none">Без проекта</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={String(project.id)}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                  {projectError && <span className="task-info-card__hint task-info-card__hint--danger">{projectError}</span>}
+                </div>
               </div>
-            ) : (
-              <button
-                className={`task-description__preview${hasDescription ? "" : " task-description__preview--empty"}`}
-                type="button"
-                onClick={handleStartDescriptionEdit}
-                disabled={!canEditTask}
-              >
-                {hasDescription ? task.description : "Описание не указано"}
-              </button>
-            )}
-          </section>
 
-          <div className="task-details-modal__info-grid">
-            <div className="task-info-card">
-              <span className="task-info-card__label">Суммарное время</span>
-              <strong className="task-info-card__value">{formatDuration(displaySeconds)}</strong>
-            </div>
-
-            <div className="task-info-card">
-              <span className="task-info-card__label">Формат</span>
-              <strong className="task-info-card__value">{formatHumanDuration(displaySeconds)}</strong>
-            </div>
-
-            <div className="task-info-card">
-              <span className="task-info-card__label">Срок выполнения</span>
-              <strong className="task-info-card__value">{formatDeadline(task.deadline)}</strong>
-              <span className={`task-info-card__hint ${deadlineHintClass}`}>{getDeadlineLabel(task.deadline)}</span>
-            </div>
-
-            <div className="task-info-card">
-              <span className="task-info-card__label">Приоритет</span>
-              <div className="task-info-card__priority">
-                <PriorityIcon priority={task.priority} />
-                <span>{priorityMeta[task.priority].label}</span>
-              </div>
-            </div>
-
-            <div className="task-info-card">
-              <span className="task-info-card__label">Проект</span>
-              <select
-                className="task-info-card__select"
-                value={task.project_id == null ? "none" : String(task.project_id)}
-                onChange={(event) => void handleProjectChange(event.target.value)}
-                disabled={isSavingProject || !canEditTask}
-              >
-                <option value="none">Без проекта</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={String(project.id)}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              {projectError && <span className="task-info-card__hint task-info-card__hint--danger">{projectError}</span>}
-            </div>
-          </div>
-
-          {task.created_at && <p className="task-details-modal__created">Создана: {formatDate(task.created_at)}</p>}
-
-          <div className="task-details-modal__actions">
-            <button
-              className={`button ${isActive ? "button--red" : "button--green"}`}
-              type="button"
-              onClick={() => (isActive ? onStop(task.id) : onStart(task.id))}
-              disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
-            >
-              {isActive ? "Остановить" : isCompleted ? "Done" : "Start"}
-            </button>
-            <button
-              className="button button--red"
-              type="button"
-              onClick={() => onDelete(task.id)}
-              disabled={isBusy || !canDeleteTask}
-            >
-              Удалить
-            </button>
-            <button className="button" type="button" onClick={onClose}>
-              Закрыть
-            </button>
-          </div>
+              {task.created_at && <p className="task-details-modal__created">Создана: {formatDate(task.created_at)}</p>}
             </>
           ) : (
             <section className="task-comments" aria-label="Комментарии задачи">
@@ -487,11 +481,16 @@ export function TaskDetailsModal({
                   commentsPage.items.map((comment) => (
                     <article className={`task-comment${comment.is_deleted ? " task-comment--deleted" : ""}`} key={comment.id}>
                       <div className="task-comment__avatar" aria-hidden="true">
-                        {(comment.author.full_name || comment.author.username).slice(0, 1).toUpperCase()}
+                        <GeneratedAvatar
+                          seed={getAuthorAvatarSeed(comment)}
+                          letter={getAuthorAvatarLetter(comment)}
+                          size={40}
+                          title={getAuthorDisplayName(comment)}
+                        />
                       </div>
                       <div className="task-comment__body">
                         <div className="task-comment__meta">
-                          <strong>{comment.author.full_name || comment.author.username}</strong>
+                          <strong>{getAuthorDisplayName(comment)}</strong>
                           <span>{formatDate(comment.created_at)}</span>
                         </div>
 
@@ -589,6 +588,28 @@ export function TaskDetailsModal({
             </section>
           )}
         </div>
+
+        <footer className="task-details-modal__actions">
+          <button
+            className={`button ${isActive ? "button--red" : "button--green"}`}
+            type="button"
+            onClick={() => (isActive ? onStop(task.id) : onStart(task.id))}
+            disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
+          >
+            {isActive ? "Остановить" : isCompleted ? "Done" : "Start"}
+          </button>
+          <button
+            className="button button--red"
+            type="button"
+            onClick={() => onDelete(task.id)}
+            disabled={isBusy || !canDeleteTask}
+          >
+            Удалить
+          </button>
+          <button className="button" type="button" onClick={onClose}>
+            Закрыть
+          </button>
+        </footer>
       </section>
     </div>
   );

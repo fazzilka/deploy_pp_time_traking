@@ -3,6 +3,8 @@ export type TaskCommentAuthor = {
   username: string;
   full_name: string | null;
   avatar_url: string | null;
+  avatar_letter?: string | null;
+  avatar_seed?: string | null;
 };
 
 export type TaskComment = {

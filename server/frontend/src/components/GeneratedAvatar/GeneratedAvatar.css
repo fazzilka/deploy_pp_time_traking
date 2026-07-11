@@ -31,3 +31,5 @@
 .generated-avatar__cell {
   shape-rendering: crispEdges;
 }
+
+.generated-avatar { border-color: var(--color-border-default); box-shadow: none; }

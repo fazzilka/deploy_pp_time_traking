@@ -782,6 +782,55 @@
   }
 }
 
+/* Viewport-bound modal shell rendered through a document.body portal. */
+.navigation-modal__close {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.navigation-modal__close:hover {
+  border-color: var(--color-border-subtle);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
+}
+
+.navigation-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 18px 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.navigation-modal textarea {
+  width: 100%;
+  max-width: 100%;
+  max-height: min(240px, 36dvh);
+  box-sizing: border-box;
+}
+
+.navigation-modal__actions {
+  flex: 0 0 auto;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-1);
+}
+
 /* Minimal workspace shell */
 .navigation {
   z-index: 100;
@@ -863,4 +912,73 @@
   .navigation__workspace { width: 100%; }
   .navigation__links { width: 100%; justify-content: flex-start; gap: 2px; }
   .navigation__links a { min-width: max-content; padding-inline: 10px; }
+}
+
+/* Keep these shell rules last so legacy navigation modal declarations cannot override them. */
+.navigation-modal-backdrop {
+  z-index: 1000;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.navigation-modal {
+  width: min(100%, 560px);
+  max-width: calc(100vw - 48px);
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.navigation-modal__header {
+  flex: 0 0 auto;
+  grid-template-columns: 40px minmax(0, 1fr) 34px;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.navigation-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.navigation-modal__actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .navigation-modal-backdrop {
+    padding: 8px;
+  }
+
+  .navigation-modal {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+    border-radius: var(--radius-card);
+  }
+
+  .navigation-modal__header {
+    grid-template-columns: 34px minmax(0, 1fr) 32px;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .navigation-modal__header > span {
+    width: 34px;
+    height: 34px;
+  }
+
+  .navigation-modal__body {
+    padding: 14px;
+  }
+
+  .navigation-modal__actions {
+    gap: 8px;
+    padding: 12px 14px;
+  }
 }

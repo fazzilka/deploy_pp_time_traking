@@ -1,8 +1,8 @@
 .dashboard-page {
-  min-height: calc(100vh - 68px);
+  min-height: calc(100dvh - var(--header-height));
   overflow-x: hidden;
-  padding-top: 40px;
-  padding-bottom: 32px;
+  padding-top: 32px;
+  padding-bottom: 40px;
 }
 
 .dashboard-hero {
@@ -20,12 +20,40 @@
   margin-top: 18px;
 }
 
+.deadline-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.deadline-summary__item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deadline-summary__item strong { color: var(--color-text-primary); font-size: 24px; line-height: 1; font-weight: 700; }
+.deadline-summary__item--danger { border-left-color: var(--color-danger); }
+.deadline-summary__item--warning { border-left-color: var(--color-warning); }
+.deadline-summary__item--info { border-left-color: var(--color-blue); }
+
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(340px, 0.82fr) minmax(620px, 1.45fr);
-  gap: 28px;
+  grid-template-columns: minmax(280px, 0.55fr) minmax(620px, 1.45fr);
+  gap: 20px;
   align-items: start;
-  margin-top: 28px;
+  margin-top: 20px;
 }
 
 .dashboard-grid > * {
@@ -36,9 +64,9 @@
   min-height: 430px;
   min-width: 0;
   border: 1px solid var(--color-border);
-  border-radius: 18px;
-  background: var(--color-panel);
-  padding: 32px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-1);
+  padding: 20px;
 }
 
 .tasks-queue__header {
@@ -51,14 +79,14 @@
 .tasks-queue__label {
   margin: 0 0 6px;
   color: var(--color-muted);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .tasks-queue h2 {
   margin: 0;
   color: var(--color-text);
-  font-size: 26px;
+  font-size: 20px;
   line-height: 1.2;
 }
 
@@ -86,7 +114,7 @@
 }
 
 .tasks-queue__project-filter {
-  height: 48px;
+  height: var(--control-md);
   min-width: 0;
   appearance: none;
   -webkit-appearance: none;
@@ -103,8 +131,8 @@
   background-size:
     6px 6px,
     6px 6px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -199,6 +227,8 @@
     margin-top: 28px;
   }
 
+  .deadline-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .tasks-queue {
     min-height: auto;
     padding: 28px 18px;
@@ -219,4 +249,9 @@
   .task-create__row {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 420px) {
+  .deadline-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deadline-summary__item { align-items: flex-start; flex-direction: column; gap: 8px; }
 }

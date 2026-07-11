@@ -534,3 +534,31 @@
     white-space: nowrap;
   }
 }
+
+/* Compact notification center */
+.notifications-bell { z-index: 110; }
+.notifications-bell__button { width: 34px; height: 34px; border-color: transparent; border-radius: var(--radius-md); background: transparent; color: var(--color-text-secondary); }
+.notifications-bell__button:hover, .notifications-bell__button--active { border-color: var(--color-border-subtle); background: var(--color-surface-2); }
+.notifications-bell__button--active { box-shadow: none; }
+.notifications-bell__badge { top: -4px; right: -4px; min-width: 16px; height: 16px; padding-inline: 4px; border-color: var(--color-canvas); background: var(--color-danger); color: white; font-weight: 700; }
+.notifications-bell__dropdown { top: calc(100% + 8px); z-index: 120; width: 420px; max-height: min(580px, calc(100dvh - 80px)); border-color: var(--color-border-default); border-radius: var(--radius-card); background: var(--color-surface-1); box-shadow: var(--shadow-overlay); backdrop-filter: none; }
+.notifications-bell__dropdown::before { display: none; }
+.notifications-bell__header { padding: 14px 16px; border-color: var(--color-border-subtle); }
+.notifications-bell__title { font-size: 17px; font-weight: 650; letter-spacing: 0; }
+.notifications-bell__mark-all { color: var(--color-blue); font-size: 12px; font-weight: 600; }
+.notifications-bell__list { gap: 4px; padding: 8px; }
+.notifications-bell__item { min-height: 70px; grid-template-columns: 36px minmax(0, 1fr) 76px; gap: 10px; padding: 10px; border-color: transparent; border-radius: var(--radius-md); background: transparent; box-shadow: none; }
+.notifications-bell__item:hover { transform: none; border-color: var(--color-border-subtle); background: var(--color-surface-2); box-shadow: none; }
+.notifications-bell__item--overdue, .notifications-bell__item--overdue:hover { border-color: transparent; background: transparent; }
+.notifications-bell__item--unread::before { top: 10px; bottom: 10px; box-shadow: none; }
+.notifications-bell__item-icon { width: 34px; height: 34px; border-radius: var(--radius-md); }
+.notifications-bell__item-title { font-size: 13px; font-weight: 650; }
+.notifications-bell__item-message { color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+.notifications-bell__item-date { color: var(--color-text-tertiary); font-size: 11px; font-weight: 500; }
+.notifications-bell__item-dot, .notifications-bell__item--overdue .notifications-bell__item-dot { width: 7px; height: 7px; box-shadow: none; }
+.notifications-bell__footer { padding: 8px; border-color: var(--color-border-subtle); }
+.notifications-bell__footer-button { min-height: 36px; border-radius: var(--radius-md); color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
+
+@media (max-width: 560px) {
+  .notifications-bell__dropdown { top: 8px; right: 8px; left: 8px; max-height: calc(100dvh - 16px); }
+}

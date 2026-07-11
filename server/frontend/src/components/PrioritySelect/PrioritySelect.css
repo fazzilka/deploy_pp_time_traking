@@ -93,3 +93,10 @@
 .priority-select__option--active {
   background: var(--color-panel-soft);
 }
+
+.priority-select__button { min-height: var(--control-md); gap: 10px; padding-inline: 12px; border-color: var(--color-border-default); border-radius: var(--radius-md); background: var(--color-canvas); font-weight: 600; }
+.priority-select__button:focus { border-color: var(--color-accent); box-shadow: var(--focus-ring); }
+.priority-select__value { gap: 10px; }
+.priority-select__label { font-size: 13px; font-weight: 600; }
+.priority-select__menu { z-index: 130; border-color: var(--color-border-default); border-radius: var(--radius-md); background: var(--color-surface-1); box-shadow: var(--shadow-overlay); }
+.priority-select__option { min-height: 38px; gap: 10px; padding-inline: 12px; font-size: 13px; font-weight: 600; }

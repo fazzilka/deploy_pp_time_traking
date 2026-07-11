@@ -71,6 +71,30 @@ export function DashboardPage() {
   );
   const canMutateTasks = canCreateTasks(currentUserRole);
   const canDeleteTask = canDeleteTasks(currentUserRole);
+  const deadlineSummary = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(startOfToday);
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+    const endOfWeek = new Date(startOfToday);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    return tasks.reduce(
+      (summary, task) => {
+        if (task.is_completed) return summary;
+        if (!task.deadline) {
+          summary.noDeadline += 1;
+          return summary;
+        }
+        const deadline = new Date(task.deadline);
+        if (deadline < now) summary.overdue += 1;
+        else if (deadline < startOfTomorrow) summary.today += 1;
+        else if (deadline < endOfWeek) summary.week += 1;
+        return summary;
+      },
+      { overdue: 0, today: 0, week: 0, noDeadline: 0 },
+    );
+  }, [tasks]);
 
   function syncActiveTimers(nextTasks: Task[]) {
     setActiveTimers((currentTimers) => {
@@ -412,8 +436,8 @@ export function DashboardPage() {
       <section className="dashboard-hero">
         <div>
           <p className="eyebrow">Рабочий экран</p>
-          <h1 className="page-heading">Focus Timer First</h1>
-          <p className="page-copy">Контролируй время и задачи без лишней спешки.</p>
+          <h1 className="page-heading">Задачи и дедлайны</h1>
+          <p className="page-copy">Контролируйте сроки, приоритеты и текущую работу в одном списке.</p>
         </div>
         <button
           className="button button--green dashboard-hero__button"
@@ -428,6 +452,13 @@ export function DashboardPage() {
       <ProtectedSpaceStatus />
 
       {error && <div className="status-message status-message--error dashboard-status">{error}</div>}
+
+      <section className="deadline-summary" aria-label="Сводка по дедлайнам">
+        <article className="deadline-summary__item deadline-summary__item--danger"><span>Просрочено</span><strong>{deadlineSummary.overdue}</strong></article>
+        <article className="deadline-summary__item deadline-summary__item--warning"><span>Сегодня</span><strong>{deadlineSummary.today}</strong></article>
+        <article className="deadline-summary__item deadline-summary__item--info"><span>На этой неделе</span><strong>{deadlineSummary.week}</strong></article>
+        <article className="deadline-summary__item"><span>Без дедлайна</span><strong>{deadlineSummary.noDeadline}</strong></article>
+      </section>
 
       <section className="dashboard-grid">
         <TimerCard

@@ -446,3 +446,55 @@
     width: 100%;
   }
 }
+
+/* Shared deadline-first task row */
+.task-row {
+  min-height: 72px;
+  grid-template-columns: 32px minmax(0, 1fr) minmax(150px, 190px) minmax(76px, 96px) 118px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-color: var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.task-row:hover { border-color: var(--color-border-default); background: var(--color-surface-2); }
+.task-row + .task-row { margin-top: 6px; }
+.task-row--completed { opacity: 0.68; }
+.task-row__complete-button { width: 26px; height: 26px; min-width: 26px; border-color: var(--color-border-default); background: transparent; font-weight: 700; }
+.task-row--active .task-row__complete-button { border-color: var(--color-accent); box-shadow: none; }
+.task-row__title { font-size: 14px; font-weight: 650; }
+.task-row--completed .task-row__title, .task-row--completed .task-row__deadline-date, .task-row--completed .task-row__deadline-detail { text-decoration: none; }
+.task-row__description { color: var(--color-text-tertiary); }
+.task-row__meta { margin-top: 5px; color: var(--color-text-tertiary); }
+.task-row__deadline { gap: 2px; padding: 6px 9px; border: 0; border-left: 2px solid var(--color-border-strong); border-radius: var(--radius-sm); background: transparent; }
+.task-row__deadline--warning { border-left-color: var(--color-warning); }
+.task-row__deadline--danger, .task-row__deadline--overdue { border-left-color: var(--color-danger); }
+.task-row__deadline--safe { border-left-color: var(--color-success); }
+.task-row__deadline-label { color: var(--color-text-tertiary); font-size: 9px; font-weight: 600; }
+.task-row__deadline-date { font-size: 12px; font-weight: 600; }
+.task-row__deadline-detail { font-size: 11px; font-weight: 600; }
+.task-row__time { color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
+.task-row__button, .task-row__button--completed { width: 70px; min-width: 70px; max-width: 70px; height: 34px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; }
+.task-row__delete { width: 34px; min-width: 34px; max-width: 34px; height: 34px; border-color: transparent; border-radius: var(--radius-md); background: transparent; font-size: 22px; }
+.task-row__delete:hover:not(:disabled) { transform: none; }
+
+@media (max-width: 620px) {
+  .task-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-areas:
+      "check content"
+      "deadline deadline"
+      "time actions";
+    align-items: start;
+    gap: 10px;
+    padding: 12px;
+  }
+  .task-row__complete-button { grid-area: check; }
+  .task-row__content { grid-area: content; }
+  .task-row__deadline { grid-area: deadline; max-width: none; }
+  .task-row__time { grid-area: time; align-self: center; justify-self: start; }
+  .task-row__actions { grid-area: actions; }
+  .task-row__actions { justify-content: flex-end; }
+  .task-row__button, .task-row__button--completed { flex: 0 1 100px; }
+}

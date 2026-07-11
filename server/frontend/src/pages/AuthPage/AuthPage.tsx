@@ -120,12 +120,27 @@ export function AuthPage() {
 
   return (
     <main className="auth-page">
-      <div className="auth-page__logo" aria-hidden="true">
-        TT
-      </div>
-      <h1>{isLogin ? "Sign in to Time Tracking" : "Create your Time Tracking account"}</h1>
+      <section className="auth-intro" aria-labelledby="auth-brand-title">
+        <div className="auth-intro__brand"><span aria-hidden="true">TT</span> Time Tracking</div>
+        <div className="auth-intro__content">
+          <p className="eyebrow">Рабочее пространство команды</p>
+          <h1 id="auth-brand-title">Задачи, сроки и нагрузка в одном спокойном ритме.</h1>
+          <p>Контролируйте состояние проектов и дедлайны, не теряя контекст ежедневной работы.</p>
+          <ul>
+            <li>Приоритеты и ближайшие сроки</li>
+            <li>Состояние проектов и команды</li>
+            <li>Учёт времени без лишнего внимания</li>
+          </ul>
+        </div>
+      </section>
 
-      <form className="auth-card" onSubmit={handleSubmit}>
+      <section className="auth-panel" aria-labelledby="auth-form-title">
+        <div className="auth-page__logo" aria-hidden="true">TT</div>
+        <p className="auth-panel__brand">Time Tracking</p>
+        <h2 id="auth-form-title">{isLogin ? "Вход в аккаунт" : "Создание аккаунта"}</h2>
+        <p className="auth-panel__copy">{isLogin ? "Продолжите работу со своими задачами." : "Создайте рабочее пространство за минуту."}</p>
+
+        <form className="auth-card" onSubmit={handleSubmit}>
         <div className="auth-field">
           <label htmlFor="email">Email</label>
           <input
@@ -196,14 +211,15 @@ export function AuthPage() {
         <button className="auth-submit" type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Подождите..." : isLogin ? "Войти" : "Зарегистрироваться"}
         </button>
-      </form>
+        </form>
 
-      <div className="auth-switch-card">
-        {isLogin ? "New to Time Tracking?" : "Already have an account?"}{" "}
-        <button type="button" onClick={() => switchMode(isLogin ? "register" : "login")}>
-          {isLogin ? "Create an account" : "Sign in"}
-        </button>
-      </div>
+        <div className="auth-switch-card">
+          {isLogin ? "Нет аккаунта?" : "Уже есть аккаунт?"}{" "}
+          <button type="button" onClick={() => switchMode(isLogin ? "register" : "login")}>
+            {isLogin ? "Создать" : "Войти"}
+          </button>
+        </div>
+      </section>
     </main>
   );
 }

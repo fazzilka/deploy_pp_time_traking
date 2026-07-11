@@ -447,6 +447,65 @@
   }
 }
 
+/* Time tracking remains available as secondary task metadata. */
+.task-row__time {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.task-row__time span {
+  text-transform: uppercase;
+}
+
+.task-row__time strong {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-row__button,
+.task-row__button--completed {
+  min-height: 34px;
+}
+
+.task-row__button.button--green,
+.task-row__button--completed.button--green,
+.task-row__button--completed:disabled {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+  opacity: 1;
+}
+
+.task-row__button.button--green:hover:not(:disabled) {
+  border-color: var(--color-accent-border);
+  background: rgba(63, 185, 80, 0.18);
+  color: var(--color-accent-hover);
+}
+
+@media (max-width: 620px) {
+  .task-row__time {
+    justify-items: start;
+    align-self: center;
+    text-align: left;
+  }
+
+  .task-row__button,
+  .task-row__button--completed {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 64px;
+    max-width: none;
+    padding-inline: 10px;
+  }
+}
+
 /* Shared deadline-first task row */
 .task-row {
   min-height: 72px;
@@ -497,4 +556,9 @@
   .task-row__actions { grid-area: actions; }
   .task-row__actions { justify-content: flex-end; }
   .task-row__button, .task-row__button--completed { flex: 0 1 100px; }
+}
+
+.task-row .task-row__button,
+.task-row .task-row__button--completed {
+  min-height: 34px;
 }

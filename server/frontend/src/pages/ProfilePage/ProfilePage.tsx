@@ -215,13 +215,15 @@ export function ProfilePage() {
     <main className="profile-page app-container">
       <div className="profile-layout">
         <aside className="profile-sidebar">
-          <GeneratedAvatar
-            className="profile-avatar"
-            seed={avatarSeed}
-            letter={user.avatar_letter}
-            size={220}
-            title={displayName}
-          />
+          <div className="profile-avatar-wrapper">
+            <GeneratedAvatar
+              className="profile-avatar"
+              seed={avatarSeed}
+              letter={user.avatar_letter}
+              size={180}
+              title={displayName}
+            />
+          </div>
           <h1 className="profile-name">{displayName}</h1>
           <p className="profile-username">@{user.username}</p>
           <ProtectedSpaceStatus />

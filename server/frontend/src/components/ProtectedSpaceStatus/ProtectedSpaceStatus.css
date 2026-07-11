@@ -43,3 +43,8 @@
   border-color: rgba(248, 81, 73, 0.46);
   background: rgba(248, 81, 73, 0.13);
 }
+
+.protected-space-status { gap: 8px; color: var(--color-text-secondary); font-weight: 500; }
+.protected-space-status__icon { width: 28px; height: 28px; border-radius: var(--radius-sm); }
+.protected-space-status__text { color: var(--color-text-secondary); }
+.protected-space-status__lock { border-radius: var(--radius-sm); font-weight: 600; }

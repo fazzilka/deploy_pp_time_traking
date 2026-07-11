@@ -121,7 +121,10 @@ export function TaskRow({
         {deadlineDetail ? <em className="task-row__deadline-detail">{deadlineDetail}</em> : null}
       </div>
 
-      <div className="task-row__time">{formatDuration(displaySeconds)}</div>
+      <div className="task-row__time" aria-label={`Учтено времени: ${formatDuration(displaySeconds)}`}>
+        <span>Учтено</span>
+        <strong>{formatDuration(displaySeconds)}</strong>
+      </div>
 
       <div className="task-row__actions">
         <button

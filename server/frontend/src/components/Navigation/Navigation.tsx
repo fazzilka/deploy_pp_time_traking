@@ -1,5 +1,6 @@
 import type { FormEvent} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useNavigate } from "react-router-dom";
 import { GeneratedAvatar } from "../GeneratedAvatar";
 import { NotificationsBell } from "../NotificationsBell/NotificationsBell";
@@ -166,6 +167,19 @@ export function Navigation() {
       window.removeEventListener(userProfileUpdatedEvent, handleProfileUpdated);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isCreateWorkspaceOpen && !isCreateProtectedOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isCreateProtectedOpen, isCreateWorkspaceOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -486,7 +500,7 @@ export function Navigation() {
         </div>
       </div>
 
-      {isCreateWorkspaceOpen && (
+      {isCreateWorkspaceOpen && createPortal(
         <div
           className="navigation-modal-backdrop"
           role="presentation"
@@ -494,6 +508,9 @@ export function Navigation() {
         >
           <form
             className="navigation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-workspace-title"
             onSubmit={handleCreateWorkspace}
             onClick={(event) => event.stopPropagation()}
           >
@@ -502,35 +519,45 @@ export function Navigation() {
                 <NavigationIcon name="building" />
               </span>
               <div>
-                <h2>Создать организацию</h2>
+                <h2 id="create-workspace-title">Создать организацию</h2>
                 <p>Организация объединяет участников, проекты и задачи.</p>
               </div>
+              <button
+                className="navigation-modal__close"
+                type="button"
+                onClick={() => setIsCreateWorkspaceOpen(false)}
+                aria-label="Закрыть окно создания организации"
+              >
+                ×
+              </button>
             </div>
 
-            <label>
-              <span>Название организации</span>
-              <input
-                type="text"
-                value={newWorkspaceName}
-                onChange={(event) => setNewWorkspaceName(event.target.value)}
-                placeholder="Например, МТУСИ"
-                autoFocus
-              />
-            </label>
+            <div className="navigation-modal__body">
+              <label>
+                <span>Название организации</span>
+                <input
+                  type="text"
+                  value={newWorkspaceName}
+                  onChange={(event) => setNewWorkspaceName(event.target.value)}
+                  placeholder="Например, МТУСИ"
+                  autoFocus
+                />
+              </label>
 
-            <label>
-              <span>Описание</span>
-              <textarea
-                value={newWorkspaceDescription}
-                onChange={(event) => setNewWorkspaceDescription(event.target.value)}
-                placeholder="Кратко опишите, для чего нужна организация"
-                rows={4}
-              />
-            </label>
+              <label>
+                <span>Описание</span>
+                <textarea
+                  value={newWorkspaceDescription}
+                  onChange={(event) => setNewWorkspaceDescription(event.target.value)}
+                  placeholder="Кратко опишите, для чего нужна организация"
+                  rows={4}
+                />
+              </label>
 
-            {createWorkspaceError && (
-              <p className="navigation-modal__error">{createWorkspaceError}</p>
-            )}
+              {createWorkspaceError && (
+                <p className="navigation-modal__error">{createWorkspaceError}</p>
+              )}
+            </div>
 
             <div className="navigation-modal__actions">
               <button
@@ -550,10 +577,11 @@ export function Navigation() {
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {isCreateProtectedOpen && (
+      {isCreateProtectedOpen && createPortal(
         <div
           className="navigation-modal-backdrop"
           role="presentation"
@@ -561,6 +589,9 @@ export function Navigation() {
         >
           <form
             className="navigation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-protected-title"
             onSubmit={handleCreateProtectedSpace}
             onClick={(event) => event.stopPropagation()}
           >
@@ -569,22 +600,32 @@ export function Navigation() {
                 <NavigationIcon name="lock" />
               </span>
               <div>
-                <h2>Создать защищённое пространство</h2>
+                <h2 id="create-protected-title">Создать защищённое пространство</h2>
                 <p>Используйте отдельный пароль, не совпадающий с паролем аккаунта.</p>
               </div>
+              <button
+                className="navigation-modal__close"
+                type="button"
+                onClick={() => setIsCreateProtectedOpen(false)}
+                aria-label="Закрыть окно создания защищённого пространства"
+              >
+                ×
+              </button>
             </div>
 
-            <PasswordInput
-              name="protected-password"
-              label="Защитный пароль"
-              value={protectedPassword}
-              minLength={12}
-              required
-              autoComplete="new-password"
-              placeholder="Минимум 12 символов"
-              onChange={setProtectedPassword}
-              error={protectedError ?? undefined}
-            />
+            <div className="navigation-modal__body">
+              <PasswordInput
+                name="protected-password"
+                label="Защитный пароль"
+                value={protectedPassword}
+                minLength={12}
+                required
+                autoComplete="new-password"
+                placeholder="Минимум 12 символов"
+                onChange={setProtectedPassword}
+                error={protectedError ?? undefined}
+              />
+            </div>
 
             <div className="navigation-modal__actions">
               <button
@@ -604,7 +645,8 @@ export function Navigation() {
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body,
       )}
     </header>
   );

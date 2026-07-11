@@ -190,3 +190,24 @@
     font-size: clamp(26px, 8vw, 38px);
   }
 }
+
+/* Timer is a secondary workspace tool. */
+.timer-card { max-height: none; gap: 14px; padding: 18px; border-color: var(--color-border-subtle); border-radius: var(--radius-card); background: var(--color-surface-1); }
+.timer-card__main { gap: 12px; overflow: visible; padding: 0; }
+.timer-card__label { color: var(--color-text-tertiary); font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.timer-card__content { gap: 6px; }
+.timer-card__title { font-size: 17px; font-weight: 650; }
+.timer-card__description { color: var(--color-text-tertiary); font-size: 13px; -webkit-line-clamp: 2; }
+.timer-card__deadline { gap: 5px; padding: 12px; border-color: var(--color-border-subtle); border-radius: var(--radius-md); background: var(--color-canvas); }
+.timer-card__deadline-label { color: var(--color-text-tertiary); font-size: 10px; font-weight: 600; }
+.timer-card__deadline-countdown, .timer-card__deadline-countdown--none { font-size: 24px; font-weight: 700; }
+.timer-card__deadline-hint { color: var(--color-text-secondary); font-size: 12px; font-weight: 500; }
+.timer-card__session-time { color: var(--color-text-tertiary); font-size: 12px; font-weight: 600; }
+.timer-card__session-time-value { font-size: 15px; font-weight: 650; }
+.timer-card__stop { width: auto; height: var(--control-sm); }
+
+@media (max-width: 760px) {
+  .timer-card { padding: 16px; }
+  .timer-card__title { font-size: 17px; }
+  .timer-card__deadline-countdown, .timer-card__deadline-countdown--none { font-size: 22px; }
+}

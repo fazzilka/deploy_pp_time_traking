@@ -52,7 +52,6 @@ export function TaskRow({
     "task-row__button",
     "button",
     isActive ? "button--red" : "button--green",
-    isCompleted && !isActive ? "task-row__button--completed" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -119,6 +118,7 @@ export function TaskRow({
         <span className="task-row__deadline-label">Дедлайн</span>
         <span className="task-row__deadline-date">{formatDeadline(task.deadline)}</span>
         {deadlineDetail ? <em className="task-row__deadline-detail">{deadlineDetail}</em> : null}
+        {isCompleted ? <span className="task-row__deadline-completed">Завершено</span> : null}
       </div>
 
       <div className="task-row__time" aria-label={`Учтено времени: ${formatDuration(displaySeconds)}`}>
@@ -127,14 +127,21 @@ export function TaskRow({
       </div>
 
       <div className="task-row__actions">
-        <button
-          className={actionButtonClassName}
-          type="button"
-          onClick={handleTimerClick}
-          disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
-        >
-          {isActive ? "Stop" : isCompleted ? "Done" : "Start"}
-        </button>
+        {isCompleted && !isActive ? (
+          <span className="task-row__completed-status" role="status">
+            <span aria-hidden="true">✓</span>
+            Выполнено
+          </span>
+        ) : (
+          <button
+            className={actionButtonClassName}
+            type="button"
+            onClick={handleTimerClick}
+            disabled={isBusy || !canStartTimer}
+          >
+            {isActive ? "Stop" : "Start"}
+          </button>
+        )}
 
         <button
           className="task-row__delete"

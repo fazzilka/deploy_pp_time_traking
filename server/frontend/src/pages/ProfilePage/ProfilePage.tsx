@@ -18,6 +18,7 @@ import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
 import { EMPTY_USER_STATS, type UserProfile, type UserStats } from "../../shared/types/user";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
+import { useLocale } from "../../i18n";
 import "./ProfilePage.css";
 
 const currentYear = new Date().getFullYear();
@@ -50,6 +51,7 @@ const initialPasswordForm: PasswordFormState = {
 };
 
 export function ProfilePage() {
+  const { locale, t } = useLocale();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
@@ -84,7 +86,7 @@ export function ProfilePage() {
       setUsername(nextUser.username);
       setFullName(nextUser.full_name ?? "");
     } catch {
-      setError("Не удалось загрузить профиль");
+      setError(t("profile.errors.load"));
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +108,7 @@ export function ProfilePage() {
       setUser(updatedUser);
       setIsEditing(false);
     } catch {
-      setError("Не удалось обновить профиль");
+      setError(t("profile.errors.update"));
     }
   }
 
@@ -136,22 +138,22 @@ export function ProfilePage() {
     setPasswordSuccess(null);
 
     if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setPasswordError("Заполните все поля");
+      setPasswordError(t("profile.password.fillAll"));
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      setPasswordError("Новый пароль должен содержать не менее 6 символов");
+      setPasswordError(t("profile.password.minLength"));
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError("Новый пароль и подтверждение пароля не совпадают");
+      setPasswordError(t("profile.password.mismatch"));
       return;
     }
 
     if (passwordForm.oldPassword === passwordForm.newPassword) {
-      setPasswordError("Новый пароль должен отличаться от старого");
+      setPasswordError(t("profile.password.same"));
       return;
     }
 
@@ -165,9 +167,9 @@ export function ProfilePage() {
       });
       setPasswordForm(initialPasswordForm);
       setIsPasswordModalOpen(false);
-      setPasswordSuccess(response.message || "Пароль успешно изменён");
+      setPasswordSuccess(response.message || t("profile.password.success"));
     } catch (caughtError) {
-      const nextError = caughtError instanceof Error ? caughtError.message : "Не удалось изменить пароль";
+      const nextError = caughtError instanceof Error ? caughtError.message : t("profile.password.error");
       setPasswordError(nextError);
     } finally {
       setIsPasswordSubmitting(false);
@@ -182,7 +184,7 @@ export function ProfilePage() {
       const updatedUser = await regenerateMyAvatar();
       setUser(updatedUser);
     } catch {
-      setError("Не удалось сгенерировать новую аватарку");
+      setError(t("profile.errors.avatar"));
     } finally {
       setIsRegeneratingAvatar(false);
     }
@@ -191,7 +193,7 @@ export function ProfilePage() {
   if (isLoading && !user) {
     return (
       <main className="profile-page app-container">
-        <div className="status-message">Загружаем профиль...</div>
+        <div className="status-message">{t("profile.loading")}</div>
       </main>
     );
   }
@@ -199,7 +201,7 @@ export function ProfilePage() {
   if (!user) {
     return (
       <main className="profile-page app-container">
-        <div className="status-message status-message--error">{error || "Нет данных профиля"}</div>
+        <div className="status-message status-message--error">{error || t("profile.errors.noData")}</div>
       </main>
     );
   }
@@ -241,7 +243,7 @@ export function ProfilePage() {
               onClick={handleRegenerateAvatar}
               disabled={isRegeneratingAvatar}
             >
-              {isRegeneratingAvatar ? "Генерируем..." : "Сгенерировать новую аватарку"}
+              {t(isRegeneratingAvatar ? "profile.avatar.generating" : "profile.avatar.regenerate")}
             </button>
           </div>
 
@@ -279,13 +281,13 @@ export function ProfilePage() {
             </div>
             <div>
               <dt>Joined</dt>
-              <dd>{formatDate(user.created_at)}</dd>
+              <dd>{formatDate(user.created_at, locale)}</dd>
             </div>
           </dl>
         </aside>
 
         <section className="profile-main">
-          <p className="eyebrow">Профиль</p>
+          <p className="eyebrow">{t("profile.title")}</p>
           <h2 className="profile-main__title">{displayName}</h2>
 
           {error && <div className="status-message status-message--error profile-error">{error}</div>}
@@ -294,17 +296,17 @@ export function ProfilePage() {
 
           <div className="profile-stats">
             <StatCard
-              title="Текущая серия"
-              value={`${safeStats.current_streak_days} дней`}
-              subtitle="без перерыва"
+              title={t("profile.stats.currentStreak")}
+              value={t("profile.stats.days", { count: safeStats.current_streak_days })}
+              subtitle={t("profile.stats.noBreak")}
               accent="green"
             />
-            <StatCard title="Максимальная серия" value={`${safeStats.max_streak_days} дней`} subtitle="лучший результат" accent="blue" />
-            <StatCard title="Всего времени" value={formatHumanDuration(safeStats.total_time_seconds)} subtitle="по всем задачам" accent="yellow" />
+            <StatCard title={t("profile.stats.maximumStreak")} value={t("profile.stats.days", { count: safeStats.max_streak_days })} subtitle={t("profile.stats.best")} accent="blue" />
+            <StatCard title={t("profile.stats.totalTime")} value={formatHumanDuration(safeStats.total_time_seconds, locale)} subtitle={t("profile.stats.allTasks")} accent="yellow" />
           </div>
 
-          <section className="profile-top-tasks" aria-label="Топ задач">
-            <h2 className="profile-top-tasks__title">Топ задач</h2>
+          <section className="profile-top-tasks" aria-label={t("profile.tasks.title")}>
+            <h2 className="profile-top-tasks__title">{t("profile.tasks.title")}</h2>
             <div className="profile-top-tasks__list">
               {topThreeTasks.length > 0 ? (
                 topThreeTasks.map((task, index) => {
@@ -319,7 +321,7 @@ export function ProfilePage() {
                             <PriorityIcon priority={task.priority} />
                             <span>{task.title}</span>
                           </strong>
-                          <span className="profile-top-task__description">{task.description || "Описание не указано"}</span>
+                          <span className="profile-top-task__description">{task.description || t("profile.tasks.noDescription")}</span>
                         </div>
                         <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds)}</span>
                       </div>
@@ -330,7 +332,7 @@ export function ProfilePage() {
                   );
                 })
               ) : (
-                <div className="profile-top-tasks__empty">Пока нет задач с накопленным временем.</div>
+                <div className="profile-top-tasks__empty">{t("profile.tasks.empty")}</div>
               )}
             </div>
           </section>
@@ -353,7 +355,7 @@ export function ProfilePage() {
               <PasswordInput
                 id="oldPassword"
                 name="oldPassword"
-                label="Старый пароль"
+                label={t("profile.password.old")}
                 value={passwordForm.oldPassword}
                 autoComplete="current-password"
                 required
@@ -363,7 +365,7 @@ export function ProfilePage() {
               <PasswordInput
                 id="newPassword"
                 name="newPassword"
-                label="Новый пароль"
+                label={t("profile.password.new")}
                 value={passwordForm.newPassword}
                 autoComplete="new-password"
                 required
@@ -373,7 +375,7 @@ export function ProfilePage() {
               <PasswordInput
                 id="confirmNewPassword"
                 name="confirmNewPassword"
-                label="Подтвердите новый пароль"
+                label={t("profile.password.confirm")}
                 value={passwordForm.confirmPassword}
                 autoComplete="new-password"
                 required
@@ -388,7 +390,7 @@ export function ProfilePage() {
                   Отмена
                 </button>
                 <button className="button button--green" type="submit" disabled={isPasswordSubmitting}>
-                  {isPasswordSubmitting ? "Сохраняем..." : "Сохранить"}
+                  {t(isPasswordSubmitting ? "common.actions.saving" : "common.actions.save")}
                 </button>
               </div>
             </form>

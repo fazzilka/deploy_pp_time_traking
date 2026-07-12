@@ -31,6 +31,7 @@ import {
   useWorkspace,
 } from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
+import { useLocale } from "../../i18n";
 import "./ProjectDetailPage.css";
 
 type ActiveTimerState = {
@@ -164,6 +165,7 @@ function applyProjectSummaryTaskMutation(
 }
 
 export function ProjectDetailPage() {
+  const { locale, t, text } = useLocale();
   const { currentWorkspaceId, currentUserRole } = useWorkspace();
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -233,7 +235,7 @@ export function ProjectDetailPage() {
 
   async function loadProjectData() {
     if (!Number.isFinite(numericProjectId)) {
-      setError("Проект не найден");
+      setError(text("Проект не найден", "Project not found"));
       setIsLoading(false);
       return;
     }
@@ -251,7 +253,7 @@ export function ProjectDetailPage() {
       setSummary(nextSummary);
       setProjects(nextProjects);
     } catch {
-      setError("Не удалось загрузить проект");
+      setError(text("Не удалось загрузить проект", "Could not load project"));
     } finally {
       setIsLoading(false);
     }
@@ -281,7 +283,7 @@ export function ProjectDetailPage() {
         return nextTasks.find((task) => task.id === currentTask.id) ?? null;
       });
     } catch {
-      setError("Не удалось загрузить задачи проекта");
+      setError(text("Не удалось загрузить задачи проекта", "Could not load project tasks"));
     } finally {
       setIsTasksLoading(false);
     }
@@ -387,7 +389,7 @@ export function ProjectDetailPage() {
 
   async function handleStart(taskId: number) {
     if (!canMutateTasks) {
-      setError("Недостаточно прав для запуска таймера");
+      setError(t("tasks.errors.timerPermission"));
       return;
     }
 
@@ -397,7 +399,7 @@ export function ProjectDetailPage() {
 
     const previousTask = tasks.find((task) => task.id === taskId) ?? null;
     if (previousTask?.is_completed) {
-      setError("Нельзя запустить таймер для завершённой задачи");
+      setError(t("tasks.errors.completedTimer"));
       return;
     }
 
@@ -418,7 +420,7 @@ export function ProjectDetailPage() {
       }));
       replaceTask(previousTask, updatedTask);
     } catch {
-      setError("Не удалось запустить таймер");
+      setError(t("tasks.errors.timerStart"));
     } finally {
       setBusyTaskId(null);
     }
@@ -426,7 +428,7 @@ export function ProjectDetailPage() {
 
   async function handleStop(taskId: number) {
     if (!canMutateTasks) {
-      setError("Недостаточно прав для остановки таймера");
+      setError(t("tasks.errors.timerStopPermission"));
       return;
     }
 
@@ -443,7 +445,7 @@ export function ProjectDetailPage() {
       });
       replaceTask(previousTask, updatedTask);
     } catch {
-      setError("Не удалось остановить таймер");
+      setError(t("tasks.errors.timerStop"));
     } finally {
       setBusyTaskId(null);
     }
@@ -451,12 +453,12 @@ export function ProjectDetailPage() {
 
   async function handleToggleCompleted(task: Task) {
     if (!canMutateTasks) {
-      setError("Недостаточно прав для изменения задачи");
+      setError(t("tasks.errors.editPermission"));
       return;
     }
 
     if (activeTimers[task.id] || getActiveInterval(task)) {
-      setError("Сначала остановите таймер");
+      setError(t("tasks.errors.stopFirst"));
       return;
     }
 
@@ -476,7 +478,7 @@ export function ProjectDetailPage() {
       replaceTask(optimisticTask, updatedTask);
     } catch (caughtError) {
       replaceTask(optimisticTask, task);
-      setError(caughtError instanceof Error ? caughtError.message : "Не удалось обновить задачу");
+      setError(caughtError instanceof Error ? caughtError.message : t("tasks.errors.update"));
     } finally {
       setBusyTaskId(null);
     }
@@ -484,11 +486,11 @@ export function ProjectDetailPage() {
 
   async function handleDelete(taskId: number) {
     if (!canDeleteTask) {
-      setError("Удалять задачи могут только Owner и Team Lead");
+      setError(t("tasks.errors.deletePermission"));
       return;
     }
 
-    const shouldDelete = window.confirm("Удалить задачу? Все интервалы времени по ней также будут удалены.");
+    const shouldDelete = window.confirm(t("tasks.confirm.delete"));
     if (!shouldDelete) {
       return;
     }
@@ -516,7 +518,7 @@ export function ProjectDetailPage() {
         return nextTimers;
       });
     } catch {
-      setError("Не удалось удалить задачу");
+      setError(t("tasks.errors.delete"));
     } finally {
       setBusyTaskId(null);
     }
@@ -527,12 +529,12 @@ export function ProjectDetailPage() {
     setTaskError(null);
 
     if (!canMutateTasks) {
-      setTaskError("В текущей роли нельзя создавать задачи");
+      setTaskError(t("tasks.errors.createPermission"));
       return;
     }
 
     if (!taskTitle.trim()) {
-      setTaskError("Введите название задачи");
+      setTaskError(t("tasks.errors.titleRequired"));
       return;
     }
 
@@ -563,7 +565,7 @@ export function ProjectDetailPage() {
       setTaskPriority("medium");
       setIsCreateOpen(false);
     } catch {
-      setTaskError("Не удалось создать задачу");
+      setTaskError(t("tasks.errors.create"));
     }
   }
 
@@ -572,12 +574,12 @@ export function ProjectDetailPage() {
     setProjectError(null);
 
     if (!canManageProject) {
-      setProjectError("Редактировать проекты могут только Owner и Team Lead");
+      setProjectError(text("Редактировать проекты могут только Owner и Team Lead", "Only Owners and Team Leads can edit projects"));
       return;
     }
 
     if (!projectName.trim()) {
-      setProjectError("Введите название проекта");
+      setProjectError(t("projects.errors.nameRequired"));
       return;
     }
 
@@ -609,17 +611,17 @@ export function ProjectDetailPage() {
       );
       setIsEditOpen(false);
     } catch (caughtError) {
-      setProjectError(caughtError instanceof Error ? caughtError.message : "Не удалось обновить проект");
+      setProjectError(caughtError instanceof Error ? caughtError.message : text("Не удалось обновить проект", "Could not update project"));
     }
   }
 
   async function handleArchiveProject() {
     if (!canManageProject) {
-      setError("Архивировать проекты могут только Owner и Team Lead");
+      setError(text("Архивировать проекты могут только Owner и Team Lead", "Only Owners and Team Leads can archive projects"));
       return;
     }
 
-    const shouldArchive = window.confirm("Архивировать проект? Задачи и история времени сохранятся.");
+    const shouldArchive = window.confirm(text("Архивировать проект? Задачи и история времени сохранятся.", "Archive this project? Tasks and time history will be preserved."));
     if (!shouldArchive) {
       return;
     }
@@ -628,14 +630,14 @@ export function ProjectDetailPage() {
       await archiveProject(numericProjectId);
       navigate("/projects");
     } catch {
-      setError("Не удалось архивировать проект");
+      setError(text("Не удалось архивировать проект", "Could not archive project"));
     }
   }
 
   if (isLoading) {
     return (
       <main className="project-detail-page app-container">
-        <div className="status-message">Загружаем проект...</div>
+        <div className="status-message">{text("Загружаем проект...", "Loading project...")}</div>
       </main>
     );
   }
@@ -643,7 +645,7 @@ export function ProjectDetailPage() {
   if (!project || !summary) {
     return (
       <main className="project-detail-page app-container">
-        <div className="status-message status-message--error">{error || "Проект не найден"}</div>
+        <div className="status-message status-message--error">{error || text("Проект не найден", "Project not found")}</div>
         <Link className="button project-detail-page__back-button" to="/projects">
           Назад к проектам
         </Link>
@@ -672,9 +674,9 @@ export function ProjectDetailPage() {
         <div className="project-detail-hero__main">
           <ProjectIcon icon={heroProjectIcon} color={project.color} size="xl" />
           <div>
-            <p className="project-detail-hero__eyebrow">Проект</p>
+            <p className="project-detail-hero__eyebrow">{text("Проект", "Project")}</p>
             <h1 className="page-heading">{project.name}</h1>
-            <p className="page-copy">{project.description || "Без описания"}</p>
+            <p className="page-copy">{project.description || t("tasks.labels.noDescription")}</p>
           </div>
         </div>
         <div className="project-detail-hero__actions">
@@ -695,7 +697,7 @@ export function ProjectDetailPage() {
             onClick={() => setIsCreateOpen(true)}
             disabled={!canMutateTasks}
           >
-            Создать задачу
+            {t("tasks.actions.create")}
           </button>
         </div>
       </section>
@@ -710,8 +712,8 @@ export function ProjectDetailPage() {
             <StatIcon type="time" />
           </span>
           <div>
-            <span>Всего времени</span>
-            <strong>{formatHumanDuration(summary.total_time_seconds)}</strong>
+            <span>{t("projects.metrics.totalTime")}</span>
+            <strong>{formatHumanDuration(summary.total_time_seconds, locale)}</strong>
           </div>
         </article>
         <article>
@@ -719,7 +721,7 @@ export function ProjectDetailPage() {
             <StatIcon type="tasks" />
           </span>
           <div>
-            <span>Задач</span>
+            <span>{t("projects.metrics.tasks")}</span>
             <strong>{summary.tasks_count}</strong>
           </div>
         </article>
@@ -728,7 +730,7 @@ export function ProjectDetailPage() {
             <StatIcon type="active" />
           </span>
           <div>
-            <span>Активных задач</span>
+            <span>{t("projects.metrics.activeTasks")}</span>
             <strong>{summary.active_tasks_count}</strong>
           </div>
         </article>
@@ -737,13 +739,13 @@ export function ProjectDetailPage() {
             <StatIcon type="tracked" />
           </span>
           <div>
-            <span>Задач с временем</span>
+            <span>{t("reports.stats.tasks")}</span>
             <strong>{summary.tasks_with_time_count}</strong>
           </div>
         </article>
       </section>
 
-      <section className="project-tabs" role="tablist" aria-label="Разделы проекта">
+      <section className="project-tabs" role="tablist" aria-label={text("Разделы проекта", "Project sections")}>
         <button
           className={`project-tabs__button${activeTab === "tasks" ? " project-tabs__button--active" : ""}`}
           type="button"
@@ -785,7 +787,7 @@ export function ProjectDetailPage() {
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Поиск по задачам проекта"
+              placeholder={text("Поиск по задачам проекта", "Search project tasks")}
             />
             <label>
               <input type="checkbox" checked={hasTimeOnly} onChange={(event) => setHasTimeOnly(event.target.checked)} />
@@ -796,11 +798,11 @@ export function ProjectDetailPage() {
           {isCreateOpen && (
             <form className="project-task-create" onSubmit={handleCreateTask}>
               <label>
-                <span>Название</span>
+                <span>{t("tasks.form.title")}</span>
                 <input className="text-field" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
               </label>
               <label>
-                <span>Описание</span>
+                <span>{t("tasks.form.description")}</span>
                 <textarea
                   className="textarea-field"
                   value={taskDescription}
@@ -809,7 +811,7 @@ export function ProjectDetailPage() {
               </label>
               <div className="project-task-create__row">
                 <label>
-                  <span>Срок выполнения</span>
+                  <span>{t("tasks.form.deadline")}</span>
                   <input
                     className="text-field"
                     type="datetime-local"
@@ -818,7 +820,7 @@ export function ProjectDetailPage() {
                   />
                 </label>
                 <label>
-                  <span>Приоритет</span>
+                  <span>{t("tasks.form.priority")}</span>
                   <PrioritySelect value={taskPriority} onChange={setTaskPriority} />
                 </label>
               </div>
@@ -836,7 +838,7 @@ export function ProjectDetailPage() {
 
           <div className="project-tasks-list">
             {isTasksLoading ? (
-              <div className="status-message">Загружаем задачи проекта...</div>
+              <div className="status-message">{text("Загружаем задачи проекта...", "Loading project tasks...")}</div>
             ) : tasks.length > 0 ? (
               tasks.map((task) => {
                 const isActive = Boolean(activeTimers[task.id]);
@@ -860,8 +862,8 @@ export function ProjectDetailPage() {
               })
             ) : (
               <div className="tasks-empty">
-                <h3>В проекте пока нет задач</h3>
-                <p>Создайте первую задачу внутри проекта.</p>
+                <h3>{text("В проекте пока нет задач", "No tasks in this project yet")}</h3>
+                <p>{text("Создайте первую задачу внутри проекта.", "Create the first task in this project.")}</p>
                 <button
                   className="button button--green"
                   type="button"
@@ -876,17 +878,17 @@ export function ProjectDetailPage() {
         </section>
 
         <aside className="project-summary-panel">
-          <h2>Топ задач</h2>
+          <h2>{t("profile.tasks.title")}</h2>
           {summary.top_tasks.length > 0 ? (
             summary.top_tasks.map((task, index) => (
               <article className="project-summary-task" key={task.id}>
                 <span>{index + 1}</span>
                 <strong>{task.title}</strong>
-                <em>{formatHumanDuration(task.total_time_seconds)}</em>
+                <em>{formatHumanDuration(task.total_time_seconds, locale)}</em>
               </article>
             ))
           ) : (
-            <div className="status-message">Недостаточно данных</div>
+            <div className="status-message">{t("reports.stats.noData")}</div>
           )}
         </aside>
       </section>
@@ -896,19 +898,19 @@ export function ProjectDetailPage() {
         <section className="project-analytics-grid" id="project-tab-statistics" role="tabpanel">
           <article className="project-analytics-card project-analytics-card--wide">
             <div>
-              <h2>Активность проекта</h2>
-              <p>Сводка по текущим задачам и закрытым интервалам.</p>
+              <h2>{text("Активность проекта", "Project activity")}</h2>
+              <p>{text("Сводка по текущим задачам и закрытым интервалам.", "A summary of current tasks and completed intervals.")}</p>
             </div>
             <div className="project-distribution">
               <div className="project-distribution__item">
-                <span>Задач с временем</span>
+                <span>{t("reports.stats.tasks")}</span>
                 <strong>{tasksWithTimePercent}%</strong>
                 <div>
                   <i style={{ width: `${tasksWithTimePercent}%`, backgroundColor: project.color }} />
                 </div>
               </div>
               <div className="project-distribution__item">
-                <span>Активных задач</span>
+                <span>{t("projects.metrics.activeTasks")}</span>
                 <strong>{activeTasksPercent}%</strong>
                 <div>
                   <i style={{ width: `${activeTasksPercent}%`, backgroundColor: "var(--color-yellow)" }} />
@@ -918,20 +920,20 @@ export function ProjectDetailPage() {
           </article>
 
           <article className="project-analytics-card">
-            <h2>Время по дням</h2>
+            <h2>{t("reports.charts.daily")}</h2>
             <p className="project-analytics-card__empty">
               Подробная дневная аналитика появится после накопления закрытых интервалов по проекту.
             </p>
           </article>
 
           <article className="project-analytics-card project-analytics-card--wide">
-            <h2>Топ задач проекта</h2>
+            <h2>{text("Топ задач проекта", "Top project tasks")}</h2>
             {summary.top_tasks.length > 0 ? (
               <div className="project-top-bars">
                 {summary.top_tasks.map((task) => (
                   <div className="project-top-bar" key={task.id}>
                     <span>{task.title}</span>
-                    <strong>{formatHumanDuration(task.total_time_seconds)}</strong>
+                    <strong>{formatHumanDuration(task.total_time_seconds, locale)}</strong>
                     <div>
                       <i
                         style={{
@@ -944,7 +946,7 @@ export function ProjectDetailPage() {
                 ))}
               </div>
             ) : (
-              <div className="status-message">Недостаточно данных для статистики</div>
+              <div className="status-message">{text("Недостаточно данных для статистики", "Not enough data for statistics")}</div>
             )}
           </article>
         </section>
@@ -953,34 +955,34 @@ export function ProjectDetailPage() {
       {activeTab === "reports" && (
         <section className="project-report-grid" id="project-tab-reports" role="tabpanel">
           <article className="project-report-card">
-            <span>Всего времени</span>
-            <strong>{formatHumanDuration(summary.total_time_seconds)}</strong>
-            <p>Сумма времени всех задач проекта.</p>
+            <span>{t("projects.metrics.totalTime")}</span>
+            <strong>{formatHumanDuration(summary.total_time_seconds, locale)}</strong>
+            <p>{text("Сумма времени всех задач проекта.", "Total time across all project tasks.")}</p>
           </article>
           <article className="project-report-card">
-            <span>Среднее по задачам с временем</span>
-            <strong>{formatHumanDuration(averageTrackedTaskTime)}</strong>
-            <p>Среднее значение среди задач, где есть закрытые интервалы.</p>
+            <span>{text("Среднее по задачам с временем", "Average for tasks with time")}</span>
+            <strong>{formatHumanDuration(averageTrackedTaskTime, locale)}</strong>
+            <p>{text("Среднее значение среди задач, где есть закрытые интервалы.", "Average across tasks that have completed intervals.")}</p>
           </article>
           <article className="project-report-card">
-            <span>Задач с временем</span>
+            <span>{t("reports.stats.tasks")}</span>
             <strong>{summary.tasks_with_time_count}</strong>
             <p>Из {summary.tasks_count} задач проекта.</p>
           </article>
           <article className="project-report-card project-report-card--wide">
-            <h2>Мини-отчёт по проекту</h2>
+            <h2>{text("Мини-отчёт по проекту", "Project summary report")}</h2>
             {summary.top_tasks.length > 0 ? (
               <div className="project-report-list">
                 {summary.top_tasks.map((task, index) => (
                   <div className="project-report-list__item" key={task.id}>
                     <span>{index + 1}</span>
                     <strong>{task.title}</strong>
-                    <em>{formatHumanDuration(task.total_time_seconds)}</em>
+                    <em>{formatHumanDuration(task.total_time_seconds, locale)}</em>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="status-message">По проекту пока нет задач с временем</div>
+              <div className="status-message">{text("По проекту пока нет задач с временем", "No tasks with tracked time in this project yet")}</div>
             )}
           </article>
         </section>
@@ -989,17 +991,17 @@ export function ProjectDetailPage() {
       {isEditOpen && (
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsEditOpen(false)}>
           <form className="project-modal" onSubmit={handleUpdateProject} onClick={(event) => event.stopPropagation()}>
-            <h2>Редактировать проект</h2>
+            <h2>{text("Редактировать проект", "Edit project")}</h2>
             <div className="project-icon-preview">
               <ProjectIcon icon={projectIcon} color={projectColor} size="xl" />
               <div className="project-icon-preview__content">
-                <p className="project-icon-preview__eyebrow">Иконка проекта</p>
+                <p className="project-icon-preview__eyebrow">{t("projects.form.icon")}</p>
                 <h3>{projectName.trim() || project.name}</h3>
-                <p>Выберите иконку, которая лучше всего описывает проект.</p>
+                <p>{t("projects.form.iconHint")}</p>
               </div>
             </div>
             <label>
-              <span>Название</span>
+              <span>{t("projects.form.name")}</span>
               <input
                 className="text-field"
                 value={projectName}
@@ -1007,14 +1009,14 @@ export function ProjectDetailPage() {
               />
             </label>
             <label>
-              <span>Описание</span>
+              <span>{t("projects.form.description")}</span>
               <textarea
                 className="textarea-field"
                 value={projectDescription}
                 onChange={(event) => setProjectDescription(event.target.value)}
               />
             </label>
-            <div className="project-color-grid" aria-label="Цвет проекта">
+            <div className="project-color-grid" aria-label={t("projects.form.color")}>
               {PROJECT_COLORS.map((color) => (
                 <button
                   className={`project-color${projectColor === color ? " project-color--active" : ""}`}
@@ -1022,12 +1024,12 @@ export function ProjectDetailPage() {
                   type="button"
                   style={{ backgroundColor: color }}
                   onClick={() => setProjectColor(color)}
-                  aria-label={`Выбрать цвет ${color}`}
+                  aria-label={t("projects.form.chooseColor", { color })}
                 />
               ))}
             </div>
             <div className="project-icon-field">
-              <span>Иконка проекта</span>
+              <span>{t("projects.form.icon")}</span>
               <ProjectIconPicker value={projectIcon} color={projectColor} onChange={setProjectIcon} />
             </div>
             {projectError && <p className="project-modal__error">{projectError}</p>}

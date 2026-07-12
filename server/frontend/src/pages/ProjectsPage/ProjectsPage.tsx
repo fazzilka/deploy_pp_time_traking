@@ -18,6 +18,7 @@ import type {
   ProjectsTimeSummaryResponse,
 } from "../../shared/types/project";
 import { canCreateProjects, useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import { useLocale } from "../../i18n";
 import { formatHumanDuration } from "../../shared/utils/time";
 import "./ProjectsPage.css";
 
@@ -72,6 +73,7 @@ function ProjectMetricIcon({ type }: { type: "tasks" | "time" | "active" }) {
 }
 
 export function ProjectsPage() {
+  const { locale, t } = useLocale();
   const navigate = useNavigate();
   const { currentWorkspaceId, currentUserRole } = useWorkspace();
   const canCreateProject = canCreateProjects(currentUserRole);
@@ -99,7 +101,7 @@ export function ProjectsPage() {
       setProjects(nextProjects);
       setProjectsSummary(nextSummary);
     } catch {
-      setError("Не удалось загрузить проекты");
+      setError(t("projects.errors.load"));
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +124,7 @@ export function ProjectsPage() {
     setCreateError(null);
 
     if (!projectName.trim()) {
-      setCreateError("Введите название проекта");
+      setCreateError(t("projects.errors.nameRequired"));
       return;
     }
 
@@ -143,7 +145,7 @@ export function ProjectsPage() {
       await loadProjects();
       navigate(`/projects/${createdProject.id}`);
     } catch (caughtError) {
-      setCreateError(caughtError instanceof Error ? caughtError.message : "Не удалось создать проект");
+      setCreateError(caughtError instanceof Error ? caughtError.message : t("projects.errors.create"));
     } finally {
       setIsCreating(false);
     }
@@ -162,10 +164,10 @@ export function ProjectsPage() {
     <main className="projects-page app-container">
       <section className="projects-hero">
         <div>
-          <p className="projects-hero__eyebrow">Проекты</p>
-          <h1 className="page-heading">Проекты</h1>
+          <p className="projects-hero__eyebrow">{t("projects.title")}</p>
+          <h1 className="page-heading">{t("projects.title")}</h1>
           <p className="page-copy">
-            Проекты помогают группировать задачи и отслеживать время по направлениям работы.
+            {t("projects.description")}
           </p>
         </div>
         <button
@@ -173,9 +175,9 @@ export function ProjectsPage() {
           type="button"
           onClick={() => setIsCreateOpen(true)}
           disabled={!canCreateProject}
-          title={canCreateProject ? undefined : "Создавать проекты могут Owner и Team Lead"}
+          title={canCreateProject ? undefined : t("projects.actions.permission")}
         >
-          Создать проект
+          {t("projects.actions.create")}
         </button>
       </section>
 
@@ -184,9 +186,9 @@ export function ProjectsPage() {
       {error && <div className="status-message status-message--error projects-status">{error}</div>}
 
       {isLoading ? (
-        <div className="status-message projects-status">Загружаем проекты...</div>
+        <div className="status-message projects-status">{t("projects.loading")}</div>
       ) : projects.length > 0 || unassignedProject ? (
-        <section className="projects-grid" aria-label="Список проектов">
+        <section className="projects-grid" aria-label={t("projects.listLabel")}>
           {projects.map((project) => {
             const progressWidth = getProgressWidth(project.total_time_seconds, maxProjectSeconds);
             const icon = getProjectFallbackIcon(project);
@@ -206,7 +208,7 @@ export function ProjectsPage() {
                   <button
                     className="project-card__menu"
                     type="button"
-                    aria-label={`Действия проекта ${project.name}`}
+                    aria-label={t("projects.actions.menu", { name: project.name })}
                     onClick={(event) => event.stopPropagation()}
                     onKeyDown={(event) => event.stopPropagation()}
                   >
@@ -215,28 +217,28 @@ export function ProjectsPage() {
                 </div>
                 <div className="project-card__body">
                   <h2>{project.name}</h2>
-                  <p>{project.description || "Без описания"}</p>
+                  <p>{project.description || t("tasks.labels.noDescription")}</p>
                 </div>
                 <div className="project-card__divider" />
                 <div className="project-card__metrics">
                   <span>
                     <em>
                       <ProjectMetricIcon type="tasks" />
-                      Задач
+                      {t("projects.metrics.tasks")}
                     </em>
                     <strong>{project.tasks_count}</strong>
                   </span>
                   <span>
                     <em>
                       <ProjectMetricIcon type="time" />
-                      Всего времени
+                      {t("projects.metrics.totalTime")}
                     </em>
-                    <strong>{formatHumanDuration(project.total_time_seconds)}</strong>
+                    <strong>{formatHumanDuration(project.total_time_seconds, locale)}</strong>
                   </span>
                   <span>
                     <em>
                       <ProjectMetricIcon type="active" />
-                      Активных задач
+                      {t("projects.metrics.activeTasks")}
                     </em>
                     <strong>{project.active_tasks_count}</strong>
                   </span>
@@ -268,29 +270,29 @@ export function ProjectsPage() {
                 <ProjectIcon icon="briefcase" color={unassignedProject.color} size="lg" />
               </div>
               <div className="project-card__body">
-                <h2>Без проекта</h2>
-                <p>Задачи без привязки к проекту</p>
+                <h2>{t("projects.unassigned.title")}</h2>
+                <p>{t("projects.unassigned.description")}</p>
               </div>
               <div className="project-card__divider" />
               <div className="project-card__metrics">
                 <span>
                   <em>
                     <ProjectMetricIcon type="tasks" />
-                    Задач
+                    {t("projects.metrics.tasks")}
                   </em>
                   <strong>{unassignedProject.tasks_count}</strong>
                 </span>
                 <span>
                   <em>
                     <ProjectMetricIcon type="time" />
-                    Всего времени
+                    {t("projects.metrics.totalTime")}
                   </em>
-                  <strong>{formatHumanDuration(unassignedProject.total_time_seconds)}</strong>
+                    <strong>{formatHumanDuration(unassignedProject.total_time_seconds, locale)}</strong>
                 </span>
                 <span>
                   <em>
                     <ProjectMetricIcon type="active" />
-                    Активных задач
+                    {t("projects.metrics.activeTasks")}
                   </em>
                   <strong>{unassignedProject.active_tasks_count}</strong>
                 </span>
@@ -312,16 +314,16 @@ export function ProjectsPage() {
         </section>
       ) : (
         <section className="projects-empty">
-          <h2>Проектов пока нет</h2>
-          <p>Создайте первый проект, чтобы группировать задачи.</p>
+          <h2>{t("projects.empty.title")}</h2>
+          <p>{t("projects.empty.description")}</p>
           <button
             className="button button--green"
             type="button"
             onClick={() => setIsCreateOpen(true)}
             disabled={!canCreateProject}
-            title={canCreateProject ? undefined : "Создавать проекты могут Owner и Team Lead"}
+            title={canCreateProject ? undefined : t("projects.actions.permission")}
           >
-            Создать проект
+            {t("projects.actions.create")}
           </button>
         </section>
       )}
@@ -329,34 +331,34 @@ export function ProjectsPage() {
       {isCreateOpen && (
         <div className="project-modal-backdrop" role="presentation" onClick={() => setIsCreateOpen(false)}>
           <form className="project-modal" onSubmit={handleCreateProject} onClick={(event) => event.stopPropagation()}>
-            <h2>Создать проект</h2>
+            <h2>{t("projects.actions.create")}</h2>
             <div className="project-icon-preview">
               <ProjectIcon icon={projectIcon} color={projectColor} size="xl" />
               <div className="project-icon-preview__content">
-                <p className="project-icon-preview__eyebrow">Иконка проекта</p>
-                <h3>{projectName.trim() || "Новый проект"}</h3>
-                <p>Выберите иконку, которая лучше всего описывает проект.</p>
+                <p className="project-icon-preview__eyebrow">{t("projects.form.icon")}</p>
+                <h3>{projectName.trim() || t("projects.form.newProject")}</h3>
+                <p>{t("projects.form.iconHint")}</p>
               </div>
             </div>
             <label>
-              <span>Название</span>
+              <span>{t("projects.form.name")}</span>
               <input
                 className="text-field"
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
-                placeholder="Например, Разработка backend"
+                placeholder={t("projects.form.namePlaceholder")}
               />
             </label>
             <label>
-              <span>Описание</span>
+              <span>{t("projects.form.description")}</span>
               <textarea
                 className="textarea-field"
                 value={projectDescription}
                 onChange={(event) => setProjectDescription(event.target.value)}
-                placeholder="Коротко о направлении работы"
+                placeholder={t("projects.form.descriptionPlaceholder")}
               />
             </label>
-            <div className="project-color-grid" aria-label="Цвет проекта">
+            <div className="project-color-grid" aria-label={t("projects.form.color")}>
               {PROJECT_COLORS.map((color) => (
                 <button
                   className={`project-color${projectColor === color ? " project-color--active" : ""}`}
@@ -364,21 +366,21 @@ export function ProjectsPage() {
                   type="button"
                   style={{ backgroundColor: color }}
                   onClick={() => setProjectColor(color)}
-                  aria-label={`Выбрать цвет ${color}`}
+                  aria-label={t("projects.form.chooseColor", { color })}
                 />
               ))}
             </div>
             <div className="project-icon-field">
-              <span>Иконка проекта</span>
+              <span>{t("projects.form.icon")}</span>
               <ProjectIconPicker value={projectIcon} color={projectColor} onChange={setProjectIcon} />
             </div>
             {createError && <p className="project-modal__error">{createError}</p>}
             <div className="project-modal__actions">
               <button className="button button--green" type="submit" disabled={isCreating}>
-                {isCreating ? "Создаём..." : "Создать"}
+                {t(isCreating ? "common.actions.creating" : "common.actions.create")}
               </button>
               <button className="button" type="button" onClick={() => setIsCreateOpen(false)} disabled={isCreating}>
-                Отмена
+                {t("common.actions.cancel")}
               </button>
             </div>
           </form>

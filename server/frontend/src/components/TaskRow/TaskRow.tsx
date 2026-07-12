@@ -128,9 +128,8 @@ export function TaskRow({
 
       <div className="task-row__actions">
         {isCompleted && !isActive ? (
-          <span className="task-row__completed-status" role="status">
-            <span aria-hidden="true">✓</span>
-            Выполнено
+          <span className="task-row__button button task-row__completed-status" role="status">
+            Completed
           </span>
         ) : (
           <button

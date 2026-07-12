@@ -546,7 +546,7 @@
 .task-row__deadline-date { font-size: 12px; font-weight: 600; }
 .task-row__deadline-detail { font-size: 11px; font-weight: 600; }
 .task-row__time { color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
-.task-row__button, .task-row__button--completed { width: 70px; min-width: 70px; max-width: 70px; height: 34px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; }
+.task-row__button, .task-row__button--completed { width: 88px; min-width: 88px; max-width: 88px; height: 34px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; }
 .task-row__delete { width: 34px; min-width: 34px; max-width: 34px; height: 34px; border-color: transparent; border-radius: var(--radius-md); background: transparent; font-size: 22px; }
 .task-row__delete:hover:not(:disabled) { transform: none; }
 
@@ -613,20 +613,10 @@
   text-decoration: none;
 }
 
-.task-row__completed-status {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 9px;
+.task-row__completed-status.button {
   border: 1px solid var(--color-accent-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-accent-soft);
+  background: var(--color-canvas);
   color: var(--color-accent-hover);
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1;
   white-space: nowrap;
 }
 
@@ -643,10 +633,5 @@
     white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-  }
-
-  .task-row__completed-status {
-    min-height: 30px;
-    padding-inline: 8px;
   }
 }

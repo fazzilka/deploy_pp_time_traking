@@ -126,7 +126,7 @@ export function TaskRow({
         <strong>{formatDuration(displaySeconds)}</strong>
       </div>
 
-      <div className="task-row__actions">
+      <div className="task-row__action">
         {isCompleted && !isActive ? (
           <span className="task-row__button button task-row__completed-status" role="status">
             Completed
@@ -141,17 +141,17 @@ export function TaskRow({
             {isActive ? "Stop" : "Start"}
           </button>
         )}
-
-        <button
-          className="task-row__delete"
-          type="button"
-          onClick={handleDelete}
-          disabled={isBusy || !canDeleteTask}
-          aria-label={`Удалить задачу ${task.title}`}
-        >
-          ×
-        </button>
       </div>
+
+      <button
+        className="task-row__delete"
+        type="button"
+        onClick={handleDelete}
+        disabled={isBusy || !canDeleteTask}
+        aria-label={`Удалить задачу ${task.title}`}
+      >
+        ×
+      </button>
     </article>
   );
 }

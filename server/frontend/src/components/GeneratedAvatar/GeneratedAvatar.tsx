@@ -1,4 +1,5 @@
 import { memo, useMemo, type CSSProperties } from "react";
+import { useLocale } from "../../i18n";
 import "./GeneratedAvatar.css";
 
 export type GeneratedAvatarProps = {
@@ -123,6 +124,7 @@ export const GeneratedAvatar = memo(function GeneratedAvatar({
   className,
   title,
 }: GeneratedAvatarProps) {
+  const { text } = useLocale();
   const avatar = useMemo(() => {
     const normalizedSeed = normalizeSeed(seed, letter);
     const hash = hashSeed(normalizedSeed);
@@ -130,9 +132,9 @@ export const GeneratedAvatar = memo(function GeneratedAvatar({
     return {
       color: getAvatarColor(hash),
       cells: buildPattern(hash),
-      title: title || "Аватар пользователя",
+      title: title || text("Аватар пользователя", "User avatar"),
     };
-  }, [letter, seed, title]);
+  }, [letter, seed, text, title]);
 
   const style = {
     "--generated-avatar-size": `${size}px`,

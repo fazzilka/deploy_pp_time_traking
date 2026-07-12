@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../shared/api/client";
+import { useLocale } from "../../i18n";
 import "./NotificationsBell.css";
 
 type NotificationType =
@@ -242,28 +243,28 @@ function getNotificationTone(type: NotificationType) {
   return "neutral";
 }
 
-function getNotificationTitleFallback(type: NotificationType) {
+function getNotificationTitleFallback(type: NotificationType, locale: "ru" | "en") {
   if (type === "deadline_soon") {
-    return "Приближается дедлайн";
+    return locale === "ru" ? "Приближается дедлайн" : "Deadline approaching";
   }
 
   if (type === "deadline_overdue") {
-    return "Дедлайн просрочен";
+    return locale === "ru" ? "Дедлайн просрочен" : "Deadline overdue";
   }
 
   if (type === "workspace_member_added") {
-    return "Приглашение в рабочее пространство";
+    return locale === "ru" ? "Приглашение в рабочее пространство" : "Workspace invitation";
   }
 
   if (type === "workspace_member_removed") {
-    return "Вы удалены из пространства";
+    return locale === "ru" ? "Вы удалены из пространства" : "Removed from workspace";
   }
 
   if (type === "workspace_role_changed" || type === "workspace_member_role_changed") {
-    return "Изменена ваша роль";
+    return locale === "ru" ? "Изменена ваша роль" : "Your role changed";
   }
 
-  return "Уведомление";
+  return locale === "ru" ? "Уведомление" : "Notification";
 }
 
 function normalizeNotificationsResponse(response: NotificationListResponse | NotificationItem[]): NotificationItem[] {
@@ -278,7 +279,7 @@ function normalizeUnreadCount(response: NotificationUnreadCountResponse): number
   return Number.isFinite(response.unread_count) ? response.unread_count : 0;
 }
 
-function formatNotificationDate(value: string): string {
+function formatNotificationDate(value: string, locale: "ru" | "en"): string {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -290,20 +291,21 @@ function formatNotificationDate(value: string): string {
   const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const diffDays = Math.round((today.getTime() - targetDay.getTime()) / 86_400_000);
 
-  const time = new Intl.DateTimeFormat("ru-RU", {
+  const intlLocale = locale === "ru" ? "ru-RU" : "en-US";
+  const time = new Intl.DateTimeFormat(intlLocale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
 
   if (diffDays === 0) {
-    return `Сегодня, ${time}`;
+    return locale === "ru" ? `Сегодня, ${time}` : `Today, ${time}`;
   }
 
   if (diffDays === 1) {
-    return `Вчера, ${time}`;
+    return locale === "ru" ? `Вчера, ${time}` : `Yesterday, ${time}`;
   }
 
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(intlLocale, {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -312,6 +314,7 @@ function formatNotificationDate(value: string): string {
 }
 
 export function NotificationsBell() {
+  const { locale, text } = useLocale();
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -355,12 +358,12 @@ export function NotificationsBell() {
         void loadUnreadCount();
       }
     } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : "Не удалось загрузить уведомления";
+      const message = requestError instanceof Error ? requestError.message : text("Не удалось загрузить уведомления", "Could not load notifications");
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [loadUnreadCount]);
+  }, [loadUnreadCount, text]);
 
   useEffect(() => {
     void loadUnreadCount();
@@ -475,7 +478,7 @@ export function NotificationsBell() {
       <button
         className={isOpen ? "notifications-bell__button notifications-bell__button--active" : "notifications-bell__button"}
         type="button"
-        aria-label="Открыть уведомления"
+        aria-label={text("Открыть уведомления", "Open notifications")}
         aria-expanded={isOpen}
         onClick={handleToggle}
       >
@@ -484,9 +487,9 @@ export function NotificationsBell() {
       </button>
 
       {isOpen ? (
-        <div className="notifications-bell__dropdown" role="dialog" aria-label="Уведомления">
+        <div className="notifications-bell__dropdown" role="dialog" aria-label={text("Уведомления", "Notifications")}>
           <div className="notifications-bell__header">
-            <h2 className="notifications-bell__title">Уведомления</h2>
+            <h2 className="notifications-bell__title">{text("Уведомления", "Notifications")}</h2>
 
             <button
               className="notifications-bell__mark-all"
@@ -494,25 +497,25 @@ export function NotificationsBell() {
               disabled={unreadCount <= 0 || isMarkingAll}
               onClick={handleMarkAllAsRead}
             >
-              Отметить всё прочитанным
+              {text("Отметить всё прочитанным", "Mark all as read")}
             </button>
           </div>
 
           <div className="notifications-bell__list">
-            {isLoading ? <div className="notifications-bell__state">Загружаем уведомления...</div> : null}
+            {isLoading ? <div className="notifications-bell__state">{text("Загружаем уведомления...", "Loading notifications...")}</div> : null}
 
             {!isLoading && error ? (
               <div className="notifications-bell__state notifications-bell__error">{error}</div>
             ) : null}
 
             {!isLoading && !error && items.length === 0 ? (
-              <div className="notifications-bell__state">Уведомлений пока нет</div>
+              <div className="notifications-bell__state">{text("Уведомлений пока нет", "No notifications yet")}</div>
             ) : null}
 
             {!isLoading && !error
               ? items.map((notification) => {
                   const tone = getNotificationTone(notification.type);
-                  const title = notification.title || getNotificationTitleFallback(notification.type);
+                  const title = notification.title || getNotificationTitleFallback(notification.type, locale);
 
                   return (
                     <button
@@ -536,7 +539,7 @@ export function NotificationsBell() {
 
                       <span className="notifications-bell__item-meta">
                         <span className="notifications-bell__item-date">
-                          {formatNotificationDate(notification.created_at)}
+                          {formatNotificationDate(notification.created_at, locale)}
                         </span>
                         {!notification.is_read ? <span className="notifications-bell__item-dot" /> : null}
                       </span>

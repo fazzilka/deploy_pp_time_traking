@@ -5,6 +5,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { GeneratedAvatar } from "../GeneratedAvatar";
 import { NotificationsBell } from "../NotificationsBell/NotificationsBell";
 import { PasswordInput } from "../PasswordInput/PasswordInput";
+import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
+import { useLocale } from "../../i18n";
 import { getCurrentUser, userProfileUpdatedEvent } from "../../shared/api/profile";
 import { logout } from "../../shared/api/auth";
 import { createWorkspace } from "../../shared/api/workspaces";
@@ -100,18 +102,19 @@ function getWorkspaceIcon(workspace: Workspace | null) {
   return "building";
 }
 
-function getWorkspaceSubtitle(workspace: Workspace) {
+function getWorkspaceSubtitle(workspace: Workspace, locale: "ru" | "en", plural: (baseKey: string, count: number) => string) {
   if (workspace.is_protected) {
-    return "Требует защитный пароль";
+    return locale === "ru" ? "Требует защитный пароль" : "Requires a security password";
   }
   if (workspace.type === "personal") {
-    return "Личное пространство";
+    return locale === "ru" ? "Личное пространство" : "Personal space";
   }
 
-  return `${workspace.members_count} участник${workspace.members_count === 1 ? "" : "ов"}`;
+  return plural("navigation.workspace.members", workspace.members_count);
 }
 
 export function Navigation() {
+  const { locale, plural, t } = useLocale();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -254,7 +257,7 @@ export function Navigation() {
     const trimmedDescription = newWorkspaceDescription.trim();
 
     if (!trimmedName) {
-      setCreateWorkspaceError("Введите название организации");
+      setCreateWorkspaceError(t("navigation.organization.nameRequired"));
       return;
     }
 
@@ -276,7 +279,7 @@ export function Navigation() {
       setIsCreateWorkspaceOpen(false);
       navigate("/team");
     } catch (error) {
-      setCreateWorkspaceError(error instanceof Error ? error.message : "Не удалось создать организацию");
+      setCreateWorkspaceError(error instanceof Error ? error.message : t("navigation.organization.createError"));
     } finally {
       setIsCreatingWorkspace(false);
     }
@@ -286,7 +289,7 @@ export function Navigation() {
     event.preventDefault();
 
     if (protectedPassword.length < 12) {
-      setProtectedError("Защитный пароль должен быть не короче 12 символов");
+      setProtectedError(t("navigation.protected.passwordLength"));
       return;
     }
 
@@ -299,7 +302,7 @@ export function Navigation() {
       setIsCreateProtectedOpen(false);
       await refreshWorkspaces({ silent: true });
     } catch (error) {
-      setProtectedError(error instanceof Error ? error.message : "Не удалось создать защищённое пространство");
+      setProtectedError(error instanceof Error ? error.message : t("navigation.protected.createError"));
     } finally {
       setIsCreatingProtected(false);
     }
@@ -318,7 +321,7 @@ export function Navigation() {
           </button>
 
           <div className="navigation__workspace" ref={dropdownRef}>
-            <span className="navigation__workspace-label">Workspace</span>
+            <span className="navigation__workspace-label">{t("navigation.workspace.label")}</span>
 
             <button
               className={`navigation__workspace-button${isWorkspaceMenuOpen ? " navigation__workspace-button--open" : ""}`}
@@ -333,7 +336,7 @@ export function Navigation() {
               </span>
 
               <span className="navigation__workspace-name">
-                {currentWorkspace?.name ?? "Workspace"}
+                {currentWorkspace?.name ?? t("navigation.workspace.label")}
               </span>
 
               <span className="navigation__workspace-chevron">
@@ -345,7 +348,7 @@ export function Navigation() {
               <div className="navigation__workspace-menu" role="menu">
                 {personalWorkspaces.length > 0 && (
                   <div className="navigation__workspace-group">
-                    <p>Личное пространство</p>
+                    <p>{t("navigation.workspace.personal")}</p>
 
                     {personalWorkspaces.map((workspace) => (
                       <button
@@ -363,7 +366,7 @@ export function Navigation() {
 
                         <span className="navigation__workspace-item-copy">
                           <strong>{workspace.name}</strong>
-                          <em>{getWorkspaceSubtitle(workspace)}</em>
+                          <em>{getWorkspaceSubtitle(workspace, locale, plural)}</em>
                         </span>
 
                         {workspace.id === currentWorkspaceId && (
@@ -377,7 +380,7 @@ export function Navigation() {
 	                )}
 
                 <div className="navigation__workspace-group">
-                  <p>Защищённое пространство</p>
+                  <p>{t("navigation.workspace.protected")}</p>
 
                   {protectedWorkspace ? (
                     <button
@@ -395,7 +398,7 @@ export function Navigation() {
 
                       <span className="navigation__workspace-item-copy">
                         <strong>{protectedWorkspace.name}</strong>
-                        <em>{protectedSpaceStatus?.is_unlocked ? "Разблокировано" : "Заблокировано"}</em>
+                        <em>{t(protectedSpaceStatus?.is_unlocked ? "navigation.workspace.unlocked" : "navigation.workspace.locked")}</em>
                       </span>
 
                       {protectedWorkspace.id === currentWorkspaceId && (
@@ -414,13 +417,13 @@ export function Navigation() {
                       <span>
                         <NavigationIcon name="lock" />
                       </span>
-                      Создать защищённое пространство
+                      {t("navigation.workspace.createProtected")}
                     </button>
                   )}
                 </div>
 
                 <div className="navigation__workspace-group">
-                  <p>Организации</p>
+                  <p>{t("navigation.workspace.organizations")}</p>
 
                   {teamWorkspaces.length > 0 ? (
                     teamWorkspaces.map((workspace) => (
@@ -439,7 +442,7 @@ export function Navigation() {
 
                         <span className="navigation__workspace-item-copy">
                           <strong>{workspace.name}</strong>
-                          <em>{getWorkspaceSubtitle(workspace)}</em>
+                          <em>{getWorkspaceSubtitle(workspace, locale, plural)}</em>
                         </span>
 
                         {workspace.id === currentWorkspaceId && (
@@ -451,7 +454,7 @@ export function Navigation() {
                     ))
                   ) : (
                     <div className="navigation__workspace-empty">
-                      Организаций пока нет
+                      {t("navigation.workspace.none")}
                     </div>
                   )}
                 </div>
@@ -465,37 +468,38 @@ export function Navigation() {
                   <span>
                     <NavigationIcon name="plus" />
                   </span>
-                  Создать организацию
+                  {t("navigation.workspace.createOrganization")}
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        <nav className="navigation__links" aria-label="Основная навигация">
-          <NavLink to="/dashboard">Таймер</NavLink>
-          <NavLink to="/projects">Проекты</NavLink>
-          <NavLink to="/reports">Отчёты</NavLink>
-          <NavLink to="/team">Команда</NavLink>
-          <NavLink to="/profile">Профиль</NavLink>
+        <nav className="navigation__links" aria-label={t("navigation.mainLabel")}>
+          <NavLink to="/dashboard">{t("navigation.tasks")}</NavLink>
+          <NavLink to="/projects">{t("navigation.projects")}</NavLink>
+          <NavLink to="/reports">{t("navigation.reports")}</NavLink>
+          <NavLink to="/team">{t("navigation.team")}</NavLink>
+          <NavLink to="/profile">{t("navigation.profile")}</NavLink>
         </nav>
 
         <div className="navigation__user">
+          <LanguageSwitcher />
           <NotificationsBell />
 
           <button
             className="navigation__avatar"
             type="button"
-            aria-label="Профиль пользователя"
+            aria-label={t("navigation.userProfile")}
             onClick={() => navigate("/profile")}
           >
-            <GeneratedAvatar seed={avatarSeed} letter={avatarLabel} size={38} title="Профиль пользователя" />
+            <GeneratedAvatar seed={avatarSeed} letter={avatarLabel} size={38} title={t("navigation.userProfile")} />
           </button>
 
-          <span className="navigation__username">{user?.username ?? "Профиль"}</span>
+          <span className="navigation__username">{user?.username ?? t("navigation.profile")}</span>
 
           <button className="navigation__logout" type="button" onClick={handleLogout}>
-            Выйти
+            {t("navigation.signOut")}
           </button>
         </div>
       </div>
@@ -519,14 +523,14 @@ export function Navigation() {
                 <NavigationIcon name="building" />
               </span>
               <div>
-                <h2 id="create-workspace-title">Создать организацию</h2>
-                <p>Организация объединяет участников, проекты и задачи.</p>
+                <h2 id="create-workspace-title">{t("navigation.workspace.createOrganization")}</h2>
+                <p>{t("navigation.organization.description")}</p>
               </div>
               <button
                 className="navigation-modal__close"
                 type="button"
                 onClick={() => setIsCreateWorkspaceOpen(false)}
-                aria-label="Закрыть окно создания организации"
+                aria-label={t("navigation.organization.closeLabel")}
               >
                 ×
               </button>
@@ -534,22 +538,22 @@ export function Navigation() {
 
             <div className="navigation-modal__body">
               <label>
-                <span>Название организации</span>
+                <span>{t("navigation.organization.name")}</span>
                 <input
                   type="text"
                   value={newWorkspaceName}
                   onChange={(event) => setNewWorkspaceName(event.target.value)}
-                  placeholder="Например, МТУСИ"
+                  placeholder={t("navigation.organization.namePlaceholder")}
                   autoFocus
                 />
               </label>
 
               <label>
-                <span>Описание</span>
+                <span>{t("navigation.organization.descriptionLabel")}</span>
                 <textarea
                   value={newWorkspaceDescription}
                   onChange={(event) => setNewWorkspaceDescription(event.target.value)}
-                  placeholder="Кратко опишите, для чего нужна организация"
+                  placeholder={t("navigation.organization.descriptionPlaceholder")}
                   rows={4}
                 />
               </label>
@@ -565,7 +569,7 @@ export function Navigation() {
                 type="submit"
                 disabled={isCreatingWorkspace}
               >
-                {isCreatingWorkspace ? "Создаём..." : "Создать"}
+                {t(isCreatingWorkspace ? "common.actions.creating" : "common.actions.create")}
               </button>
 
               <button
@@ -573,7 +577,7 @@ export function Navigation() {
                 type="button"
                 onClick={() => setIsCreateWorkspaceOpen(false)}
               >
-                Отмена
+                {t("common.actions.cancel")}
               </button>
             </div>
           </form>
@@ -600,14 +604,14 @@ export function Navigation() {
                 <NavigationIcon name="lock" />
               </span>
               <div>
-                <h2 id="create-protected-title">Создать защищённое пространство</h2>
-                <p>Используйте отдельный пароль, не совпадающий с паролем аккаунта.</p>
+                <h2 id="create-protected-title">{t("navigation.workspace.createProtected")}</h2>
+                <p>{t("navigation.protected.description")}</p>
               </div>
               <button
                 className="navigation-modal__close"
                 type="button"
                 onClick={() => setIsCreateProtectedOpen(false)}
-                aria-label="Закрыть окно создания защищённого пространства"
+                aria-label={t("navigation.protected.closeLabel")}
               >
                 ×
               </button>
@@ -616,12 +620,12 @@ export function Navigation() {
             <div className="navigation-modal__body">
               <PasswordInput
                 name="protected-password"
-                label="Защитный пароль"
+                label={t("navigation.protected.password")}
                 value={protectedPassword}
                 minLength={12}
                 required
                 autoComplete="new-password"
-                placeholder="Минимум 12 символов"
+                placeholder={t("navigation.protected.passwordPlaceholder")}
                 onChange={setProtectedPassword}
                 error={protectedError ?? undefined}
               />
@@ -633,7 +637,7 @@ export function Navigation() {
                 type="submit"
                 disabled={isCreatingProtected}
               >
-                {isCreatingProtected ? "Создаём..." : "Создать"}
+                {t(isCreatingProtected ? "common.actions.creating" : "common.actions.create")}
               </button>
 
               <button
@@ -641,7 +645,7 @@ export function Navigation() {
                 type="button"
                 onClick={() => setIsCreateProtectedOpen(false)}
               >
-                Отмена
+                {t("common.actions.cancel")}
               </button>
             </div>
           </form>

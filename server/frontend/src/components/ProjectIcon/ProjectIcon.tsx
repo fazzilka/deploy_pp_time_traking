@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { useLocale } from "../../i18n";
 import "./ProjectIcon.css";
 
 export type ProjectIconName =
@@ -415,10 +416,11 @@ export function ProjectIcon({ icon, color, size = "md", className = "" }: Projec
 }
 
 export function ProjectIconPicker({ value, color, onChange, className = "" }: ProjectIconPickerProps) {
+  const { text } = useLocale();
   const classes = ["project-icon-picker", className].filter(Boolean).join(" ");
 
   return (
-    <div className={classes} aria-label="Иконка проекта">
+    <div className={classes} aria-label={text("Иконка проекта", "Project icon")}>
       {PROJECT_ICON_OPTIONS.map((option) => (
         <button
           className={`project-icon-picker__option${value === option.value ? " project-icon-picker__option--active" : ""}`}
@@ -426,7 +428,7 @@ export function ProjectIconPicker({ value, color, onChange, className = "" }: Pr
           type="button"
           style={{ "--project-icon-color": getSafeProjectColor(color) } as CSSProperties}
           onClick={() => onChange(option.value)}
-          aria-label={`Выбрать иконку ${option.label}`}
+          aria-label={text(`Выбрать иконку ${option.label}`, `Choose ${option.value} icon`)}
           aria-pressed={value === option.value}
         >
           <ProjectIcon icon={option.value} color={value === option.value ? color : "#30363d"} size="md" />

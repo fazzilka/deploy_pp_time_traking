@@ -4,6 +4,7 @@ import type { Task } from "../../shared/types/task";
 import { formatDeadline } from "../../shared/utils/date";
 import { formatDeadlineCountdownCompact } from "../../shared/utils/deadline";
 import { formatDuration } from "../../shared/utils/time";
+import { useLocale } from "../../i18n";
 import "./TaskRow.css";
 
 type TaskRowProps = {
@@ -35,8 +36,9 @@ export function TaskRow({
   canDeleteTask = true,
   canToggleCompleted = true,
 }: TaskRowProps) {
+  const { locale, t } = useLocale();
   const isCompleted = task.is_completed;
-  const deadlineCountdown = formatDeadlineCountdownCompact(task.deadline);
+  const deadlineCountdown = formatDeadlineCountdownCompact(task.deadline, undefined, locale);
   const deadlineStatus = isCompleted ? "completed" : deadlineCountdown.status;
   const deadlineDetail = task.deadline ? deadlineCountdown.label : null;
 
@@ -99,14 +101,14 @@ export function TaskRow({
         type="button"
         onClick={handleToggleCompleted}
         disabled={isBusy || !canToggleCompleted}
-        aria-label={isCompleted ? "Вернуть задачу в работу" : "Отметить задачу как выполненную"}
+        aria-label={t(isCompleted ? "tasks.actions.restore" : "tasks.actions.markCompleted")}
       >
         <span aria-hidden="true">✓</span>
       </button>
 
       <div className="task-row__content">
         <h3 className="task-row__title">{task.title}</h3>
-        <p className="task-row__description">{task.description || "Без описания"}</p>
+        <p className="task-row__description">{task.description || t("tasks.labels.noDescription")}</p>
 
         <div className="task-row__meta">
           <ProjectBadge project={task.project} fallback />
@@ -115,21 +117,21 @@ export function TaskRow({
       </div>
 
       <div className={`task-row__deadline task-row__deadline--${deadlineStatus}`}>
-        <span className="task-row__deadline-label">Дедлайн</span>
-        <span className="task-row__deadline-date">{formatDeadline(task.deadline)}</span>
+        <span className="task-row__deadline-label">{t("tasks.labels.deadline")}</span>
+        <span className="task-row__deadline-date">{formatDeadline(task.deadline, locale)}</span>
         {deadlineDetail ? <em className="task-row__deadline-detail">{deadlineDetail}</em> : null}
-        {isCompleted ? <span className="task-row__deadline-completed">Завершено</span> : null}
+        {isCompleted ? <span className="task-row__deadline-completed">{t("tasks.status.completed")}</span> : null}
       </div>
 
-      <div className="task-row__time" aria-label={`Учтено времени: ${formatDuration(displaySeconds)}`}>
-        <span>Учтено</span>
+      <div className="task-row__time" aria-label={`${t("tasks.labels.tracked")}: ${formatDuration(displaySeconds)}`}>
+        <span>{t("tasks.labels.tracked")}</span>
         <strong>{formatDuration(displaySeconds)}</strong>
       </div>
 
       <div className="task-row__action">
         {isCompleted && !isActive ? (
           <span className="task-row__button button task-row__completed-status" role="status">
-            Completed
+            {t("tasks.actions.completed")}
           </span>
         ) : (
           <button
@@ -138,7 +140,7 @@ export function TaskRow({
             onClick={handleTimerClick}
             disabled={isBusy || !canStartTimer}
           >
-            {isActive ? "Stop" : "Start"}
+            {t(isActive ? "tasks.actions.stop" : "tasks.actions.start")}
           </button>
         )}
       </div>
@@ -148,7 +150,7 @@ export function TaskRow({
         type="button"
         onClick={handleDelete}
         disabled={isBusy || !canDeleteTask}
-        aria-label={`Удалить задачу ${task.title}`}
+        aria-label={t("tasks.actions.deleteLabel", { title: task.title })}
       >
         ×
       </button>

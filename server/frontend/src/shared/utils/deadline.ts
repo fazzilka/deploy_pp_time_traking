@@ -70,38 +70,40 @@ function getDurationParts(durationMs: number) {
   };
 }
 
-function formatParts(days: number, hours: number, minutes: number): string {
+function formatParts(days: number, hours: number, minutes: number, locale: "ru" | "en"): string {
   if (days > 0) {
-    return `${days} д ${hours} ч ${minutes} м`;
+    return locale === "ru" ? `${days} д ${hours} ч ${minutes} мин` : `${days} d ${hours} hr ${minutes} min`;
   }
 
   if (hours > 0) {
-    return `${hours} ч ${minutes} м`;
+    return locale === "ru" ? `${hours} ч ${minutes} мин` : `${hours} hr ${minutes} min`;
   }
 
   if (minutes > 0) {
-    return `${minutes} м`;
+    return locale === "ru" ? `${minutes} мин` : `${minutes} min`;
   }
 
-  return "меньше 1 м";
+  return locale === "ru" ? "меньше 1 мин" : "less than 1 min";
 }
 
-function formatRemainingDuration(diffMs: number): string {
+function formatRemainingDuration(diffMs: number, locale: "ru" | "en"): string {
   const { days, hours, minutes } = getDurationParts(diffMs);
-  return formatParts(days, hours, minutes);
+  return formatParts(days, hours, minutes, locale);
 }
 
-function formatOverdueDuration(overdueMs: number): string {
+function formatOverdueDuration(overdueMs: number, locale: "ru" | "en"): string {
   const { days, hours, minutes } = getDurationParts(overdueMs);
-  return `Просрочено ${formatParts(days, hours, minutes)}`;
+  const duration = formatParts(days, hours, minutes, locale);
+  return locale === "ru" ? `Просрочено на ${duration}` : `Overdue by ${duration}`;
 }
 
-function formatRemainingDurationCompact(diffMs: number): string {
-  return `осталось ${formatRemainingDuration(diffMs)}`;
+function formatRemainingDurationCompact(diffMs: number, locale: "ru" | "en"): string {
+  const duration = formatRemainingDuration(diffMs, locale);
+  return locale === "ru" ? `Осталось ${duration}` : `${duration} remaining`;
 }
 
-function formatOverdueDurationCompact(overdueMs: number): string {
-  return formatOverdueDuration(overdueMs);
+function formatOverdueDurationCompact(overdueMs: number, locale: "ru" | "en"): string {
+  return formatOverdueDuration(overdueMs, locale);
 }
 
 function getCountdownStatus(totalMinutes: number, isOverdue: boolean): DeadlineCountdownStatus {
@@ -123,10 +125,11 @@ function getCountdownStatus(totalMinutes: number, isOverdue: boolean): DeadlineC
 export function formatDeadlineCountdown(
   deadline: string | null | undefined,
   now = new Date(),
+  locale: "ru" | "en" = "ru",
 ): DeadlineCountdown {
   if (!deadline) {
     return {
-      label: "Дедлайн не задан",
+      label: locale === "ru" ? "Дедлайн не задан" : "Deadline not set",
       status: "none",
       isOverdue: false,
       totalMinutes: null,
@@ -136,7 +139,7 @@ export function formatDeadlineCountdown(
   const deadlineDate = parseDeadlineDate(deadline);
   if (!deadlineDate) {
     return {
-      label: "Дедлайн не задан",
+      label: locale === "ru" ? "Дедлайн не задан" : "Deadline not set",
       status: "none",
       isOverdue: false,
       totalMinutes: null,
@@ -148,7 +151,7 @@ export function formatDeadlineCountdown(
 
   if (diffMs < 0) {
     return {
-      label: formatOverdueDuration(Math.abs(diffMs)),
+      label: formatOverdueDuration(Math.abs(diffMs), locale),
       status: getCountdownStatus(totalMinutes, true),
       isOverdue: true,
       totalMinutes,
@@ -156,7 +159,7 @@ export function formatDeadlineCountdown(
   }
 
   return {
-    label: formatRemainingDuration(diffMs),
+    label: formatRemainingDuration(diffMs, locale),
     status: getCountdownStatus(totalMinutes, false),
     isOverdue: false,
     totalMinutes,
@@ -166,10 +169,11 @@ export function formatDeadlineCountdown(
 export function formatDeadlineCountdownCompact(
   deadline: string | null | undefined,
   now = new Date(),
+  locale: "ru" | "en" = "ru",
 ): DeadlineCountdown {
   if (!deadline) {
     return {
-      label: "Без срока",
+      label: locale === "ru" ? "Без срока" : "No deadline",
       status: "none",
       isOverdue: false,
       totalMinutes: null,
@@ -179,7 +183,7 @@ export function formatDeadlineCountdownCompact(
   const deadlineDate = parseDeadlineDate(deadline);
   if (!deadlineDate) {
     return {
-      label: "Без срока",
+      label: locale === "ru" ? "Без срока" : "No deadline",
       status: "none",
       isOverdue: false,
       totalMinutes: null,
@@ -191,7 +195,7 @@ export function formatDeadlineCountdownCompact(
 
   if (diffMs < 0) {
     return {
-      label: formatOverdueDurationCompact(Math.abs(diffMs)),
+      label: formatOverdueDurationCompact(Math.abs(diffMs), locale),
       status: getCountdownStatus(totalMinutes, true),
       isOverdue: true,
       totalMinutes,
@@ -199,7 +203,7 @@ export function formatDeadlineCountdownCompact(
   }
 
   return {
-    label: formatRemainingDurationCompact(diffMs),
+    label: formatRemainingDurationCompact(diffMs, locale),
     status: getCountdownStatus(totalMinutes, false),
     isOverdue: false,
     totalMinutes,

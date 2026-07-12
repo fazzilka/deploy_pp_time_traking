@@ -509,9 +509,10 @@
 /* Shared deadline-first task row */
 .task-row {
   min-height: 72px;
-  grid-template-columns: 32px minmax(0, 1fr) minmax(150px, 190px) minmax(76px, 96px) 118px;
+  grid-template-columns: 32px minmax(0, 1fr) minmax(150px, 190px) minmax(76px, 96px) 88px 34px;
   gap: 12px;
   padding: 10px 12px;
+  align-items: center;
   border-color: var(--color-border-subtle);
   border-radius: var(--radius-md);
   background: var(--color-canvas);
@@ -538,36 +539,50 @@
 }
 .task-row__description { color: var(--color-text-tertiary); }
 .task-row__meta { margin-top: 5px; color: var(--color-text-tertiary); }
-.task-row__deadline { gap: 2px; padding: 6px 9px; border: 0; border-left: 2px solid var(--color-border-strong); border-radius: var(--radius-sm); background: transparent; }
+.task-row__deadline { align-self: center; justify-self: stretch; max-width: none; gap: 2px; padding: 6px 9px; border: 0; border-left: 2px solid var(--color-border-strong); border-radius: var(--radius-sm); background: transparent; }
 .task-row__deadline--warning { border-left-color: var(--color-warning); }
 .task-row__deadline--danger, .task-row__deadline--overdue { border-left-color: var(--color-danger); }
 .task-row__deadline--safe { border-left-color: var(--color-success); }
 .task-row__deadline-label { color: var(--color-text-tertiary); font-size: 9px; font-weight: 600; }
 .task-row__deadline-date { font-size: 12px; font-weight: 600; }
 .task-row__deadline-detail { font-size: 11px; font-weight: 600; }
-.task-row__time { color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
+.task-row__time { align-self: center; justify-self: stretch; justify-items: center; text-align: center; color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
 .task-row__button, .task-row__button--completed { width: 88px; min-width: 88px; max-width: 88px; height: 34px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; }
-.task-row__delete { width: 34px; min-width: 34px; max-width: 34px; height: 34px; border-color: transparent; border-radius: var(--radius-md); background: transparent; font-size: 22px; }
+.task-row__action { width: 88px; min-width: 88px; display: flex; align-items: center; justify-content: center; align-self: center; justify-self: center; }
+.task-row__delete { align-self: center; justify-self: center; width: 34px; min-width: 34px; max-width: 34px; height: 34px; border-color: transparent; border-radius: var(--radius-md); background: transparent; font-size: 22px; }
 .task-row__delete:hover:not(:disabled) { transform: none; }
 
-@media (max-width: 620px) {
+@media (max-width: 900px) {
   .task-row {
-    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr) 88px 88px 34px;
     grid-template-areas:
-      "check content"
-      "deadline deadline"
-      "time actions";
-    align-items: start;
-    gap: 10px;
+      "check content content content content"
+      "deadline deadline time action delete";
+    gap: 10px 8px;
     padding: 12px;
   }
   .task-row__complete-button { grid-area: check; }
   .task-row__content { grid-area: content; }
   .task-row__deadline { grid-area: deadline; max-width: none; }
-  .task-row__time { grid-area: time; align-self: center; justify-self: start; }
-  .task-row__actions { grid-area: actions; }
-  .task-row__actions { justify-content: flex-end; }
-  .task-row__button, .task-row__button--completed { flex: 0 1 100px; }
+  .task-row__time { grid-area: time; }
+  .task-row__action { grid-area: action; }
+  .task-row__delete { grid-area: delete; }
+}
+
+@media (max-width: 620px) {
+  .task-row {
+    grid-template-columns: 28px minmax(0, 1fr) 88px 34px;
+    grid-template-areas:
+      "check content content content"
+      "deadline deadline deadline deadline"
+      "time time action delete";
+    gap: 10px 6px;
+  }
+
+  .task-row__time {
+    justify-items: start;
+    text-align: left;
+  }
 }
 
 .task-row .task-row__button,

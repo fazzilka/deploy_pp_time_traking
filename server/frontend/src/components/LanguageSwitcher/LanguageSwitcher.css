@@ -1,0 +1,31 @@
+.language-switcher {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 34px);
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-1);
+}
+
+.language-switcher__option {
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.language-switcher__option:hover { color: var(--color-text-primary); }
+.language-switcher__option[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.language-switcher__option:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }

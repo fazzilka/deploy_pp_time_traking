@@ -1,4 +1,5 @@
 import { forwardRef, useState } from "react";
+import { useLocale } from "../../i18n";
 import "./PasswordInput.css";
 
 type PasswordInputProps = {
@@ -29,9 +30,10 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
   },
   ref,
 ) {
+  const { text } = useLocale();
   const [isVisible, setIsVisible] = useState(false);
   const inputId = id ?? name;
-  const toggleLabel = isVisible ? "Скрыть пароль" : "Показать пароль";
+  const toggleLabel = isVisible ? text("Скрыть пароль", "Hide password") : text("Показать пароль", "Show password");
   const toggleIcon = isVisible ? "●" : "○";
 
   function togglePasswordVisibility() {

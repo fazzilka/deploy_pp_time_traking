@@ -2,6 +2,7 @@ import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import type { Task } from "../../shared/types/task";
 import { formatDeadlineCountdown } from "../../shared/utils/deadline";
 import { formatDuration } from "../../shared/utils/time";
+import { useLocale } from "../../i18n";
 import "./TimerCard.css";
 
 type TimerCardProps = {
@@ -13,19 +14,20 @@ type TimerCardProps = {
 };
 
 export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, onStop }: TimerCardProps) {
-  const deadlineCountdown = formatDeadlineCountdown(activeTask?.deadline);
+  const { locale, t } = useLocale();
+  const deadlineCountdown = formatDeadlineCountdown(activeTask?.deadline, undefined, locale);
   const deadlineHint = activeTask
     ? deadlineCountdown.status === "none"
-      ? "Добавьте срок, чтобы видеть обратный отсчёт"
+      ? t("timer.addDeadline")
       : deadlineCountdown.isOverdue
-        ? "Дедлайн уже прошёл"
-        : "Оставшееся время до срока задачи"
-    : "Запустите таймер у задачи из очереди";
+        ? t("timer.deadlinePassed")
+        : t("timer.deadlineRemaining")
+    : t("timer.startHint");
 
   return (
-    <section className={`timer-card${activeTask ? "" : " timer-card--empty"}`} aria-label="Активный таймер">
+    <section className={`timer-card${activeTask ? "" : " timer-card--empty"}`} aria-label={t("timer.label")}>
       <div className="timer-card__main">
-        <p className="timer-card__label">Активная задача</p>
+        <p className="timer-card__label">{t("timer.activeTask")}</p>
 
         <div className="timer-card__content">
           {activeTask ? (
@@ -34,18 +36,18 @@ export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, on
               <div className="timer-card__project">
                 <ProjectBadge project={activeTask.project} fallback />
               </div>
-              <p className="timer-card__description">{activeTask.description || "Описание не указано"}</p>
+              <p className="timer-card__description">{activeTask.description || t("tasks.labels.noDescription")}</p>
             </>
           ) : (
             <>
-              <h2 className="timer-card__title">Нет активной задачи</h2>
-              <p className="timer-card__description">Запустите таймер у любой задачи из очереди.</p>
+              <h2 className="timer-card__title">{t("timer.noTask")}</h2>
+              <p className="timer-card__description">{t("timer.noTaskDescription")}</p>
             </>
           )}
         </div>
 
         <div className="timer-card__deadline" aria-live="polite">
-          <span className="timer-card__deadline-label">До дедлайна</span>
+          <span className="timer-card__deadline-label">{t("timer.deadline")}</span>
           <strong
             className={`timer-card__deadline-countdown timer-card__deadline-countdown--${deadlineCountdown.status}`}
           >
@@ -55,16 +57,16 @@ export function TimerCard({ activeTask, elapsedTime, activeCount, isStopping, on
         </div>
 
         <div className="timer-card__session-time">
-          <span>В работе</span>
+          <span>{t("timer.inProgress")}</span>
           <strong className="timer-card__session-time-value">{formatDuration(activeTask ? elapsedTime : 0)}</strong>
-          <em>Активно таймеров: {activeTask ? activeCount : 0}</em>
+          <em>{t("timer.activeCount", { count: activeTask ? activeCount : 0 })}</em>
         </div>
       </div>
 
       {activeTask ? (
         <div className="timer-card__actions">
           <button className="timer-card__stop button button--red" type="button" onClick={onStop} disabled={isStopping}>
-            {isStopping ? "Стоп..." : "Остановить"}
+            {isStopping ? t("timer.stopping") : t("tasks.actions.stop")}
           </button>
         </div>
       ) : null}

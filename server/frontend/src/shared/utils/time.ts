@@ -15,28 +15,28 @@ export function formatDuration(seconds: number): string {
   return `${pad(hours)}:${pad(minutes)}:${pad(restSeconds)}`;
 }
 
-export function formatHumanDuration(seconds: number): string {
+export function formatHumanDuration(seconds: number, locale: "ru" | "en" = "ru"): string {
   const safeSeconds = clampSeconds(seconds);
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
 
   if (hours <= 0) {
-    return `${minutes} мин`;
+    return locale === "ru" ? `${minutes} мин` : `${minutes} min`;
   }
 
   if (minutes <= 0) {
-    return `${hours} ч`;
+    return locale === "ru" ? `${hours} ч` : `${hours} hr`;
   }
 
-  return `${hours} ч ${minutes} мин`;
+  return locale === "ru" ? `${hours} ч ${minutes} мин` : `${hours} hr ${minutes} min`;
 }
 
 export function getElapsedSeconds(startedAt: string): number {
   return clampSeconds((Date.now() - new Date(startedAt).getTime()) / 1000);
 }
 
-export function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("ru-RU", {
+export function formatDate(value: string, locale: "ru" | "en" = "ru"): string {
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", {
     day: "2-digit",
     month: "long",
     year: "numeric",

@@ -6,6 +6,13 @@
   color: var(--color-text-primary);
 }
 
+.auth-page__language {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
 .auth-intro {
   min-height: 100dvh;
   display: flex;

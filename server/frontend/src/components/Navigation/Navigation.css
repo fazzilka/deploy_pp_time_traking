@@ -906,11 +906,13 @@
 }
 
 @media (max-width: 640px) {
-  .navigation__inner { gap: 8px; }
-  .navigation__left { width: calc(100% - 84px); flex-direction: row; align-items: center; }
+  .navigation__inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .navigation__left { width: auto; min-width: 0; flex-direction: row; align-items: center; }
   .navigation__brand { display: none; }
   .navigation__workspace { width: 100%; }
-  .navigation__links { width: 100%; justify-content: flex-start; gap: 2px; }
+  .navigation__user { min-width: 0; }
+  .navigation__username { display: none; }
+  .navigation__links { grid-column: 1 / -1; width: 100%; min-width: 0; justify-content: flex-start; gap: 2px; }
   .navigation__links a { min-width: max-content; padding-inline: 10px; }
 }
 

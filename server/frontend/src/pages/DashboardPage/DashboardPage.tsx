@@ -12,6 +12,7 @@ import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer, update
 import type { ProjectListItem } from "../../shared/types/project";
 import type { Task, TaskPriority } from "../../shared/types/task";
 import { canCreateTasks, canDeleteTasks, useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import { useLocale } from "../../i18n";
 import "./DashboardPage.css";
 
 type ActiveTimerState = {
@@ -35,6 +36,7 @@ function keepActiveIntervalsOnly(task: Task): Task {
 }
 
 export function DashboardPage() {
+  const { t } = useLocale();
   const [searchParams] = useSearchParams();
   const { currentWorkspaceId, currentUserRole } = useWorkspace();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -147,7 +149,7 @@ export function DashboardPage() {
         return nextTasks.find((task) => task.id === currentTask.id) ?? null;
       });
     } catch {
-      setError("Не удалось загрузить задачи");
+      setError(t("tasks.errors.load"));
     } finally {
       setIsLoading(false);
     }
@@ -189,7 +191,7 @@ export function DashboardPage() {
 
   function openCreateTask() {
     if (!canMutateTasks) {
-      setError("В текущей роли задачи доступны только для просмотра");
+      setError(t("tasks.errors.readOnly"));
       return;
     }
     setNewProjectId(getDefaultProjectForCreate());
@@ -255,7 +257,7 @@ export function DashboardPage() {
 
   async function handleStart(taskId: number) {
     if (!canMutateTasks) {
-      setError("Недостаточно прав для запуска таймера");
+      setError(t("tasks.errors.timerPermission"));
       return;
     }
 
@@ -265,7 +267,7 @@ export function DashboardPage() {
 
     const previousTask = tasks.find((task) => task.id === taskId) ?? null;
     if (previousTask?.is_completed) {
-      setError("Нельзя запустить таймер для завершённой задачи");
+      setError(t("tasks.errors.completedTimer"));
       return;
     }
 
@@ -286,7 +288,7 @@ export function DashboardPage() {
       }));
       replaceTask(previousTask, updatedTask);
     } catch {
-      setError("Не удалось запустить таймер");
+      setError(t("tasks.errors.timerStart"));
     } finally {
       setBusyTaskId(null);
     }
@@ -294,7 +296,7 @@ export function DashboardPage() {
 
   async function handleStop(taskId: number) {
     if (!canMutateTasks) {
-      setError("Недостаточно прав для остановки таймера");
+      setError(t("tasks.errors.timerStopPermission"));
       return;
     }
 
@@ -311,7 +313,7 @@ export function DashboardPage() {
       });
       replaceTask(previousTask, updatedTask);
     } catch {
-      setError("Не удалось остановить таймер");
+      setError(t("tasks.errors.timerStop"));
     } finally {
       setBusyTaskId(null);
     }
@@ -319,12 +321,12 @@ export function DashboardPage() {
 
   async function handleToggleCompleted(task: Task) {
     if (!canMutateTasks) {
-      setError("Недостаточно прав для изменения задачи");
+      setError(t("tasks.errors.editPermission"));
       return;
     }
 
     if (activeTimers[task.id] || getActiveInterval(task)) {
-      setError("Сначала остановите таймер");
+      setError(t("tasks.errors.stopFirst"));
       return;
     }
 
@@ -344,7 +346,7 @@ export function DashboardPage() {
       replaceTask(optimisticTask, updatedTask);
     } catch (caughtError) {
       replaceTask(optimisticTask, task);
-      setError(caughtError instanceof Error ? caughtError.message : "Не удалось обновить задачу");
+      setError(caughtError instanceof Error ? caughtError.message : t("tasks.errors.update"));
     } finally {
       setBusyTaskId(null);
     }
@@ -352,11 +354,11 @@ export function DashboardPage() {
 
   async function handleDelete(taskId: number) {
     if (!canDeleteTask) {
-      setError("Удалять задачи могут только Owner и Team Lead");
+      setError(t("tasks.errors.deletePermission"));
       return;
     }
 
-    const shouldDelete = window.confirm("Удалить задачу? Все интервалы времени по ней также будут удалены.");
+    const shouldDelete = window.confirm(t("tasks.confirm.delete"));
 
     if (!shouldDelete) {
       return;
@@ -382,7 +384,7 @@ export function DashboardPage() {
         return nextTimers;
       });
     } catch {
-      setError("Не удалось удалить задачу");
+      setError(t("tasks.errors.delete"));
     } finally {
       setBusyTaskId(null);
     }
@@ -393,12 +395,12 @@ export function DashboardPage() {
     setCreateError(null);
 
     if (!canMutateTasks) {
-      setCreateError("В текущей роли нельзя создавать задачи");
+      setCreateError(t("tasks.errors.createPermission"));
       return;
     }
 
     if (!newTitle.trim()) {
-      setCreateError("Введите название задачи");
+      setCreateError(t("tasks.errors.titleRequired"));
       return;
     }
 
@@ -427,7 +429,7 @@ export function DashboardPage() {
       setNewProjectId(getDefaultProjectForCreate());
       setIsCreateOpen(false);
     } catch {
-      setCreateError("Не удалось создать задачу");
+      setCreateError(t("tasks.errors.create"));
     }
   }
 
@@ -435,9 +437,9 @@ export function DashboardPage() {
     <main className="dashboard-page app-container">
       <section className="dashboard-hero">
         <div>
-          <p className="eyebrow">Рабочий экран</p>
-          <h1 className="page-heading">Задачи и дедлайны</h1>
-          <p className="page-copy">Контролируйте сроки, приоритеты и текущую работу в одном списке.</p>
+          <p className="eyebrow">{t("tasks.page.eyebrow")}</p>
+          <h1 className="page-heading">{t("tasks.page.title")}</h1>
+          <p className="page-copy">{t("tasks.page.description")}</p>
         </div>
         <button
           className="button button--green dashboard-hero__button"
@@ -445,7 +447,7 @@ export function DashboardPage() {
           onClick={openCreateTask}
           disabled={!canMutateTasks}
         >
-          Создать задачу
+          {t("tasks.actions.create")}
         </button>
       </section>
 
@@ -453,11 +455,11 @@ export function DashboardPage() {
 
       {error && <div className="status-message status-message--error dashboard-status">{error}</div>}
 
-      <section className="deadline-summary" aria-label="Сводка по дедлайнам">
-        <article className="deadline-summary__item deadline-summary__item--danger"><span>Просрочено</span><strong>{deadlineSummary.overdue}</strong></article>
-        <article className="deadline-summary__item deadline-summary__item--warning"><span>Сегодня</span><strong>{deadlineSummary.today}</strong></article>
-        <article className="deadline-summary__item deadline-summary__item--info"><span>На этой неделе</span><strong>{deadlineSummary.week}</strong></article>
-        <article className="deadline-summary__item"><span>Без дедлайна</span><strong>{deadlineSummary.noDeadline}</strong></article>
+      <section className="deadline-summary" aria-label={t("tasks.summary.label")}>
+        <article className="deadline-summary__item deadline-summary__item--danger"><span>{t("tasks.deadline.overdue")}</span><strong>{deadlineSummary.overdue}</strong></article>
+        <article className="deadline-summary__item deadline-summary__item--warning"><span>{t("tasks.deadline.today")}</span><strong>{deadlineSummary.today}</strong></article>
+        <article className="deadline-summary__item deadline-summary__item--info"><span>{t("tasks.summary.week")}</span><strong>{deadlineSummary.week}</strong></article>
+        <article className="deadline-summary__item"><span>{t("tasks.summary.noDeadline")}</span><strong>{deadlineSummary.noDeadline}</strong></article>
       </section>
 
       <section className="dashboard-grid">
@@ -472,12 +474,12 @@ export function DashboardPage() {
         <section className="tasks-queue">
           <div className="tasks-queue__header">
             <div>
-              <p className="tasks-queue__label">Очередь задач</p>
-              <h2>Задачи</h2>
+              <p className="tasks-queue__label">{t("tasks.queue.label")}</p>
+              <h2>{t("tasks.queue.title")}</h2>
             </div>
             <label className="tasks-queue__toggle">
               <input type="checkbox" checked={hasTimeOnly} onChange={(event) => setHasTimeOnly(event.target.checked)} />
-              Только с временем
+              {t("tasks.filters.withTime")}
             </label>
           </div>
 
@@ -487,16 +489,16 @@ export function DashboardPage() {
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Поиск по названию"
+              placeholder={t("tasks.filters.search")}
             />
             <select
               className="text-field tasks-queue__project-filter"
               value={selectedProjectFilter}
               onChange={(event) => setSelectedProjectFilter(event.target.value)}
-              aria-label="Фильтр по проекту"
+              aria-label={t("tasks.filters.projectLabel")}
             >
-              <option value="all">Все проекты</option>
-              <option value="none">Без проекта</option>
+              <option value="all">{t("tasks.filters.allProjects")}</option>
+              <option value="none">{t("tasks.labels.noProject")}</option>
               {projects.map((project) => (
                 <option key={project.id} value={String(project.id)}>
                   {project.name}
@@ -508,27 +510,27 @@ export function DashboardPage() {
           {isCreateOpen && (
             <form className="task-create" onSubmit={handleCreateTask}>
               <label className="task-create__field task-create__field--full">
-                <span>Название</span>
+                <span>{t("tasks.form.title")}</span>
                 <input
                   className="text-field"
                   type="text"
                   value={newTitle}
                   onChange={(event) => setNewTitle(event.target.value)}
-                  placeholder="Название задачи"
+                  placeholder={t("tasks.form.titlePlaceholder")}
                 />
               </label>
               <label className="task-create__field task-create__field--full">
-                <span>Описание</span>
+                <span>{t("tasks.form.description")}</span>
                 <textarea
                   className="textarea-field"
                   value={newDescription}
                   onChange={(event) => setNewDescription(event.target.value)}
-                  placeholder="Описание"
+                  placeholder={t("tasks.form.descriptionPlaceholder")}
                 />
               </label>
               <div className="task-create__row">
                 <label className="task-create__field">
-                  <span>Срок выполнения</span>
+                  <span>{t("tasks.form.deadline")}</span>
                   <input
                     className="text-field"
                     type="datetime-local"
@@ -537,17 +539,17 @@ export function DashboardPage() {
                   />
                 </label>
                 <label className="task-create__field">
-                  <span>Приоритет</span>
+                  <span>{t("tasks.form.priority")}</span>
                   <PrioritySelect value={newPriority} onChange={setNewPriority} />
                 </label>
                 <label className="task-create__field">
-                  <span>Проект</span>
+                  <span>{t("tasks.form.project")}</span>
                   <select
                     className="text-field"
                     value={newProjectId}
                     onChange={(event) => setNewProjectId(event.target.value)}
                   >
-                    <option value="none">Без проекта</option>
+                    <option value="none">{t("tasks.labels.noProject")}</option>
                     {projects.map((project) => (
                       <option key={project.id} value={String(project.id)}>
                         {project.name}
@@ -559,10 +561,10 @@ export function DashboardPage() {
               {createError && <p className="task-create__error">{createError}</p>}
               <div className="task-create__actions">
                 <button className="button button--green" type="submit">
-                  Добавить
+                  {t("tasks.form.add")}
                 </button>
                 <button className="button" type="button" onClick={() => setIsCreateOpen(false)}>
-                  Отмена
+                  {t("common.actions.cancel")}
                 </button>
               </div>
             </form>
@@ -570,7 +572,7 @@ export function DashboardPage() {
 
           <div className="tasks-queue__list">
             {isLoading ? (
-              <div className="status-message">Загружаем задачи...</div>
+              <div className="status-message">{t("tasks.loading")}</div>
             ) : tasks.length > 0 ? (
               tasks.map((task) => {
                 const isActive = Boolean(activeTimers[task.id]);
@@ -595,10 +597,10 @@ export function DashboardPage() {
               })
             ) : (
               <div className="tasks-empty">
-                <h3>Задач пока нет</h3>
-                <p>Создайте первую задачу, чтобы запустить таймер.</p>
+                <h3>{t("tasks.empty.title")}</h3>
+                <p>{t("tasks.empty.description")}</p>
                 <button className="button button--green" type="button" onClick={openCreateTask} disabled={!canMutateTasks}>
-                  Создать первую задачу
+                  {t("tasks.empty.action")}
                 </button>
               </div>
             )}

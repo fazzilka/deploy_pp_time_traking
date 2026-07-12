@@ -2,9 +2,11 @@ import type { ReactNode, FormEvent } from "react";
 import { useState } from "react";
 import { PasswordInput } from "../PasswordInput/PasswordInput";
 import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import { useLocale } from "../../i18n";
 import "./ProtectedSpaceGate.css";
 
 export function ProtectedSpaceGate({ children }: { children: ReactNode }) {
+  const { text } = useLocale();
   const { isCurrentWorkspaceProtectedLocked, unlockProtectedPersonalSpace } = useWorkspace();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function ProtectedSpaceGate({ children }: { children: ReactNode }) {
       await unlockProtectedPersonalSpace(password);
       setPassword("");
     } catch (unlockError) {
-      setError(unlockError instanceof Error ? unlockError.message : "Не удалось разблокировать");
+      setError(unlockError instanceof Error ? unlockError.message : text("Не удалось разблокировать", "Could not unlock the space"));
     } finally {
       setIsSubmitting(false);
     }
@@ -38,17 +40,16 @@ export function ProtectedSpaceGate({ children }: { children: ReactNode }) {
           </svg>
         </div>
         <div>
-          <p className="eyebrow">Protected Space</p>
-          <h1>Защищённое пространство</h1>
+          <p className="eyebrow">{text("Защищённое пространство", "Protected space")}</p>
+          <h1>{text("Защищённое пространство", "Protected space")}</h1>
           <p className="protected-space-gate__copy">
-            Введите защитный пароль, чтобы продолжить. Используйте отдельный пароль,
-            не совпадающий с паролем аккаунта.
+            {text("Введите защитный пароль, чтобы продолжить. Используйте отдельный пароль, не совпадающий с паролем аккаунта.", "Enter the security password to continue. Use a separate password that differs from your account password.")}
           </p>
         </div>
 
         <PasswordInput
           name="vault-password"
-          label="Защитный пароль"
+          label={text("Защитный пароль", "Security password")}
           value={password}
           required
           autoComplete="current-password"
@@ -57,7 +58,7 @@ export function ProtectedSpaceGate({ children }: { children: ReactNode }) {
         />
 
         <button className="protected-space-gate__button" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Проверяем..." : "Разблокировать"}
+          {isSubmitting ? text("Проверяем...", "Checking...") : text("Разблокировать", "Unlock")}
         </button>
       </form>
     </main>

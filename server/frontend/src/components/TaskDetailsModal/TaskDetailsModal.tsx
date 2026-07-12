@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { GeneratedAvatar } from "../GeneratedAvatar/GeneratedAvatar";
 import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
-import { PriorityIcon, priorityMeta } from "../PriorityIcon/PriorityIcon";
+import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
+import { useLocale } from "../../i18n";
 import { updateTask } from "../../shared/api/tasks";
 import {
   createTaskComment,
@@ -61,6 +62,7 @@ export function TaskDetailsModal({
   canDeleteTask = true,
   canEditTask = true,
 }: TaskDetailsModalProps) {
+  const { locale, t, text } = useLocale();
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(task.description ?? "");
   const [isSavingDescription, setIsSavingDescription] = useState(false);
@@ -92,7 +94,7 @@ export function TaskDetailsModal({
           : "task-info-card__hint--muted";
   const hasDescription = Boolean(task.description?.trim());
   const isCompleted = task.is_completed;
-  const statusText = isCompleted ? "Задача завершена" : isActive ? "Таймер запущен" : "Таймер остановлен";
+  const statusText = isCompleted ? text("Задача завершена", "Task completed") : isActive ? text("Таймер запущен", "Timer running") : text("Таймер остановлен", "Timer stopped");
 
   useEffect(() => {
     setDescriptionDraft(task.description ?? "");
@@ -141,7 +143,7 @@ export function TaskDetailsModal({
       onTaskUpdated(task, updatedTask);
       setIsDescriptionEditing(false);
     } catch (caughtError) {
-      setDescriptionError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить описание");
+      setDescriptionError(caughtError instanceof Error ? caughtError.message : text("Не удалось сохранить описание", "Could not save description"));
     } finally {
       setIsSavingDescription(false);
     }
@@ -171,7 +173,7 @@ export function TaskDetailsModal({
       });
       onTaskUpdated(task, updatedTask);
     } catch (caughtError) {
-      setProjectError(caughtError instanceof Error ? caughtError.message : "Не удалось изменить проект");
+      setProjectError(caughtError instanceof Error ? caughtError.message : text("Не удалось изменить проект", "Could not change project"));
     } finally {
       setIsSavingProject(false);
     }
@@ -185,7 +187,7 @@ export function TaskDetailsModal({
       setCommentsPage(page);
       setCommentsLoaded(true);
     } catch (caughtError) {
-      setCommentsError(caughtError instanceof Error ? caughtError.message : "Не удалось загрузить комментарии");
+      setCommentsError(caughtError instanceof Error ? caughtError.message : text("Не удалось загрузить комментарии", "Could not load comments"));
     } finally {
       setIsCommentsLoading(false);
     }
@@ -261,7 +263,7 @@ export function TaskDetailsModal({
       setCommentDraft("");
       window.setTimeout(() => textareaRef.current?.focus(), 0);
     } catch (caughtError) {
-      setCommentsError(caughtError instanceof Error ? caughtError.message : "Не удалось отправить комментарий");
+      setCommentsError(caughtError instanceof Error ? caughtError.message : text("Не удалось отправить комментарий", "Could not post comment"));
     } finally {
       setIsSubmittingComment(false);
     }
@@ -292,14 +294,14 @@ export function TaskDetailsModal({
       );
       setEditingCommentId(null);
     } catch (caughtError) {
-      setCommentsError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить комментарий");
+      setCommentsError(caughtError instanceof Error ? caughtError.message : text("Не удалось сохранить комментарий", "Could not save comment"));
     } finally {
       setBusyCommentId(null);
     }
   }
 
   async function handleDeleteComment(comment: TaskComment) {
-    if (busyCommentId !== null || !window.confirm("Удалить комментарий?\nКомментарий будет скрыт для участников задачи.")) {
+    if (busyCommentId !== null || !window.confirm(text("Удалить комментарий?\nКомментарий будет скрыт для участников задачи.", "Delete this comment?\nIt will be hidden from task participants."))) {
       return;
     }
     try {
@@ -318,7 +320,7 @@ export function TaskDetailsModal({
         };
       });
     } catch (caughtError) {
-      setCommentsError(caughtError instanceof Error ? caughtError.message : "Не удалось удалить комментарий");
+      setCommentsError(caughtError instanceof Error ? caughtError.message : text("Не удалось удалить комментарий", "Could not delete comment"));
     } finally {
       setBusyCommentId(null);
     }
@@ -339,7 +341,7 @@ export function TaskDetailsModal({
             >
               {task.title}
             </h2>
-            <button className="task-details-modal__close" type="button" onClick={onClose} aria-label="Закрыть">
+            <button className="task-details-modal__close" type="button" onClick={onClose} aria-label={t("common.actions.close")}>
               ×
             </button>
           </div>
@@ -349,7 +351,7 @@ export function TaskDetailsModal({
         </header>
 
         <div className="task-details-modal__body">
-          <div className="task-details-modal__tabs" role="tablist" aria-label="Разделы задачи">
+          <div className="task-details-modal__tabs" role="tablist" aria-label={text("Разделы задачи", "Task sections")}>
             <button
               className={`task-details-modal__tab${activeTab === "about" ? " task-details-modal__tab--active" : ""}`}
               type="button"
@@ -373,7 +375,7 @@ export function TaskDetailsModal({
           {activeTab === "about" ? (
             <>
               <section className={`task-description${isDescriptionEditing ? " task-description--editing" : ""}`}>
-                <h3 className="task-description__title">Описание</h3>
+                <h3 className="task-description__title">{t("tasks.labels.description")}</h3>
 
                 {isDescriptionEditing ? (
                   <div className="task-description__editor">
@@ -383,7 +385,7 @@ export function TaskDetailsModal({
                       onChange={(event) => setDescriptionDraft(event.target.value)}
                       onKeyDown={handleDescriptionKeyDown}
                       autoFocus
-                      placeholder="Добавьте описание..."
+                      placeholder={text("Добавьте описание...", "Add a description...")}
                       disabled={isSavingDescription}
                     />
 
@@ -394,7 +396,7 @@ export function TaskDetailsModal({
                         onClick={() => void handleSaveDescription()}
                         disabled={isSavingDescription}
                       >
-                        {isSavingDescription ? "Сохраняем..." : "Сохранить"}
+                        {t(isSavingDescription ? "common.actions.saving" : "common.actions.save")}
                       </button>
                       <button
                         className="task-description__cancel"
@@ -402,7 +404,7 @@ export function TaskDetailsModal({
                         onClick={handleCancelDescriptionEdit}
                         disabled={isSavingDescription}
                       >
-                        Отмена
+                        {t("common.actions.cancel")}
                       </button>
                     </div>
 
@@ -415,45 +417,45 @@ export function TaskDetailsModal({
                     onClick={handleStartDescriptionEdit}
                     disabled={!canEditTask}
                   >
-                    {hasDescription ? task.description : "Описание не указано"}
+                    {hasDescription ? task.description : t("tasks.labels.noDescription")}
                   </button>
                 )}
               </section>
 
               <div className="task-details-modal__info-grid">
                 <div className="task-info-card">
-                  <span className="task-info-card__label">Суммарное время</span>
+                  <span className="task-info-card__label">{text("Суммарное время", "Total time")}</span>
                   <strong className="task-info-card__value">{formatDuration(displaySeconds)}</strong>
                 </div>
 
                 <div className="task-info-card">
-                  <span className="task-info-card__label">Формат</span>
-                  <strong className="task-info-card__value">{formatHumanDuration(displaySeconds)}</strong>
+                  <span className="task-info-card__label">{text("Формат", "Format")}</span>
+                  <strong className="task-info-card__value">{formatHumanDuration(displaySeconds, locale)}</strong>
                 </div>
 
                 <div className="task-info-card">
-                  <span className="task-info-card__label">Срок выполнения</span>
-                  <strong className="task-info-card__value">{formatDeadline(task.deadline)}</strong>
-                  <span className={`task-info-card__hint ${deadlineHintClass}`}>{getDeadlineLabel(task.deadline)}</span>
+                  <span className="task-info-card__label">{t("tasks.form.deadline")}</span>
+                  <strong className="task-info-card__value">{formatDeadline(task.deadline, locale)}</strong>
+                  <span className={`task-info-card__hint ${deadlineHintClass}`}>{getDeadlineLabel(task.deadline, locale)}</span>
                 </div>
 
                 <div className="task-info-card">
-                  <span className="task-info-card__label">Приоритет</span>
+                  <span className="task-info-card__label">{t("tasks.labels.priority")}</span>
                   <div className="task-info-card__priority">
                     <PriorityIcon priority={task.priority} />
-                    <span>{priorityMeta[task.priority].label}</span>
+                    <span>{t(`tasks.priority.${task.priority}`)}</span>
                   </div>
                 </div>
 
                 <div className="task-info-card">
-                  <span className="task-info-card__label">Проект</span>
+                  <span className="task-info-card__label">{t("tasks.labels.project")}</span>
                   <select
                     className="task-info-card__select"
                     value={task.project_id == null ? "none" : String(task.project_id)}
                     onChange={(event) => void handleProjectChange(event.target.value)}
                     disabled={isSavingProject || !canEditTask}
                   >
-                    <option value="none">Без проекта</option>
+                    <option value="none">{t("tasks.labels.noProject")}</option>
                     {projects.map((project) => (
                       <option key={project.id} value={String(project.id)}>
                         {project.name}
@@ -464,16 +466,16 @@ export function TaskDetailsModal({
                 </div>
               </div>
 
-              {task.created_at && <p className="task-details-modal__created">Создана: {formatDate(task.created_at)}</p>}
+              {task.created_at && <p className="task-details-modal__created">{text("Создана", "Created")}: {formatDate(task.created_at, locale)}</p>}
             </>
           ) : (
-            <section className="task-comments" aria-label="Комментарии задачи">
+            <section className="task-comments" aria-label={text("Комментарии задачи", "Task comments")}>
               <div className="task-comments__header">
-                <h3>Комментарии</h3>
+                <h3>{text("Комментарии", "Comments")}</h3>
                 <span>{commentsCount}</span>
               </div>
 
-              {isCommentsLoading && !commentsLoaded && <p className="task-comments__state">Загружаем комментарии...</p>}
+              {isCommentsLoading && !commentsLoaded && <p className="task-comments__state">{text("Загружаем комментарии...", "Loading comments...")}</p>}
               {commentsError && <p className="task-comments__error">{commentsError}</p>}
 
               <div className="task-comments__list">
@@ -491,7 +493,7 @@ export function TaskDetailsModal({
                       <div className="task-comment__body">
                         <div className="task-comment__meta">
                           <strong>{getAuthorDisplayName(comment)}</strong>
-                          <span>{formatDate(comment.created_at)}</span>
+                          <span>{formatDate(comment.created_at, locale)}</span>
                         </div>
 
                         {editingCommentId === comment.id && !comment.is_deleted ? (
@@ -528,9 +530,9 @@ export function TaskDetailsModal({
                         ) : (
                           <>
                             <p className="task-comment__text">
-                              {comment.is_deleted ? "Комментарий удалён" : comment.body}
+                              {comment.is_deleted ? text("Комментарий удалён", "Comment deleted") : comment.body}
                             </p>
-                            {comment.updated_at && !comment.is_deleted && <span className="task-comment__edited">изменено</span>}
+                            {comment.updated_at && !comment.is_deleted && <span className="task-comment__edited">{text("изменено", "edited")}</span>}
                           </>
                         )}
                       </div>
@@ -552,7 +554,7 @@ export function TaskDetailsModal({
                     </article>
                   ))
                 ) : (
-                  !isCommentsLoading && <p className="task-comments__state">Комментариев пока нет.</p>
+                  !isCommentsLoading && <p className="task-comments__state">{text("Комментариев пока нет.", "No comments yet.")}</p>
                 )}
               </div>
 
@@ -565,7 +567,7 @@ export function TaskDetailsModal({
                       value={commentDraft}
                       onChange={(event) => setCommentDraft(event.target.value)}
                       onKeyDown={handleCommentKeyDown}
-                      placeholder="Напишите комментарий…"
+                      placeholder={text("Напишите комментарий…", "Write a comment...")}
                       maxLength={5000}
                       disabled={isSubmittingComment}
                     />
@@ -577,12 +579,12 @@ export function TaskDetailsModal({
                         onClick={() => void handleSubmitComment()}
                         disabled={!commentDraft.trim() || isSubmittingComment}
                       >
-                        {isSubmittingComment ? "Отправляем..." : "Отправить"}
+                        {isSubmittingComment ? text("Отправляем...", "Sending...") : text("Отправить", "Send")}
                       </button>
                     </div>
                   </>
                 ) : (
-                  <p className="task-comments__viewer-note">У вас есть доступ к просмотру комментариев.</p>
+                  <p className="task-comments__viewer-note">{text("У вас есть доступ к просмотру комментариев.", "You have read-only access to comments.")}</p>
                 )}
               </div>
             </section>
@@ -596,7 +598,7 @@ export function TaskDetailsModal({
             onClick={() => (isActive ? onStop(task.id) : onStart(task.id))}
             disabled={isBusy || !canStartTimer || (isCompleted && !isActive)}
           >
-            {isActive ? "Остановить" : isCompleted ? "Done" : "Start"}
+            {t(isActive ? "tasks.actions.stop" : isCompleted ? "tasks.actions.completed" : "tasks.actions.start")}
           </button>
           <button
             className="button button--red"
@@ -604,7 +606,7 @@ export function TaskDetailsModal({
             onClick={() => onDelete(task.id)}
             disabled={isBusy || !canDeleteTask}
           >
-            Удалить
+            {t("common.actions.delete")}
           </button>
           <button className="button" type="button" onClick={onClose}>
             Закрыть

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { PriorityIcon, priorityMeta } from "../PriorityIcon/PriorityIcon";
+import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
 import type { TaskPriority } from "../../shared/types/task";
+import { useLocale } from "../../i18n";
 import "./PrioritySelect.css";
 
 type PrioritySelectProps = {
@@ -11,9 +12,9 @@ type PrioritySelectProps = {
 const priorities: TaskPriority[] = ["highest", "high", "medium", "low", "lowest"];
 
 export function PrioritySelect({ value, onChange }: PrioritySelectProps) {
+  const { t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const selectedMeta = priorityMeta[value];
 
   useEffect(() => {
     if (!isOpen) {
@@ -46,7 +47,7 @@ export function PrioritySelect({ value, onChange }: PrioritySelectProps) {
       >
         <span className="priority-select__value">
           <PriorityIcon priority={value} />
-          <span className="priority-select__label">{selectedMeta.label}</span>
+          <span className="priority-select__label">{t(`tasks.priority.${value}`)}</span>
         </span>
         <span className="priority-select__chevron" aria-hidden="true">
           v
@@ -65,7 +66,7 @@ export function PrioritySelect({ value, onChange }: PrioritySelectProps) {
               onClick={() => handleSelect(priority)}
             >
               <PriorityIcon priority={priority} />
-              <span>{priorityMeta[priority].label}</span>
+              <span>{t(`tasks.priority.${priority}`)}</span>
             </button>
           ))}
         </div>

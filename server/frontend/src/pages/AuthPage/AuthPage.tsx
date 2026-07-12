@@ -2,6 +2,8 @@ import type { FormEvent} from "react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
+import { LanguageSwitcher } from "../../components/LanguageSwitcher/LanguageSwitcher";
+import { useLocale } from "../../i18n";
 import { isAuthenticated, login, register, saveAccessToken } from "../../shared/api/auth";
 import "./AuthPage.css";
 
@@ -25,6 +27,7 @@ const initialFormState: AuthFormState = {
 
 export function AuthPage() {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const [mode, setMode] = useState<AuthMode>("login");
   const [form, setForm] = useState<AuthFormState>(initialFormState);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +69,12 @@ export function AuthPage() {
 
     if (!isLogin) {
       if (form.password.length < 6) {
-        setError("Пароль должен содержать не менее 6 символов");
+        setError(t("auth.validation.passwordLength"));
         return;
       }
 
       if (form.password !== form.confirmPassword) {
-        setError("Пароли не совпадают");
+        setError(t("auth.validation.passwordMismatch"));
         return;
       }
     }
@@ -99,18 +102,17 @@ export function AuthPage() {
       }
 
       setMode("login");
-      setMessage("Аккаунт создан, теперь войдите");
+      setMessage(t("auth.messages.created"));
     } catch (caughtError) {
       if (isLogin) {
         setForm((current) => ({
           ...current,
           password: "",
         }));
-        setError("Неверный логин или пароль");
+        setError(t("auth.errors.credentials"));
         passwordInputRef.current?.focus();
       } else {
-        const nextError = caughtError instanceof Error ? caughtError.message : "Не удалось выполнить запрос";
-        setError(nextError);
+        setError(caughtError instanceof Error && caughtError.message ? caughtError.message : t("common.errors.generic"));
       }
     } finally {
       isSubmittingRef.current = false;
@@ -120,16 +122,17 @@ export function AuthPage() {
 
   return (
     <main className="auth-page">
+      <LanguageSwitcher className="auth-page__language" />
       <section className="auth-intro" aria-labelledby="auth-brand-title">
         <div className="auth-intro__brand"><span aria-hidden="true">TT</span> Time Tracking</div>
         <div className="auth-intro__content">
-          <p className="eyebrow">Рабочее пространство команды</p>
-          <h1 id="auth-brand-title">Задачи, сроки и нагрузка в одном спокойном ритме.</h1>
-          <p>Контролируйте состояние проектов и дедлайны, не теряя контекст ежедневной работы.</p>
+          <p className="eyebrow">{t("auth.eyebrow")}</p>
+          <h1 id="auth-brand-title">{t("auth.hero.title")}</h1>
+          <p>{t("auth.hero.description")}</p>
           <ul>
-            <li>Приоритеты и ближайшие сроки</li>
-            <li>Состояние проектов и команды</li>
-            <li>Учёт времени без лишнего внимания</li>
+            <li>{t("auth.hero.priority")}</li>
+            <li>{t("auth.hero.projects")}</li>
+            <li>{t("auth.hero.time")}</li>
           </ul>
         </div>
       </section>
@@ -137,12 +140,12 @@ export function AuthPage() {
       <section className="auth-panel" aria-labelledby="auth-form-title">
         <div className="auth-page__logo" aria-hidden="true">TT</div>
         <p className="auth-panel__brand">Time Tracking</p>
-        <h2 id="auth-form-title">{isLogin ? "Вход в аккаунт" : "Создание аккаунта"}</h2>
-        <p className="auth-panel__copy">{isLogin ? "Продолжите работу со своими задачами." : "Создайте рабочее пространство за минуту."}</p>
+        <h2 id="auth-form-title">{t(isLogin ? "auth.login.title" : "auth.register.title")}</h2>
+        <p className="auth-panel__copy">{t(isLogin ? "auth.login.description" : "auth.register.description")}</p>
 
         <form className="auth-card" onSubmit={handleSubmit}>
         <div className="auth-field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{t("auth.fields.email")}</label>
           <input
             id="email"
             type="email"
@@ -156,7 +159,7 @@ export function AuthPage() {
         {!isLogin && (
           <>
             <div className="auth-field">
-              <label htmlFor="username">Username</label>
+              <label htmlFor="username">{t("auth.fields.username")}</label>
               <input
                 id="username"
                 type="text"
@@ -168,7 +171,7 @@ export function AuthPage() {
             </div>
 
             <div className="auth-field">
-              <label htmlFor="fullName">Full name</label>
+              <label htmlFor="fullName">{t("auth.fields.fullName")}</label>
               <input
                 id="fullName"
                 type="text"
@@ -184,7 +187,7 @@ export function AuthPage() {
           ref={passwordInputRef}
           id="password"
           name="password"
-          label="Password"
+          label={t("auth.fields.password")}
           value={form.password}
           autoComplete={isLogin ? "current-password" : "new-password"}
           required
@@ -196,7 +199,7 @@ export function AuthPage() {
           <PasswordInput
             id="confirmPassword"
             name="confirmPassword"
-            label="Confirm your password"
+            label={t("auth.fields.confirmPassword")}
             value={form.confirmPassword}
             autoComplete="new-password"
             required
@@ -209,14 +212,14 @@ export function AuthPage() {
         {message && <p className="auth-card__message">{message}</p>}
 
         <button className="auth-submit" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Подождите..." : isLogin ? "Войти" : "Зарегистрироваться"}
+          {isSubmitting ? t("auth.actions.submitting") : t(isLogin ? "auth.actions.signIn" : "auth.actions.register")}
         </button>
         </form>
 
         <div className="auth-switch-card">
-          {isLogin ? "Нет аккаунта?" : "Уже есть аккаунт?"}{" "}
+          {t(isLogin ? "auth.switch.noAccount" : "auth.switch.hasAccount")}{" "}
           <button type="button" onClick={() => switchMode(isLogin ? "register" : "login")}>
-            {isLogin ? "Создать" : "Войти"}
+            {t(isLogin ? "auth.switch.create" : "auth.actions.signIn")}
           </button>
         </div>
       </section>

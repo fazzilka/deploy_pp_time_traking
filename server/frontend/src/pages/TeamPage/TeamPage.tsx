@@ -23,6 +23,7 @@ import {
   useWorkspace,
 } from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
+import { useLocale } from "../../i18n";
 import "./TeamPage.css";
 
 type TeamIconName =
@@ -39,25 +40,6 @@ type TeamIconName =
   | "shield"
   | "activity"
   | "chevron";
-
-const roleLabels: Record<WorkspaceRole, string> = {
-  owner: "Owner",
-  team_lead: "Team Lead",
-  member: "Member",
-  viewer: "Viewer",
-};
-
-const roleDescriptions: Record<WorkspaceRole, string> = {
-  owner: "Полный доступ ко всем настройкам, участникам и данным.",
-  team_lead: "Управление проектами, задачами и участниками команды.",
-  member: "Доступ к проектам и задачам, участие в работе команды.",
-  viewer: "Только просмотр командных данных.",
-};
-
-const statusLabels: Record<WorkspaceMemberStatus, string> = {
-  active: "Активен",
-  inactive: "Оффлайн",
-};
 
 type ActionMenuPosition = {
   left: number;
@@ -211,6 +193,19 @@ function getMemberName(member: WorkspaceMember): string {
 }
 
 export function TeamPage() {
+  const { locale, t, text } = useLocale();
+  const roleLabels: Record<WorkspaceRole, string> = {
+    owner: t("roles.owner"), team_lead: t("roles.team_lead"), member: t("roles.member"), viewer: t("roles.viewer"),
+  };
+  const roleDescriptions: Record<WorkspaceRole, string> = {
+    owner: text("Полный доступ ко всем настройкам, участникам и данным.", "Full access to settings, members, and data."),
+    team_lead: text("Управление проектами, задачами и участниками команды.", "Manage projects, tasks, and team members."),
+    member: text("Доступ к проектам и задачам, участие в работе команды.", "Access projects and tasks and contribute to team work."),
+    viewer: text("Только просмотр командных данных.", "Read-only access to team data."),
+  };
+  const statusLabels: Record<WorkspaceMemberStatus, string> = {
+    active: text("Активен", "Active"), inactive: text("Оффлайн", "Offline"),
+  };
   const {
     currentWorkspace,
     currentWorkspaceId,
@@ -288,7 +283,7 @@ export function TeamPage() {
 
       setWorkspaceSummary(nextWorkspaceSummary);
     } catch {
-      setError("Не удалось загрузить команду");
+      setError(text("Не удалось загрузить команду", "Could not load team"));
     } finally {
       setIsLoading(false);
     }
@@ -376,7 +371,7 @@ export function TeamPage() {
     setSuccessMessage(null);
 
     if (!email.trim()) {
-      setInviteError("Введите email участника");
+      setInviteError(text("Введите email участника", "Enter the member's email"));
       return;
     }
 
@@ -389,11 +384,11 @@ export function TeamPage() {
       setEmail("");
       setRole("member");
       setIsInviteOpen(false);
-      setSuccessMessage("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.");
+      setSuccessMessage(text("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.", "Member added. The organization will appear after refresh or the next sign-in."));
 
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
-      setInviteError(caughtError instanceof Error ? caughtError.message : "Не удалось добавить участника");
+      setInviteError(caughtError instanceof Error ? caughtError.message : text("Не удалось добавить участника", "Could not add member"));
     }
   }
 
@@ -411,12 +406,12 @@ export function TeamPage() {
     setSuccessMessage(null);
 
     if (!canEdit) {
-      setSettingsError("У вас нет прав на изменение настроек.");
+      setSettingsError(text("У вас нет прав на изменение настроек.", "You do not have permission to change settings."));
       return;
     }
 
     if (!settingsName.trim()) {
-      setSettingsError("Введите название workspace");
+      setSettingsError(text("Введите название workspace", "Enter a workspace name"));
       return;
     }
 
@@ -428,12 +423,12 @@ export function TeamPage() {
         description: settingsDescription.trim() || null,
       });
 
-      setSuccessMessage("Настройки команды сохранены");
+      setSuccessMessage(text("Настройки команды сохранены", "Team settings saved"));
       setIsSettingsOpen(false);
 
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
-      setSettingsError(caughtError instanceof Error ? caughtError.message : "Не удалось сохранить настройки");
+      setSettingsError(caughtError instanceof Error ? caughtError.message : text("Не удалось сохранить настройки", "Could not save settings"));
     } finally {
       setIsSavingSettings(false);
     }
@@ -489,10 +484,10 @@ export function TeamPage() {
         role: nextRole,
       });
 
-      setSuccessMessage(`Роль участника ${getMemberName(member)} обновлена.`);
+      setSuccessMessage(text(`Роль участника ${getMemberName(member)} обновлена.`, `${getMemberName(member)}'s role was updated.`));
       await loadTeam();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Не удалось изменить роль участника");
+      setError(caughtError instanceof Error ? caughtError.message : text("Не удалось изменить роль участника", "Could not change member role"));
     } finally {
       setOpenMemberMenu(null);
     }
@@ -505,7 +500,7 @@ export function TeamPage() {
 
     setOpenMemberMenu(null);
 
-    const confirmed = window.confirm(`Удалить ${member.user.email} из команды?`);
+    const confirmed = window.confirm(text(`Удалить ${member.user.email} из команды?`, `Remove ${member.user.email} from the team?`));
 
     if (!confirmed) {
       return;
@@ -516,10 +511,10 @@ export function TeamPage() {
 
     try {
       await removeWorkspaceMember(currentWorkspaceId, member.id);
-      setSuccessMessage(`Участник ${getMemberName(member)} удалён из команды.`);
+      setSuccessMessage(text(`Участник ${getMemberName(member)} удалён из команды.`, `${getMemberName(member)} was removed from the team.`));
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Не удалось удалить участника из команды");
+      setError(caughtError instanceof Error ? caughtError.message : text("Не удалось удалить участника из команды", "Could not remove member from team"));
     }
   }
 
@@ -528,10 +523,10 @@ export function TeamPage() {
       <main className="team-page">
       <section className="team-hero">
         <div className="team-hero__copy">
-          <p className="team-hero__eyebrow">Командная работа</p>
-          <h1 className="team-hero__title">Команда</h1>
+          <p className="team-hero__eyebrow">{text("Командная работа", "Team workspace")}</p>
+          <h1 className="team-hero__title">{t("team.title")}</h1>
           <p className="team-hero__text">
-            Управляйте участниками, ролями и рабочим пространством в одном месте.
+            {text("Управляйте участниками, ролями и рабочим пространством в одном месте.", "Manage members, roles, and the workspace in one place.")}
           </p>
         </div>
 
@@ -543,12 +538,12 @@ export function TeamPage() {
             disabled={!canManage}
           >
             <TeamIcon name="user-plus" />
-            Пригласить участника
+            {text("Пригласить участника", "Invite member")}
           </button>
 
           <button className="team-action team-action--secondary" type="button" onClick={openSettings}>
             <TeamIcon name="gear" />
-            Настройки команды
+            {text("Настройки команды", "Team settings")}
           </button>
         </div>
       </section>
@@ -558,15 +553,15 @@ export function TeamPage() {
       {error && <div className="status-message status-message--error team-page__status">{error}</div>}
       {successMessage && <div className="team-page__notice">{successMessage}</div>}
 
-      <section className="team-stats-grid" aria-label="Сводка команды">
+      <section className="team-stats-grid" aria-label={text("Сводка команды", "Team summary")}>
         <article className="team-stat">
           <span className="team-stat__icon">
             <TeamIcon name="building" />
           </span>
 
           <div className="team-stat__content">
-            <p>Организация</p>
-            <h2>{currentWorkspace?.name ?? "Workspace"}</h2>
+            <p>{text("Организация", "Organization")}</p>
+            <h2>{currentWorkspace?.name ?? text("Рабочее пространство", "Workspace")}</h2>
           </div>
         </article>
 
@@ -576,8 +571,8 @@ export function TeamPage() {
           </span>
 
           <div className="team-stat__content">
-            <p>Команда</p>
-            <h2>Основная команда</h2>
+            <p>{t("team.title")}</p>
+            <h2>{text("Основная команда", "Core team")}</h2>
           </div>
         </article>
 
@@ -587,7 +582,7 @@ export function TeamPage() {
           </span>
 
           <div className="team-stat__content">
-            <p>Участников</p>
+            <p>{text("Участников", "Members")}</p>
             <h2>
               {membersCount} <small>{activeMembersCount} активных</small>
             </h2>
@@ -600,7 +595,7 @@ export function TeamPage() {
           </span>
 
           <div className="team-stat__content">
-            <p>Всего проектов</p>
+            <p>{text("Всего проектов", "Total projects")}</p>
             <h2>
               {projectsCount} <small>{activeProjectsCount} активных</small>
             </h2>
@@ -611,7 +606,7 @@ export function TeamPage() {
       <section className="team-layout">
         <section className="team-members-card">
           <header className="team-card-heading">
-            <h2>Участники</h2>
+            <h2>{text("Участники", "Members")}</h2>
           </header>
 
           <div className="team-filters">
@@ -621,7 +616,7 @@ export function TeamPage() {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Поиск по участникам"
+                placeholder={text("Поиск по участникам", "Search members")}
               />
             </label>
 
@@ -629,35 +624,30 @@ export function TeamPage() {
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value as "all" | WorkspaceRole)}
             >
-              <option value="all">Все роли</option>
-              <option value="owner">Owner</option>
-              <option value="team_lead">Team Lead</option>
-              <option value="member">Member</option>
-              <option value="viewer">Viewer</option>
+              <option value="all">{text("Все роли", "All roles")}</option>
+              <option value="owner">{roleLabels.owner}</option>
+              <option value="team_lead">{roleLabels.team_lead}</option>
+              <option value="member">{roleLabels.member}</option>
+              <option value="viewer">{roleLabels.viewer}</option>
             </select>
 
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as "all" | WorkspaceMemberStatus)}
             >
-              <option value="all">Все участники</option>
-              <option value="active">Активные</option>
-              <option value="inactive">Оффлайн</option>
+              <option value="all">{text("Все участники", "All members")}</option>
+              <option value="active">{text("Активные", "Active")}</option>
+              <option value="inactive">{text("Оффлайн", "Offline")}</option>
             </select>
           </div>
 
           {isLoading ? (
-            <div className="team-empty-state">Загружаем участников...</div>
+            <div className="team-empty-state">{text("Загружаем участников...", "Loading members...")}</div>
           ) : (
-            <div className="team-table" role="table" aria-label="Участники workspace">
+            <div className="team-table" role="table" aria-label={text("Участники workspace", "Workspace members")}>
               <div className="team-table__head" role="row">
-                <span>Участник</span>
-                <span>Роль</span>
-                <span>Статус</span>
-                <span>Проекты</span>
-                <span>Задачи</span>
-                <span>Время</span>
-                <span>Действия</span>
+                <span>{text("Участник", "Member")}</span><span>{text("Роль", "Role")}</span><span>{text("Статус", "Status")}</span>
+                <span>{t("projects.title")}</span><span>{t("tasks.queue.title")}</span><span>{text("Время", "Time")}</span><span>{text("Действия", "Actions")}</span>
               </div>
 
               {filteredMembers.map((member) => (
@@ -694,7 +684,7 @@ export function TeamPage() {
 
                   <span className="team-number">{member.projects_count ?? 0}</span>
                   <span className="team-number">{member.tasks_count ?? 0}</span>
-                  <span className="team-time">{formatHumanDuration(member.total_time_seconds ?? 0)}</span>
+                  <span className="team-time">{formatHumanDuration(member.total_time_seconds ?? 0, locale)}</span>
 
                   <div className="team-row-actions">
                     {canManage && member.role !== "owner" ? (
@@ -705,14 +695,14 @@ export function TeamPage() {
                             ? "team-row-actions__button team-row-actions__button--active"
                             : "team-row-actions__button"
                         }
-                        aria-label={`Действия ${member.user.email}`}
+                        aria-label={text(`Действия ${member.user.email}`, `Actions for ${member.user.email}`)}
                         aria-expanded={openMemberMenu?.member.id === member.id}
                         onClick={(event) => toggleMemberMenu(member, event.currentTarget)}
                       >
                         <TeamIcon name="more" />
                       </button>
                     ) : (
-                      <button type="button" className="team-row-actions__button" disabled aria-label="Нет действий">
+                      <button type="button" className="team-row-actions__button" disabled aria-label={text("Нет действий", "No actions")}>
                         <TeamIcon name="more" />
                       </button>
                     )}
@@ -720,7 +710,7 @@ export function TeamPage() {
                 </div>
               ))}
 
-              {filteredMembers.length === 0 && <div className="team-empty-state">Участники не найдены.</div>}
+              {filteredMembers.length === 0 && <div className="team-empty-state">{text("Участники не найдены.", "No members found.")}</div>}
             </div>
           )}
 
@@ -729,7 +719,7 @@ export function TeamPage() {
               Показано {filteredMembers.length} из {members.length} участников
             </span>
 
-            <div className="team-pagination" aria-label="Пагинация участников">
+            <div className="team-pagination" aria-label={text("Пагинация участников", "Member pagination")}>
               <button type="button" disabled>
                 ‹
               </button>
@@ -745,7 +735,7 @@ export function TeamPage() {
           <section className="team-side-card">
             <div className="team-side-card__title">
               <TeamIcon name="layers" />
-              <h2>Структура</h2>
+              <h2>{text("Структура", "Structure")}</h2>
             </div>
 
             <div className="team-structure">
@@ -755,8 +745,8 @@ export function TeamPage() {
                 </span>
 
                 <div>
-                  <p>Организация</p>
-                  <strong>{currentWorkspace?.name ?? "Workspace"}</strong>
+                  <p>{text("Организация", "Organization")}</p>
+                  <strong>{currentWorkspace?.name ?? text("Рабочее пространство", "Workspace")}</strong>
                 </div>
               </article>
 
@@ -766,8 +756,8 @@ export function TeamPage() {
                 </span>
 
                 <div>
-                  <p>Команда</p>
-                  <strong>Основная команда</strong>
+                  <p>{t("team.title")}</p>
+                  <strong>{text("Основная команда", "Core team")}</strong>
                 </div>
               </article>
 
@@ -777,7 +767,7 @@ export function TeamPage() {
                 </span>
 
                 <div>
-                  <p>Участники</p>
+                  <p>{text("Участники", "Members")}</p>
                   <strong>{shownMembersCount} участников</strong>
                 </div>
               </article>
@@ -788,10 +778,10 @@ export function TeamPage() {
             <div className="team-side-card__title team-side-card__title--split">
               <span>
                 <TeamIcon name="shield" />
-                <h2>Роли</h2>
+                <h2>{text("Роли", "Roles")}</h2>
               </span>
 
-              <button type="button">Подробнее о ролях</button>
+              <button type="button">{text("Подробнее о ролях", "About roles")}</button>
             </div>
 
             <div className="team-roles">
@@ -814,17 +804,17 @@ export function TeamPage() {
               <div className="team-workload__stats">
                 <div className="team-workload__stat">
                   <strong>{tasksCount}</strong>
-                  <span>задач всего</span>
+                  <span>{text("задач всего", "total tasks")}</span>
                 </div>
 
                 <div className="team-workload__stat">
                   <strong>{completedTasksCount}</strong>
-                  <span>завершено</span>
+                  <span>{text("завершено", "completed")}</span>
                 </div>
 
                 <div className="team-workload__stat">
-                  <strong>{formatHumanDuration(totalTimeSeconds)}</strong>
-                  <span>учтено времени</span>
+                  <strong>{formatHumanDuration(totalTimeSeconds, locale)}</strong>
+                  <span>{text("учтено времени", "tracked time")}</span>
                 </div>
               </div>
             </div>
@@ -840,8 +830,8 @@ export function TeamPage() {
 
             <div className="team-invites-list">
               <div className="team-invite-empty">
-                <strong>Активных приглашений нет</strong>
-                <p>Добавляйте участников по email. Пользователь должен быть уже зарегистрирован.</p>
+                <strong>{text("Активных приглашений нет", "No active invitations")}</strong>
+                <p>{text("Добавляйте участников по email. Пользователь должен быть уже зарегистрирован.", "Add members by email. The user must already be registered.")}</p>
               </div>
             </div>
 
@@ -852,19 +842,19 @@ export function TeamPage() {
               disabled={!canManage}
             >
               <TeamIcon name="user-plus" />
-              Добавить участника
+              {text("Добавить участника", "Add member")}
             </button>
           </section>
 
           <section className="team-side-card">
             <div className="team-side-card__title">
               <TeamIcon name="activity" />
-              <h2>Активность команды</h2>
+              <h2>{text("Активность команды", "Team activity")}</h2>
             </div>
 
             <div className="team-activity-empty">
               <span />
-              <p>Активность появится после действий участников.</p>
+              <p>{text("Активность появится после действий участников.", "Activity will appear after members start working.")}</p>
             </div>
           </section>
         </aside>
@@ -879,10 +869,9 @@ export function TeamPage() {
               </span>
 
               <div>
-                <h2>Добавить участника</h2>
+                <h2>{text("Добавить участника", "Add member")}</h2>
                 <p>
-                  Пользователь должен быть уже зарегистрирован. После добавления организация появится у него в
-                  workspace switcher.
+                  {text("Пользователь должен быть уже зарегистрирован. После добавления организация появится у него в переключателе workspace.", "The user must already be registered. After being added, the organization will appear in their workspace switcher.")}
                 </p>
               </div>
             </div>
@@ -898,11 +887,11 @@ export function TeamPage() {
             </label>
 
             <label>
-              <span>Роль</span>
+              <span>{text("Роль", "Role")}</span>
               <select value={role} onChange={(event) => setRole(event.target.value as WorkspaceRole)}>
-                <option value="member">Member</option>
-                <option value="team_lead">Team Lead</option>
-                <option value="viewer">Viewer</option>
+                <option value="member">{roleLabels.member}</option>
+                <option value="team_lead">{roleLabels.team_lead}</option>
+                <option value="viewer">{roleLabels.viewer}</option>
               </select>
             </label>
 
@@ -910,11 +899,11 @@ export function TeamPage() {
 
             <div className="team-modal__actions">
               <button className="team-action team-action--primary" type="submit">
-                Добавить
+                {text("Добавить", "Add")}
               </button>
 
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
-                Отмена
+                {t("common.actions.cancel")}
               </button>
             </div>
           </form>
@@ -930,15 +919,15 @@ export function TeamPage() {
               </span>
 
               <div>
-                <h2>Настройки команды</h2>
-                <p>{currentWorkspace?.name ?? "Workspace"}</p>
+                <h2>{text("Настройки команды", "Team settings")}</h2>
+                <p>{currentWorkspace?.name ?? text("Рабочее пространство", "Workspace")}</p>
               </div>
             </div>
 
-            {!canEdit && <p className="team-modal__warning">У вас нет прав на изменение настроек.</p>}
+            {!canEdit && <p className="team-modal__warning">{text("У вас нет прав на изменение настроек.", "You do not have permission to change these settings.")}</p>}
 
             <label>
-              <span>Название</span>
+              <span>{text("Название", "Name")}</span>
               <input
                 value={settingsName}
                 onChange={(event) => setSettingsName(event.target.value)}
@@ -947,7 +936,7 @@ export function TeamPage() {
             </label>
 
             <label>
-              <span>Описание</span>
+              <span>{text("Описание", "Description")}</span>
               <textarea
                 value={settingsDescription}
                 onChange={(event) => setSettingsDescription(event.target.value)}
@@ -957,40 +946,40 @@ export function TeamPage() {
 
             <div className="team-settings-summary">
               <span>
-                <em>Тип workspace</em>
-                <strong>{currentWorkspace?.type === "team" ? "Organization" : "Personal"}</strong>
+                <em>{text("Тип workspace", "Workspace type")}</em>
+                <strong>{currentWorkspace?.type === "team" ? text("Организация", "Organization") : text("Личное", "Personal")}</strong>
               </span>
 
               <span>
-                <em>Моя роль</em>
-                <strong>{currentUserRole ? roleLabels[currentUserRole] : "Viewer"}</strong>
+                <em>{text("Моя роль", "My role")}</em>
+                <strong>{currentUserRole ? roleLabels[currentUserRole] : t("roles.viewer")}</strong>
               </span>
 
               <span>
-                <em>Участников</em>
+                <em>{text("Участников", "Members")}</em>
                 <strong>{membersCount}</strong>
               </span>
 
               <span>
-                <em>Проектов</em>
+                <em>{text("Проектов", "Projects")}</em>
                 <strong>{projectsCount}</strong>
               </span>
             </div>
 
             <div className="team-danger-zone">
-              <strong>Архивация организации</strong>
-              <p>Будет добавлена отдельной безопасной операцией позже.</p>
+              <strong>{text("Архивация организации", "Archive organization")}</strong>
+              <p>{text("Будет добавлена отдельной безопасной операцией позже.", "This will be added later as a separate safe operation.")}</p>
             </div>
 
             {settingsError && <p className="team-modal__error">{settingsError}</p>}
 
             <div className="team-modal__actions">
               <button className="team-action team-action--primary" type="submit" disabled={!canEdit || isSavingSettings}>
-                {isSavingSettings ? "Сохраняем..." : "Сохранить"}
+                {t(isSavingSettings ? "common.actions.saving" : "common.actions.save")}
               </button>
 
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsSettingsOpen(false)}>
-                Отмена
+                {t("common.actions.cancel")}
               </button>
             </div>
           </form>
@@ -1012,24 +1001,24 @@ export function TeamPage() {
                 top: openMemberMenu.position.top,
               }}
               role="dialog"
-              aria-label={`Действия для ${openMemberMenu.member.user.email}`}
+              aria-label={text(`Действия для ${openMemberMenu.member.user.email}`, `Actions for ${openMemberMenu.member.user.email}`)}
             >
               <label>
-                <span>Роль</span>
+                <span>{text("Роль", "Role")}</span>
                 <select
                   value={openMemberMenu.member.role}
                   onChange={(event) =>
                     void handleRoleChange(openMemberMenu.member, event.target.value as WorkspaceRole)
                   }
                 >
-                  <option value="team_lead">Team Lead</option>
-                  <option value="member">Member</option>
-                  <option value="viewer">Viewer</option>
+                  <option value="team_lead">{roleLabels.team_lead}</option>
+                  <option value="member">{roleLabels.member}</option>
+                  <option value="viewer">{roleLabels.viewer}</option>
                 </select>
               </label>
 
               <button type="button" onClick={() => void handleRemoveMember(openMemberMenu.member)}>
-                Удалить из команды
+                {text("Удалить из команды", "Remove from team")}
               </button>
             </div>,
             document.body,

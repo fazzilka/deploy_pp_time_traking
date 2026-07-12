@@ -9,11 +9,10 @@ import {
 } from "../../shared/api/reports";
 import type { ActivityDay, ProjectsTimeSummaryResponse, SummaryResponse } from "../../shared/types/reports";
 import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
+import { useLocale } from "../../i18n";
 import { getBestActivityDay } from "../../shared/utils/activity";
 import { formatDuration, formatHumanDuration } from "../../shared/utils/time";
 import "./ReportsPage.css";
-
-const weekdayLabels = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
 type ReportsState = {
   summary: SummaryResponse;
@@ -50,8 +49,8 @@ function toLocalDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatShortDate(date: Date): string {
-  return new Intl.DateTimeFormat("ru-RU", {
+function formatShortDate(date: Date, locale: "ru" | "en"): string {
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -62,7 +61,7 @@ function shouldShowDayLabel(index: number, period: ReportPeriod): boolean {
   return period === 7 || index === 0 || index === period - 1 || (index + 1) % 5 === 0;
 }
 
-function buildTimeByDays(days: ActivityDay[], period: ReportPeriod): TimeByDay[] {
+function buildTimeByDays(days: ActivityDay[], period: ReportPeriod, locale: "ru" | "en"): TimeByDay[] {
   const secondsByDate = new Map(
     days.map((day) => [day.date, Math.max(0, Math.floor(day.total_time_seconds || 0))]),
   );
@@ -86,10 +85,10 @@ function buildTimeByDays(days: ActivityDay[], period: ReportPeriod): TimeByDay[]
 
     return {
       date: day.dateKey,
-      weekdayLabel: weekdayLabels[day.date.getDay()],
+      weekdayLabel: new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { weekday: "short" }).format(day.date),
       totalSeconds: day.totalSeconds,
       heightPercent,
-      title: `${formatShortDate(day.date)}: ${formatDuration(day.totalSeconds)}`,
+      title: `${formatShortDate(day.date, locale)}: ${formatDuration(day.totalSeconds)}`,
       showLabel: day.showLabel,
     };
   });
@@ -114,6 +113,7 @@ function buildProjectConicGradient(projectsSummary: ProjectsTimeSummaryResponse)
 }
 
 export function ReportsPage() {
+  const { locale, t } = useLocale();
   const { currentWorkspaceId } = useWorkspace();
   const [period, setPeriod] = useState<ReportPeriod>(7);
   const reportsSnapshot = useSyncExternalStore(
@@ -150,7 +150,7 @@ export function ReportsPage() {
   if (isLoading) {
     return (
       <main className="reports-page app-container">
-        <div className="status-message">Загружаем отчёты...</div>
+        <div className="status-message">{t("reports.loading")}</div>
       </main>
     );
   }
@@ -158,27 +158,27 @@ export function ReportsPage() {
   if (!reports || !stats) {
     return (
       <main className="reports-page app-container">
-        <div className="status-message status-message--error">{error || "Нет данных для отчёта"}</div>
+        <div className="status-message status-message--error">{error || t("reports.errors.noData")}</div>
       </main>
     );
   }
 
-  const timeByDays = buildTimeByDays(reports.days, period);
+  const timeByDays = buildTimeByDays(reports.days, period, locale);
   const hasAnyTimeInPeriod = timeByDays.some((day) => day.totalSeconds > 0);
   const topThreeTasks = reports.summary.top_tasks.slice(0, 3);
   const topProjects = reports.projectsSummary.items.filter((item) => item.total_time_seconds > 0).slice(0, 5);
   const maxTaskTime = Math.max(...topThreeTasks.map((task) => task.total_time_seconds), 1);
   const maxProjectTime = Math.max(...topProjects.map((project) => project.total_time_seconds), 1);
-  const periodLabel = period === 7 ? "Последние 7 дней" : "Последние 30 дней";
+  const periodLabel = t(period === 7 ? "reports.period.seven" : "reports.period.thirty");
   const hasProjectTime = reports.projectsSummary.total_time_seconds > 0;
 
   return (
     <main className="reports-page app-container">
       <section className="reports-header">
         <div>
-          <p className="eyebrow">Аналитика</p>
-          <h1 className="reports-title">Отчёты по времени</h1>
-          <p className="page-copy">Сводка времени, динамика за неделю и задачи, которые забрали больше всего внимания.</p>
+          <p className="eyebrow">{t("reports.page.eyebrow")}</p>
+          <h1 className="reports-title">{t("reports.page.title")}</h1>
+          <p className="page-copy">{t("reports.page.description")}</p>
         </div>
 
         <div className="reports-header__actions">
@@ -197,11 +197,11 @@ export function ReportsPage() {
           <select
             className="reports-period"
             value={String(period)}
-            aria-label="Период отчёта"
+            aria-label={t("reports.period.label")}
             onChange={(event) => setPeriod(event.target.value === "30" ? 30 : 7)}
           >
-            <option value="7">Последние 7 дней</option>
-            <option value="30">Последние 30 дней</option>
+            <option value="7">{t("reports.period.seven")}</option>
+            <option value="30">{t("reports.period.thirty")}</option>
           </select>
         </div>
       </section>
@@ -210,14 +210,14 @@ export function ReportsPage() {
 
       {error && <div className="status-message status-message--error reports-error">{error}</div>}
 
-      <section className="reports-stats" aria-label="Ключевые показатели">
-        <StatCard title="Всего времени" value={formatHumanDuration(reports.summary.total_time_seconds_all_tasks)} subtitle="по всем задачам" />
-        <StatCard title="Задач с временем" value={String(stats.tasksWithTime)} subtitle="есть записанные интервалы" accent="blue" />
-        <StatCard title="Среднее в день" value={formatHumanDuration(stats.averagePerDay)} subtitle="по активным дням" accent="yellow" />
+      <section className="reports-stats" aria-label={t("reports.stats.label")}>
+        <StatCard title={t("reports.stats.total")} value={formatHumanDuration(reports.summary.total_time_seconds_all_tasks, locale)} subtitle={t("reports.stats.totalSubtitle")} />
+        <StatCard title={t("reports.stats.tasks")} value={String(stats.tasksWithTime)} subtitle={t("reports.stats.tasksSubtitle")} accent="blue" />
+        <StatCard title={t("reports.stats.average")} value={formatHumanDuration(stats.averagePerDay, locale)} subtitle={t("reports.stats.averageSubtitle")} accent="yellow" />
         <StatCard
-          title="Лучший день"
+          title={t("reports.stats.best")}
           value={formatHumanDuration(stats.bestDay?.total_time_seconds ?? 0)}
-          subtitle={stats.bestDay?.date ?? "Недостаточно данных"}
+          subtitle={stats.bestDay?.date ?? t("reports.stats.noData")}
           accent="green"
         />
       </section>
@@ -226,7 +226,7 @@ export function ReportsPage() {
         <div className="week-chart">
           <div className="week-chart__header">
             <div>
-              <h2>Время по дням</h2>
+              <h2>{t("reports.charts.daily")}</h2>
               <p>{periodLabel}</p>
             </div>
           </div>
@@ -242,11 +242,11 @@ export function ReportsPage() {
             ))}
           </div>
 
-          {!hasAnyTimeInPeriod && <p className="week-chart__empty">За выбранный период пока нет закрытых интервалов</p>}
+          {!hasAnyTimeInPeriod && <p className="week-chart__empty">{t("reports.empty.period")}</p>}
         </div>
 
         <aside className="top-tasks">
-          <h2>Топ задач</h2>
+          <h2>{t("reports.charts.tasks")}</h2>
           {topThreeTasks.length > 0 ? (
             topThreeTasks.map((task, index) => (
               <article className="top-task" key={task.id}>
@@ -262,7 +262,7 @@ export function ReportsPage() {
               </article>
             ))
           ) : (
-            <div className="status-message">Недостаточно данных для отчёта</div>
+            <div className="status-message">{t("reports.empty.report")}</div>
           )}
         </aside>
       </section>
@@ -270,8 +270,8 @@ export function ReportsPage() {
       <section className="projects-report">
         <div className="projects-report__chart">
           <div>
-            <h2>Время по проектам</h2>
-            <p>Распределение общего времени по направлениям работы</p>
+            <h2>{t("reports.charts.projects")}</h2>
+            <p>{t("reports.charts.projectsDescription")}</p>
           </div>
           {hasProjectTime ? (
             <div className="projects-report__donut-wrap">
@@ -291,12 +291,12 @@ export function ReportsPage() {
               </div>
             </div>
           ) : (
-            <div className="status-message">Пока нет времени по проектам</div>
+            <div className="status-message">{t("reports.empty.projects")}</div>
           )}
         </div>
 
         <aside className="top-projects">
-          <h2>Топ проектов</h2>
+          <h2>{t("reports.charts.topProjects")}</h2>
           {topProjects.length > 0 ? (
             topProjects.map((project, index) => (
               <article className="top-project" key={project.project_id ?? "none"}>
@@ -318,7 +318,7 @@ export function ReportsPage() {
               </article>
             ))
           ) : (
-            <div className="status-message">Недостаточно данных по проектам</div>
+            <div className="status-message">{t("reports.empty.projectData")}</div>
           )}
         </aside>
       </section>

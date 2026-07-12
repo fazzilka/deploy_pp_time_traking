@@ -21,6 +21,16 @@ body {
 
 button,
 input,
+select,
+textarea {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+button { overflow-wrap: normal; }
+
+button,
+input,
 textarea,
 select {
   font: inherit;

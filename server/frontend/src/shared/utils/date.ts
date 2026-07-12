@@ -23,9 +23,9 @@ function startOfToday(): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-export function formatDeadline(deadline: string | null): string {
+export function formatDeadline(deadline: string | null, locale: "ru" | "en" = "ru"): string {
   if (!deadline) {
-    return "Без срока";
+    return locale === "ru" ? "Без срока" : "No deadline";
   }
 
   const date = parseDeadlineDate(deadline);
@@ -34,7 +34,7 @@ export function formatDeadline(deadline: string | null): string {
     return deadline;
   }
 
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -69,31 +69,31 @@ export function getDeadlineStatus(deadline: string | null): DeadlineStatus {
   return "upcoming";
 }
 
-export function getDeadlineLabel(deadline: string | null): string {
+export function getDeadlineLabel(deadline: string | null, locale: "ru" | "en" = "ru"): string {
   if (!deadline) {
-    return "Без срока";
+    return locale === "ru" ? "Без срока" : "No deadline";
   }
 
   const date = parseDeadlineDate(deadline);
 
   if (!date) {
-    return "Без срока";
+    return locale === "ru" ? "Без срока" : "No deadline";
   }
 
   const now = new Date();
   if (date.getTime() < now.getTime()) {
-    return "Просрочено";
+    return locale === "ru" ? "Просрочено" : "Overdue";
   }
 
   const diffDays = Math.round((date.getTime() - startOfToday().getTime()) / 86_400_000);
 
   if (diffDays === 0) {
-    return "Сегодня";
+    return locale === "ru" ? "Сегодня" : "Today";
   }
 
   if (diffDays === 1) {
-    return "Завтра";
+    return locale === "ru" ? "Завтра" : "Tomorrow";
   }
 
-  return `Осталось ${diffDays} дн.`;
+  return locale === "ru" ? `Осталось ${diffDays} дн.` : `${diffDays} days remaining`;
 }

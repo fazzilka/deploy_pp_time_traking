@@ -679,3 +679,16 @@
   .project-stats { grid-template-columns: repeat(2, 1fr); }
   .project-modal { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
 }
+
+/* Keep the shared task list and project summary from competing for mobile width. */
+@media (max-width: 1080px) {
+  .project-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-tasks-panel,
+  .project-summary-panel {
+    width: 100%;
+    min-width: 0;
+  }
+}

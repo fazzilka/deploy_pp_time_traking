@@ -34,13 +34,12 @@ export function formatDeadline(deadline: string | null, locale: "ru" | "en" = "r
     return deadline;
   }
 
-  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return new Intl.DateTimeFormat(
+    locale === "ru" ? "ru-RU" : "en-US",
+    locale === "ru"
+      ? { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }
+      : { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" },
+  ).format(date);
 }
 
 export function getDeadlineStatus(deadline: string | null): DeadlineStatus {

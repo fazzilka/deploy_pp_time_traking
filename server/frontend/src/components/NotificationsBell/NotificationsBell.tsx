@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../shared/api/client";
 import { useLocale } from "../../i18n";
+import type { TranslationKey } from "../../i18n/locales/ru";
+import type { TranslationParams } from "../../i18n/types";
+import { formatDeadline } from "../../shared/utils/date";
+import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
 import "./NotificationsBell.css";
 
 type NotificationType =
@@ -243,28 +247,97 @@ function getNotificationTone(type: NotificationType) {
   return "neutral";
 }
 
-function getNotificationTitleFallback(type: NotificationType, locale: "ru" | "en") {
-  if (type === "deadline_soon") {
-    return locale === "ru" ? "Приближается дедлайн" : "Deadline approaching";
+type Translate = (key: TranslationKey, params?: TranslationParams) => string;
+
+function getPayloadString(payload: NotificationPayload | undefined, key: string): string | null {
+  const value = payload?.[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getPayloadNumber(payload: NotificationPayload | undefined, key: string): number | null {
+  const value = payload?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatNotificationDuration(totalMinutes: number, locale: "ru" | "en"): string {
+  const safeMinutes = Math.max(1, Math.round(totalMinutes));
+  const unit = safeMinutes >= 60 ? "hour" : "minute";
+  const value = unit === "hour" ? Math.max(1, Math.round(safeMinutes / 60)) : safeMinutes;
+  return new Intl.NumberFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    style: "unit",
+    unit,
+    unitDisplay: "long",
+  }).format(value);
+}
+
+function getLocalizedRole(payload: NotificationPayload | undefined, t: Translate): string {
+  const role = getPayloadString(payload, "role");
+  const key = role && `roles.${role}` as TranslationKey;
+  return key && ["roles.owner", "roles.team_lead", "roles.member", "roles.viewer", "roles.user"].includes(key)
+    ? t(key)
+    : t("roles.user");
+}
+
+function getNotificationCopy(
+  notification: NotificationItem,
+  locale: "ru" | "en",
+  t: Translate,
+): { title: string; message: string } {
+  const taskTitle = getPayloadString(notification.payload, "task_title") ?? t("notifications.fallback.task");
+  const workspaceName = getPayloadString(notification.payload, "workspace_name") ?? t("notifications.fallback.workspace");
+  const deadline = getPayloadString(notification.payload, "deadline");
+  const formattedDeadline = deadline ? formatDeadline(deadline, locale) : null;
+
+  if (notification.type === "deadline_soon") {
+    const remindBeforeMinutes = getPayloadNumber(notification.payload, "remind_before_minutes") ?? 60;
+    const remaining = formatNotificationDuration(remindBeforeMinutes, locale);
+    return {
+      title: remindBeforeMinutes === 60
+        ? t("notifications.types.deadlineSoon.title")
+        : t("notifications.types.deadlineSoon.titleGeneric"),
+      message: formattedDeadline
+        ? t("notifications.types.deadlineSoon.body", { taskTitle, remaining, deadline: formattedDeadline })
+        : t("notifications.types.deadlineSoon.bodyNoDeadline", { taskTitle, remaining }),
+    };
   }
 
-  if (type === "deadline_overdue") {
-    return locale === "ru" ? "Дедлайн просрочен" : "Deadline overdue";
+  if (notification.type === "deadline_overdue") {
+    return {
+      title: t("notifications.types.deadlineOverdue.title"),
+      message: formattedDeadline
+        ? t("notifications.types.deadlineOverdue.body", { taskTitle, deadline: formattedDeadline })
+        : t("notifications.types.deadlineOverdue.bodyNoDeadline", { taskTitle }),
+    };
   }
 
-  if (type === "workspace_member_added") {
-    return locale === "ru" ? "Приглашение в рабочее пространство" : "Workspace invitation";
+  if (notification.type === "workspace_member_added") {
+    return {
+      title: t("notifications.types.workspaceAdded.title"),
+      message: t("notifications.types.workspaceAdded.body", { workspaceName }),
+    };
   }
 
-  if (type === "workspace_member_removed") {
-    return locale === "ru" ? "Вы удалены из пространства" : "Removed from workspace";
+  if (notification.type === "workspace_member_removed") {
+    return {
+      title: t("notifications.types.workspaceRemoved.title"),
+      message: t("notifications.types.workspaceRemoved.body", { workspaceName }),
+    };
   }
 
-  if (type === "workspace_role_changed" || type === "workspace_member_role_changed") {
-    return locale === "ru" ? "Изменена ваша роль" : "Your role changed";
+  if (notification.type === "workspace_role_changed" || notification.type === "workspace_member_role_changed") {
+    return {
+      title: t("notifications.types.roleChanged.title"),
+      message: t("notifications.types.roleChanged.body", {
+        workspaceName,
+        role: getLocalizedRole(notification.payload, t),
+      }),
+    };
   }
 
-  return locale === "ru" ? "Уведомление" : "Notification";
+  return {
+    title: t("notifications.fallback.title"),
+    message: t("notifications.fallback.body"),
+  };
 }
 
 function normalizeNotificationsResponse(response: NotificationListResponse | NotificationItem[]): NotificationItem[] {
@@ -307,14 +380,14 @@ function formatNotificationDate(value: string, locale: "ru" | "en"): string {
 
   return new Intl.DateTimeFormat(intlLocale, {
     day: "numeric",
-    month: "short",
+    month: locale === "ru" ? "long" : "short",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
 }
 
 export function NotificationsBell() {
-  const { locale, text } = useLocale();
+  const { locale, t } = useLocale();
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -322,7 +395,7 @@ export function NotificationsBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   const badgeLabel = useMemo(() => {
     if (unreadCount <= 0) {
@@ -343,7 +416,7 @@ export function NotificationsBell() {
 
   const loadNotifications = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
+    setHasError(false);
 
     try {
       const response = await apiRequest<NotificationListResponse | NotificationItem[]>(
@@ -357,13 +430,12 @@ export function NotificationsBell() {
       } else {
         void loadUnreadCount();
       }
-    } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : text("Не удалось загрузить уведомления", "Could not load notifications");
-      setError(message);
+    } catch {
+      setHasError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [loadUnreadCount, text]);
+  }, [loadUnreadCount]);
 
   useEffect(() => {
     void loadUnreadCount();
@@ -383,7 +455,8 @@ export function NotificationsBell() {
         return;
       }
 
-      if (!rootRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      if (!rootRef.current.contains(target) && !target.closest(".language-switcher")) {
         setIsOpen(false);
       }
     }
@@ -478,7 +551,7 @@ export function NotificationsBell() {
       <button
         className={isOpen ? "notifications-bell__button notifications-bell__button--active" : "notifications-bell__button"}
         type="button"
-        aria-label={text("Открыть уведомления", "Open notifications")}
+        aria-label={t("notifications.openAria")}
         aria-expanded={isOpen}
         onClick={handleToggle}
       >
@@ -487,35 +560,41 @@ export function NotificationsBell() {
       </button>
 
       {isOpen ? (
-        <div className="notifications-bell__dropdown" role="dialog" aria-label={text("Уведомления", "Notifications")}>
+        <div className="notifications-bell__dropdown" role="dialog" aria-label={t("notifications.title")}>
           <div className="notifications-bell__header">
-            <h2 className="notifications-bell__title">{text("Уведомления", "Notifications")}</h2>
+            <h2 className="notifications-bell__title">{t("notifications.title")}</h2>
+
+            <LanguageSwitcher className="notifications-bell__language" />
 
             <button
               className="notifications-bell__mark-all"
               type="button"
               disabled={unreadCount <= 0 || isMarkingAll}
               onClick={handleMarkAllAsRead}
+              aria-label={t("notifications.actions.markAllAria")}
             >
-              {text("Отметить всё прочитанным", "Mark all as read")}
+              {t("notifications.actions.markAllAsRead")}
             </button>
           </div>
 
           <div className="notifications-bell__list">
-            {isLoading ? <div className="notifications-bell__state">{text("Загружаем уведомления...", "Loading notifications...")}</div> : null}
+            {isLoading ? <div className="notifications-bell__state" role="status">{t("notifications.loading")}</div> : null}
 
-            {!isLoading && error ? (
-              <div className="notifications-bell__state notifications-bell__error">{error}</div>
+            {!isLoading && hasError ? (
+              <div className="notifications-bell__state notifications-bell__error" role="alert">{t("notifications.error")}</div>
             ) : null}
 
-            {!isLoading && !error && items.length === 0 ? (
-              <div className="notifications-bell__state">{text("Уведомлений пока нет", "No notifications yet")}</div>
+            {!isLoading && !hasError && items.length === 0 ? (
+              <div className="notifications-bell__state notifications-bell__state--empty">
+                <strong>{t("notifications.empty.title")}</strong>
+                <span>{t("notifications.empty.description")}</span>
+              </div>
             ) : null}
 
-            {!isLoading && !error
+            {!isLoading && !hasError
               ? items.map((notification) => {
                   const tone = getNotificationTone(notification.type);
-                  const title = notification.title || getNotificationTitleFallback(notification.type, locale);
+                  const copy = getNotificationCopy(notification, locale, t);
 
                   return (
                     <button
@@ -527,14 +606,15 @@ export function NotificationsBell() {
                       }
                       type="button"
                       onClick={() => void handleMarkAsRead(notification)}
+                      aria-label={!notification.is_read ? t("notifications.unreadAria", { title: copy.title }) : undefined}
                     >
                       <span className={`notifications-bell__item-icon notifications-bell__item-icon--${tone}`}>
                         {getNotificationIcon(notification.type)}
                       </span>
 
                       <span className="notifications-bell__item-content">
-                        <span className="notifications-bell__item-title">{title}</span>
-                        <span className="notifications-bell__item-message">{notification.message}</span>
+                        <span className="notifications-bell__item-title">{copy.title}</span>
+                        <span className="notifications-bell__item-message">{copy.message}</span>
                       </span>
 
                       <span className="notifications-bell__item-meta">
@@ -550,8 +630,8 @@ export function NotificationsBell() {
           </div>
 
           <div className="notifications-bell__footer">
-            <button className="notifications-bell__footer-button" type="button" onClick={() => setIsOpen(false)}>
-              Все уведомления
+            <button className="notifications-bell__footer-button" type="button" onClick={() => setIsOpen(false)} aria-label={t("notifications.actions.viewAllAria")}>
+              {t("notifications.actions.viewAll")}
               <ChevronIcon />
             </button>
           </div>

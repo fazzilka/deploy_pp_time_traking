@@ -178,6 +178,11 @@
     opacity 160ms ease;
 }
 
+.notifications-bell__language {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .notifications-bell__mark-all:hover {
   color: #a7f59a;
 }
@@ -428,6 +433,23 @@
   line-height: 1.45;
 }
 
+.notifications-bell__state--empty {
+  align-content: center;
+  gap: 6px;
+}
+
+.notifications-bell__state--empty strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.notifications-bell__state--empty span {
+  max-width: 300px;
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
 .notifications-bell__error {
   color: #ffb4ae;
 }
@@ -560,5 +582,39 @@
 .notifications-bell__footer-button { min-height: 36px; border-radius: var(--radius-md); color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
 
 @media (max-width: 560px) {
-  .notifications-bell__dropdown { top: 8px; right: 8px; left: 8px; max-height: calc(100dvh - 16px); }
+  .notifications-bell__dropdown {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 16px);
+  }
+  .notifications-bell__header { flex-wrap: wrap; gap: 8px 12px; }
+  .notifications-bell__title { min-width: min(100%, 150px); white-space: normal; }
+  .notifications-bell__language { margin-left: 0; }
+  .notifications-bell__mark-all { max-width: none; margin-left: auto; }
+  .notifications-bell__item {
+    grid-template-columns: 36px minmax(0, 1fr);
+    grid-template-areas: "icon content" "icon meta";
+    align-items: start;
+  }
+  .notifications-bell__item-icon { grid-area: icon; }
+  .notifications-bell__item-content { grid-area: content; overflow-wrap: anywhere; }
+  .notifications-bell__item-title { white-space: normal; }
+  .notifications-bell__item-meta {
+    grid-area: meta;
+    grid-auto-flow: column;
+    justify-content: space-between;
+    justify-items: start;
+    align-items: center;
+  }
+  .notifications-bell__item-date { max-width: none; text-align: left; }
+}
+
+@media (min-width: 561px) and (max-width: 860px) {
+  .notifications-bell__dropdown {
+    right: 0;
+    max-width: calc(100vw - 16px);
+  }
 }

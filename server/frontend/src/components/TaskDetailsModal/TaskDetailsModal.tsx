@@ -359,7 +359,7 @@ export function TaskDetailsModal({
               aria-selected={activeTab === "about"}
               onClick={() => setActiveTab("about")}
             >
-              О задаче
+              {t("tasks.details.tabs.about")}
             </button>
             <button
               className={`task-details-modal__tab${activeTab === "comments" ? " task-details-modal__tab--active" : ""}`}
@@ -368,7 +368,7 @@ export function TaskDetailsModal({
               aria-selected={activeTab === "comments"}
               onClick={handleOpenComments}
             >
-              Комментарии {commentsCount}
+              {t("tasks.details.tabs.comments", { count: commentsCount })}
             </button>
           </div>
 
@@ -520,10 +520,10 @@ export function TaskDetailsModal({
                                 onClick={() => void saveCommentEdit(comment.id)}
                                 disabled={!editingDraft.trim() || busyCommentId === comment.id}
                               >
-                                Сохранить
+                                {t("common.actions.save")}
                               </button>
                               <button type="button" onClick={() => setEditingCommentId(null)} disabled={busyCommentId === comment.id}>
-                                Отмена
+                                {t("common.actions.cancel")}
                               </button>
                             </div>
                           </div>
@@ -541,12 +541,12 @@ export function TaskDetailsModal({
                         <div className="task-comment__actions">
                           {comment.can_edit && (
                             <button type="button" onClick={() => startEditComment(comment)} disabled={busyCommentId === comment.id}>
-                              Редактировать
+                              {t("common.actions.edit")}
                             </button>
                           )}
                           {comment.can_delete && (
                             <button type="button" onClick={() => void handleDeleteComment(comment)} disabled={busyCommentId === comment.id}>
-                              Удалить
+                              {t("common.actions.delete")}
                             </button>
                           )}
                         </div>
@@ -609,7 +609,7 @@ export function TaskDetailsModal({
             {t("common.actions.delete")}
           </button>
           <button className="button" type="button" onClick={onClose}>
-            Закрыть
+            {t("tasks.details.actions.close")}
           </button>
         </footer>
       </section>

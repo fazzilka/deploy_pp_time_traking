@@ -160,14 +160,14 @@ export function ProfilePage() {
     setIsPasswordSubmitting(true);
 
     try {
-      const response = await changePassword({
+      await changePassword({
         old_password: passwordForm.oldPassword,
         new_password: passwordForm.newPassword,
         confirm_password: passwordForm.confirmPassword,
       });
       setPasswordForm(initialPasswordForm);
       setIsPasswordModalOpen(false);
-      setPasswordSuccess(response.message || t("profile.password.success"));
+      setPasswordSuccess(t("profile.password.success"));
     } catch (caughtError) {
       const nextError = caughtError instanceof Error ? caughtError.message : t("profile.password.error");
       setPasswordError(nextError);
@@ -232,10 +232,10 @@ export function ProfilePage() {
 
           <div className="profile-actions">
             <button className="profile-edit" type="button" onClick={() => setIsEditing((value) => !value)}>
-              Редактировать профиль
+              {t("profile.actions.edit")}
             </button>
             <button className="profile-edit" type="button" onClick={openPasswordModal}>
-              Изменить пароль
+              {t("profile.actions.changePassword")}
             </button>
             <button
               className="profile-edit"
@@ -252,19 +252,19 @@ export function ProfilePage() {
           {isEditing && (
             <form className="profile-form" onSubmit={handleSubmit}>
               <label>
-                Username
+                {t("profile.fields.username")}
                 <input className="text-field" value={username} onChange={(event) => setUsername(event.target.value)} required />
               </label>
               <label>
-                Full name
+                {t("profile.fields.fullName")}
                 <input className="text-field" value={fullName} onChange={(event) => setFullName(event.target.value)} />
               </label>
               <div className="profile-form__actions">
                 <button className="button button--green" type="submit">
-                  Сохранить
+                  {t("common.actions.save")}
                 </button>
                 <button className="button" type="button" onClick={() => setIsEditing(false)}>
-                  Отмена
+                  {t("common.actions.cancel")}
                 </button>
               </div>
             </form>
@@ -272,15 +272,15 @@ export function ProfilePage() {
 
           <dl className="profile-meta">
             <div>
-              <dt>Email</dt>
+              <dt>{t("profile.fields.email")}</dt>
               <dd>{user.email}</dd>
             </div>
             <div>
-              <dt>Role</dt>
-              <dd>{user.role}</dd>
+              <dt>{t("profile.fields.role")}</dt>
+              <dd>{t(`roles.${user.role}`)}</dd>
             </div>
             <div>
-              <dt>Joined</dt>
+              <dt>{t("profile.fields.joined")}</dt>
               <dd>{formatDate(user.created_at, locale)}</dd>
             </div>
           </dl>
@@ -323,7 +323,7 @@ export function ProfilePage() {
                           </strong>
                           <span className="profile-top-task__description">{task.description || t("profile.tasks.noDescription")}</span>
                         </div>
-                        <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds)}</span>
+                        <span className="profile-top-task__time">{formatHumanDuration(task.total_time_seconds, locale)}</span>
                       </div>
                       <div className="profile-top-task__progress">
                         <div className="profile-top-task__progress-fill" style={{ width: `${progress}%` }} />
@@ -349,7 +349,7 @@ export function ProfilePage() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 className="change-password-modal__title" id="change-password-title">
-              Изменение пароля
+              {t("profile.password.title")}
             </h2>
             <form className="change-password-modal__form" onSubmit={handlePasswordSubmit}>
               <PasswordInput
@@ -387,7 +387,7 @@ export function ProfilePage() {
 
               <div className="change-password-modal__actions">
                 <button className="button" type="button" onClick={closePasswordModal}>
-                  Отмена
+                  {t("common.actions.cancel")}
                 </button>
                 <button className="button button--green" type="submit" disabled={isPasswordSubmitting}>
                   {t(isPasswordSubmitting ? "common.actions.saving" : "common.actions.save")}

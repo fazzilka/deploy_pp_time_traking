@@ -647,7 +647,7 @@ export function ProjectDetailPage() {
       <main className="project-detail-page app-container">
         <div className="status-message status-message--error">{error || text("Проект не найден", "Project not found")}</div>
         <Link className="button project-detail-page__back-button" to="/projects">
-          Назад к проектам
+          {t("projects.navigation.back")}
         </Link>
       </main>
     );
@@ -667,7 +667,7 @@ export function ProjectDetailPage() {
   return (
     <main className="project-detail-page app-container">
       <Link className="project-detail-page__back" to="/projects">
-        ← Назад к проектам
+        ← {t("projects.navigation.back")}
       </Link>
 
       <section className="project-detail-hero">
@@ -681,7 +681,7 @@ export function ProjectDetailPage() {
         </div>
         <div className="project-detail-hero__actions">
           <button className="button" type="button" onClick={() => setIsEditOpen(true)} disabled={!canManageProject}>
-            Редактировать
+            {t("common.actions.edit")}
           </button>
           <button
             className="button button--red"
@@ -689,7 +689,7 @@ export function ProjectDetailPage() {
             onClick={() => void handleArchiveProject()}
             disabled={!canManageProject}
           >
-            Архивировать
+            {t("common.actions.archive")}
           </button>
           <button
             className="button button--green"
@@ -754,7 +754,7 @@ export function ProjectDetailPage() {
           aria-controls="project-tab-tasks"
           onClick={() => setActiveTab("tasks")}
         >
-          Задачи
+          {t("projects.details.tabs.tasks")}
         </button>
         <button
           className={`project-tabs__button${activeTab === "statistics" ? " project-tabs__button--active" : ""}`}
@@ -764,7 +764,7 @@ export function ProjectDetailPage() {
           aria-controls="project-tab-statistics"
           onClick={() => setActiveTab("statistics")}
         >
-          Статистика
+          {t("projects.details.tabs.statistics")}
         </button>
         <button
           className={`project-tabs__button${activeTab === "reports" ? " project-tabs__button--active" : ""}`}
@@ -774,7 +774,7 @@ export function ProjectDetailPage() {
           aria-controls="project-tab-reports"
           onClick={() => setActiveTab("reports")}
         >
-          Отчёты
+          {t("projects.details.tabs.reports")}
         </button>
       </section>
 
@@ -791,7 +791,7 @@ export function ProjectDetailPage() {
             />
             <label>
               <input type="checkbox" checked={hasTimeOnly} onChange={(event) => setHasTimeOnly(event.target.checked)} />
-              Только с временем
+              {t("tasks.filters.withTime")}
             </label>
           </div>
 
@@ -827,10 +827,10 @@ export function ProjectDetailPage() {
               {taskError && <p className="project-detail-error">{taskError}</p>}
               <div className="project-task-create__actions">
                 <button className="button button--green" type="submit">
-                  Добавить
+                  {t("tasks.form.add")}
                 </button>
                 <button className="button" type="button" onClick={() => setIsCreateOpen(false)}>
-                  Отмена
+                  {t("common.actions.cancel")}
                 </button>
               </div>
             </form>
@@ -870,7 +870,7 @@ export function ProjectDetailPage() {
                   onClick={() => setIsCreateOpen(true)}
                   disabled={!canMutateTasks}
                 >
-                  Создать задачу
+                  {t("tasks.actions.create")}
                 </button>
               </div>
             )}
@@ -922,7 +922,7 @@ export function ProjectDetailPage() {
           <article className="project-analytics-card">
             <h2>{t("reports.charts.daily")}</h2>
             <p className="project-analytics-card__empty">
-              Подробная дневная аналитика появится после накопления закрытых интервалов по проекту.
+              {t("projects.details.dailyEmpty")}
             </p>
           </article>
 
@@ -967,7 +967,7 @@ export function ProjectDetailPage() {
           <article className="project-report-card">
             <span>{t("reports.stats.tasks")}</span>
             <strong>{summary.tasks_with_time_count}</strong>
-            <p>Из {summary.tasks_count} задач проекта.</p>
+            <p>{t("projects.details.taskCount", { count: summary.tasks_count })}</p>
           </article>
           <article className="project-report-card project-report-card--wide">
             <h2>{text("Мини-отчёт по проекту", "Project summary report")}</h2>
@@ -1035,10 +1035,10 @@ export function ProjectDetailPage() {
             {projectError && <p className="project-modal__error">{projectError}</p>}
             <div className="project-modal__actions">
               <button className="button button--green" type="submit">
-                Сохранить
+                {t("common.actions.save")}
               </button>
               <button className="button" type="button" onClick={() => setIsEditOpen(false)}>
-                Отмена
+                {t("common.actions.cancel")}
               </button>
             </div>
           </form>

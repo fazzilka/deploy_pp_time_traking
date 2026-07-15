@@ -192,7 +192,7 @@ export function ReportsPage() {
               }
             }}
           >
-            Обновить
+            {t("common.actions.refresh")}
           </button>
           <select
             className="reports-period"
@@ -216,8 +216,8 @@ export function ReportsPage() {
         <StatCard title={t("reports.stats.average")} value={formatHumanDuration(stats.averagePerDay, locale)} subtitle={t("reports.stats.averageSubtitle")} accent="yellow" />
         <StatCard
           title={t("reports.stats.best")}
-          value={formatHumanDuration(stats.bestDay?.total_time_seconds ?? 0)}
-          subtitle={stats.bestDay?.date ?? t("reports.stats.noData")}
+          value={formatHumanDuration(stats.bestDay?.total_time_seconds ?? 0, locale)}
+          subtitle={stats.bestDay ? formatShortDate(new Date(`${stats.bestDay.date}T00:00:00`), locale) : t("reports.stats.noData")}
           accent="green"
         />
       </section>
@@ -255,7 +255,7 @@ export function ReportsPage() {
                   <PriorityIcon priority={task.priority} />
                   <span>{task.title}</span>
                 </strong>
-                <span>{formatHumanDuration(task.total_time_seconds)}</span>
+                <span>{formatHumanDuration(task.total_time_seconds, locale)}</span>
                 <div className="top-task__progress">
                   <div className="top-task__progress-fill" style={{ width: `${Math.max(8, (task.total_time_seconds / maxTaskTime) * 100)}%` }} />
                 </div>
@@ -305,7 +305,7 @@ export function ReportsPage() {
                   <span style={{ backgroundColor: project.color }} aria-hidden="true" />
                   <span>{project.name}</span>
                 </strong>
-                <span>{formatHumanDuration(project.total_time_seconds)}</span>
+                <span>{formatHumanDuration(project.total_time_seconds, locale)}</span>
                 <div className="top-project__progress">
                   <div
                     className="top-project__progress-fill"

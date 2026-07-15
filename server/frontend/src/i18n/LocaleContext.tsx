@@ -34,7 +34,7 @@ type LocaleContextValue = {
   locale: SupportedLocale;
   setLocale: (locale: SupportedLocale) => void;
   t: (key: TranslationKey, params?: TranslationParams) => string;
-  plural: (baseKey: string, count: number) => string;
+  plural: (baseKey: string, count: number, params?: TranslationParams) => string;
   text: (ruText: string, enText: string) => string;
 };
 
@@ -68,12 +68,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   );
 
   const plural = useCallback(
-    (baseKey: string, count: number) => {
+    (baseKey: string, count: number, params?: TranslationParams) => {
       const category = new Intl.PluralRules(locale).select(count);
       const candidate = `${baseKey}_${category}` as TranslationKey;
       const fallback = `${baseKey}_other` as TranslationKey;
       const key = candidate in resources[locale] ? candidate : fallback;
-      return t(key, { count });
+      return t(key, { ...params, count });
     },
     [locale, t],
   );

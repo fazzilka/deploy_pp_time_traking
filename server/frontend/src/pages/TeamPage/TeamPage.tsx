@@ -193,7 +193,7 @@ function getMemberName(member: WorkspaceMember): string {
 }
 
 export function TeamPage() {
-  const { locale, t, text } = useLocale();
+  const { locale, plural, t, text } = useLocale();
   const roleLabels: Record<WorkspaceRole, string> = {
     owner: t("roles.owner"), team_lead: t("roles.team_lead"), member: t("roles.member"), viewer: t("roles.viewer"),
   };
@@ -584,7 +584,7 @@ export function TeamPage() {
           <div className="team-stat__content">
             <p>{text("Участников", "Members")}</p>
             <h2>
-              {membersCount} <small>{activeMembersCount} активных</small>
+              {membersCount} <small>{plural("team.summary.activeMembers", activeMembersCount)}</small>
             </h2>
           </div>
         </article>
@@ -597,7 +597,7 @@ export function TeamPage() {
           <div className="team-stat__content">
             <p>{text("Всего проектов", "Total projects")}</p>
             <h2>
-              {projectsCount} <small>{activeProjectsCount} активных</small>
+              {projectsCount} <small>{plural("team.summary.activeProjects", activeProjectsCount)}</small>
             </h2>
           </div>
         </article>
@@ -716,7 +716,10 @@ export function TeamPage() {
 
           <footer className="team-members-footer">
             <span>
-              Показано {filteredMembers.length} из {members.length} участников
+              {plural("team.members.showing", filteredMembers.length, {
+                shown: filteredMembers.length,
+                total: members.length,
+              })}
             </span>
 
             <div className="team-pagination" aria-label={text("Пагинация участников", "Member pagination")}>
@@ -768,7 +771,7 @@ export function TeamPage() {
 
                 <div>
                   <p>{text("Участники", "Members")}</p>
-                  <strong>{shownMembersCount} участников</strong>
+                  <strong>{plural("navigation.workspace.members", shownMembersCount)}</strong>
                 </div>
               </article>
             </div>
@@ -798,7 +801,7 @@ export function TeamPage() {
             <div className="team-workload">
               <h2 className="team-workload__title">
                 <TeamIcon name="activity" />
-                Рабочая нагрузка
+                {t("team.sections.workload")}
               </h2>
 
               <div className="team-workload__stats">
@@ -824,7 +827,7 @@ export function TeamPage() {
             <div className="team-side-card__title">
               <TeamIcon name="mail" />
               <h2>
-                Приглашения <small>0</small>
+                {t("team.sections.invitations")} <small>0</small>
               </h2>
             </div>
 

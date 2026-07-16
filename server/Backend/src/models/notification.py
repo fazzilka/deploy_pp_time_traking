@@ -112,7 +112,8 @@ class NotificationDelivery(Base):
             name="ck_notification_deliveries_channel_allowed",
         ),
         CheckConstraint(
-            "status IN ('pending', 'sent', 'failed', 'skipped')",
+            "status IN ('pending', 'queued', 'sending', 'sent', 'delivered', "
+            "'bounced', 'complained', 'failed', 'suppressed', 'skipped')",
             name="ck_notification_deliveries_status_allowed",
         ),
         CheckConstraint("attempts >= 0", name="ck_notification_deliveries_attempts_non_negative"),
@@ -124,11 +125,16 @@ class NotificationDelivery(Base):
         Index("ix_notification_deliveries_notification_id", "notification_id"),
         Index("ix_notification_deliveries_channel", "channel"),
         Index("ix_notification_deliveries_status", "status"),
+        Index("ix_notification_deliveries_provider_message_id", "provider_message_id"),
+        Index("ix_notification_deliveries_user_created", "user_id", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     notification_id: Mapped[int] = mapped_column(
         ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     channel: Mapped[NotificationDeliveryChannel] = mapped_column(
         Enum(
@@ -151,8 +157,19 @@ class NotificationDelivery(Base):
         server_default=NotificationDeliveryStatus.PENDING.value,
     )
     attempts: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    recipient_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    provider_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sending_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    bounced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    complained_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -161,3 +178,20 @@ class NotificationDelivery(Base):
     )
 
     notification: Mapped[Notification] = relationship(back_populates="deliveries")
+
+
+class NotificationWebhookEvent(Base):
+    __tablename__ = "notification_webhook_events"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_event_id", name="uq_notification_webhook_event"),
+        Index("ix_notification_webhook_events_received_at", "received_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_event_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

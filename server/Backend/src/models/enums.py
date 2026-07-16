@@ -47,6 +47,12 @@ class NotificationDeliveryChannel(StrEnum):
 
 class NotificationDeliveryStatus(StrEnum):
     PENDING = "pending"
+    QUEUED = "queued"
+    SENDING = "sending"
     SENT = "sent"
+    DELIVERED = "delivered"
+    BOUNCED = "bounced"
+    COMPLAINED = "complained"
     FAILED = "failed"
+    SUPPRESSED = "suppressed"
     SKIPPED = "skipped"

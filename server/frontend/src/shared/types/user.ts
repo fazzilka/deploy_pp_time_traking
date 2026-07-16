@@ -48,3 +48,14 @@ export type ChangePasswordRequest = {
 export type ChangePasswordResponse = {
   message: string;
 };
+
+export type NotificationPreferences = {
+  locale: "ru" | "en";
+  email_enabled: boolean;
+  deadline_24h: boolean;
+  deadline_1h: boolean;
+  deadline_overdue: boolean;
+  email_suppressed: boolean;
+};
+
+export type NotificationPreferencesUpdate = Omit<NotificationPreferences, "email_suppressed">;

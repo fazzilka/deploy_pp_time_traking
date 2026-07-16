@@ -2,8 +2,10 @@ from __future__ import annotations
 
 # ruff: noqa: UP017
 import logging
+import random
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -27,7 +29,10 @@ from src.models.task import Task
 from src.models.user import User
 from src.models.workspace import Workspace
 from src.services.delivery_result import DeliveryResult
-from src.services.email_sender import send_notification_email
+from src.services.email_delivery import (
+    RetryableEmailDeliveryError,
+    deliver_email_notification_async,
+)
 from src.services.notification import create_notification
 from src.services.telegram_sender import send_notification_telegram
 from src.tasks.db import run_async_celery_task, run_celery_db_task
@@ -53,17 +58,27 @@ def deliver_notification(notification_id: int) -> None:
     )
 
 
-@celery_app.task(name="src.tasks.notifications.send_email_notification")  # type: ignore[untyped-decorator]
-def send_email_notification(notification_id: int) -> None:
-    run_async_celery_task(
-        lambda: run_celery_db_task(
-            lambda session_factory: deliver_notification_channel_async(
-                session_factory,
-                notification_id,
-                NotificationDeliveryChannel.EMAIL,
+@celery_app.task(  # type: ignore[untyped-decorator]
+    bind=True,
+    name="src.tasks.notifications.send_email_notification",
+    max_retries=settings.email_max_retries,
+)
+def send_email_notification(self: Any, notification_id: int) -> None:
+    retries = int(self.request.retries)
+    final_attempt = retries >= settings.email_max_retries
+    try:
+        run_async_celery_task(
+            lambda: run_celery_db_task(
+                lambda session_factory: deliver_email_notification_async(
+                    session_factory,
+                    notification_id,
+                    final_attempt=final_attempt,
+                )
             )
         )
-    )
+    except RetryableEmailDeliveryError as exc:
+        countdown = _email_retry_countdown(retries)
+        raise self.retry(exc=exc, countdown=countdown) from exc
 
 
 @celery_app.task(name="src.tasks.notifications.send_telegram_notification")  # type: ignore[untyped-decorator]
@@ -87,7 +102,8 @@ async def scan_deadline_notifications_async(
     async with session_factory() as session:
         now = now_utc.astimezone(timezone.utc) if now_utc else utc_now()
         reminder_minutes = settings.deadline_reminder_minutes
-        window_end = now + timedelta(minutes=reminder_minutes)
+        scan_window_minutes = max(reminder_minutes, 1440)
+        window_end = now + timedelta(minutes=scan_window_minutes)
         lookback_hours = settings.overdue_notification_lookback_hours
         overdue_window_start = now - timedelta(hours=lookback_hours)
         logger.info(
@@ -95,18 +111,24 @@ async def scan_deadline_notifications_async(
             extra={
                 "now_utc": format_utc_iso(now),
                 "reminder_minutes": reminder_minutes,
+                "scan_window_minutes": scan_window_minutes,
                 "overdue_lookback_hours": lookback_hours,
             },
         )
 
         upcoming_tasks = await _load_upcoming_deadline_tasks(session, now, window_end)
         for task in upcoming_tasks:
+            task_deadline = ensure_utc(task.deadline)
+            if task_deadline is None:
+                continue
+            remaining_minutes = max(1, int((task_deadline - now).total_seconds() / 60))
+            reminder_boundary = reminder_minutes if remaining_minutes <= reminder_minutes else 1440
             notification = await _create_deadline_notification(
                 session=session,
                 task=task,
                 now=now,
                 notification_type=NotificationType.DEADLINE_SOON,
-                reminder_minutes=reminder_minutes,
+                reminder_minutes=reminder_boundary,
             )
             if notification is not None:
                 created_count += 1
@@ -141,12 +163,16 @@ async def deliver_notification_async(
     session_factory: async_sessionmaker[AsyncSession],
     notification_id: int,
 ) -> None:
+    await deliver_email_notification_async(
+        session_factory,
+        notification_id,
+        final_attempt=True,
+    )
     async with session_factory() as session:
         notification = await _load_notification(session, notification_id)
         if notification is None:
             logger.info("notification delivery skipped: notification missing")
             return
-        await _deliver_email(session, notification)
         await _deliver_telegram(session, notification)
 
 
@@ -155,14 +181,19 @@ async def deliver_notification_channel_async(
     notification_id: int,
     channel: NotificationDeliveryChannel,
 ) -> None:
+    if channel == NotificationDeliveryChannel.EMAIL:
+        await deliver_email_notification_async(
+            session_factory,
+            notification_id,
+            final_attempt=True,
+        )
+        return
     async with session_factory() as session:
         notification = await _load_notification(session, notification_id)
         if notification is None:
             logger.info("notification channel delivery skipped: notification missing")
             return
-        if channel == NotificationDeliveryChannel.EMAIL:
-            await _deliver_email(session, notification)
-        elif channel == NotificationDeliveryChannel.TELEGRAM:
+        if channel == NotificationDeliveryChannel.TELEGRAM:
             await _deliver_telegram(session, notification)
 
 
@@ -253,9 +284,10 @@ async def _create_deadline_notification(
             session,
             user_id=recipient.id,
             type=NotificationType.DEADLINE_SOON,
-            title="Дедлайн через 1 час",
+            title=("Дедлайн через 24 часа" if reminder_minutes >= 1440 else "Дедлайн через 1 час"),
             message=(
-                f"До дедлайна задачи «{task.title}» остался примерно 1 час.\n"
+                f"До дедлайна задачи «{task.title}» осталось примерно "
+                f"{'24 часа' if reminder_minutes >= 1440 else '1 час'}.\n"
                 f"Дедлайн: {format_deadline_readable(deadline_at)}."
             ),
             workspace_id=task.workspace_id,
@@ -323,15 +355,22 @@ async def _create_deadline_notification(
 
 
 def _enqueue_delivery_from_worker(notification_id: int) -> None:
-    if not settings.email_notifications_enabled and not settings.telegram_notifications_enabled:
-        return
-    try:
-        deliver_notification.delay(notification_id)
-    except Exception:
-        logger.exception(
-            "failed to enqueue notification delivery from worker",
-            extra={"notification_id": notification_id},
-        )
+    if settings.outbound_email_enabled:
+        try:
+            send_email_notification.delay(notification_id)
+        except Exception:
+            logger.exception(
+                "failed to enqueue notification email from worker",
+                extra={"notification_id": notification_id},
+            )
+    if settings.telegram_notifications_enabled:
+        try:
+            send_telegram_notification.delay(notification_id)
+        except Exception:
+            logger.exception(
+                "failed to enqueue notification telegram from worker",
+                extra={"notification_id": notification_id},
+            )
 
 
 async def _load_notification(
@@ -344,15 +383,6 @@ async def _load_notification(
         .options(selectinload(Notification.user))
     )
     return result.scalar_one_or_none()
-
-
-async def _deliver_email(session: AsyncSession, notification: Notification) -> None:
-    await _deliver_channel(
-        session,
-        notification,
-        NotificationDeliveryChannel.EMAIL,
-        lambda item, user: _sync_result(send_notification_email(item, user)),
-    )
 
 
 async def _deliver_telegram(session: AsyncSession, notification: Notification) -> None:
@@ -370,7 +400,12 @@ async def _deliver_channel(
     channel: NotificationDeliveryChannel,
     sender: Callable[[Notification, User], Awaitable[DeliveryResult]],
 ) -> None:
-    delivery = await _get_or_create_delivery(session, notification.id, channel)
+    delivery = await _get_or_create_delivery(
+        session,
+        notification.id,
+        channel,
+        user_id=notification.user_id,
+    )
     if delivery.status == NotificationDeliveryStatus.SENT:
         return
 
@@ -386,14 +421,12 @@ async def _deliver_channel(
     await session.commit()
 
 
-async def _sync_result(result: DeliveryResult) -> DeliveryResult:
-    return result
-
-
 async def _get_or_create_delivery(
     session: AsyncSession,
     notification_id: int,
     channel: NotificationDeliveryChannel,
+    *,
+    user_id: int,
 ) -> NotificationDelivery:
     result = await session.execute(
         select(NotificationDelivery).where(
@@ -407,9 +440,17 @@ async def _get_or_create_delivery(
 
     delivery = NotificationDelivery(
         notification_id=notification_id,
+        user_id=user_id,
         channel=channel,
         status=NotificationDeliveryStatus.PENDING,
     )
     session.add(delivery)
     await session.flush()
     return delivery
+
+
+def _email_retry_countdown(retries: int) -> int:
+    exponential_delay = settings.email_retry_base_seconds * (4 ** max(retries, 0))
+    capped_delay = min(exponential_delay, 2 * 60 * 60)
+    jitter = random.randint(0, max(1, capped_delay // 5))
+    return int(capped_delay + jitter)

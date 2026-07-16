@@ -4,6 +4,8 @@ import type { ActivityResponse } from "../types/reports";
 import type {
   ChangePasswordRequest,
   ChangePasswordResponse,
+  NotificationPreferences,
+  NotificationPreferencesUpdate,
   UpdateUserRequest,
   User,
   UserProfile,
@@ -12,6 +14,14 @@ import type {
 import { EMPTY_USER_STATS } from "../types/user";
 
 let userStore: User = { ...mockUser, stats: { ...(mockUser.stats ?? EMPTY_USER_STATS) } };
+let notificationPreferencesStore: NotificationPreferences = {
+  locale: "ru",
+  email_enabled: false,
+  deadline_24h: false,
+  deadline_1h: false,
+  deadline_overdue: false,
+  email_suppressed: false,
+};
 export const userProfileUpdatedEvent = "time-tracking:user-profile-updated";
 
 type CacheState<T> = {
@@ -172,6 +182,29 @@ export async function changePassword(payload: ChangePasswordRequest): Promise<Ch
 
   return apiRequest<ChangePasswordResponse>("/api/v1/users/me/change-password", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  if (USE_MOCKS) {
+    return { ...notificationPreferencesStore };
+  }
+  return apiRequest<NotificationPreferences>("/api/v1/users/me/notification-preferences");
+}
+
+export async function updateNotificationPreferences(
+  payload: NotificationPreferencesUpdate,
+): Promise<NotificationPreferences> {
+  if (USE_MOCKS) {
+    notificationPreferencesStore = {
+      ...payload,
+      email_suppressed: false,
+    };
+    return { ...notificationPreferencesStore };
+  }
+  return apiRequest<NotificationPreferences>("/api/v1/users/me/notification-preferences", {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 }

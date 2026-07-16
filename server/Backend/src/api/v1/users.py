@@ -5,6 +5,8 @@ from src.schemas.user import (
     ActivityResponse,
     ChangePasswordRequest,
     ChangePasswordResponse,
+    NotificationPreferences,
+    NotificationPreferencesUpdate,
     ProfileStats,
     UserProfileBase,
     UserUpdate,
@@ -12,9 +14,11 @@ from src.schemas.user import (
 from src.services.user import (
     change_password,
     get_activity,
+    get_notification_preferences,
     get_profile_stats,
     get_user_base_profile,
     regenerate_user_avatar_seed,
+    update_notification_preferences,
     update_user_profile,
 )
 
@@ -45,6 +49,22 @@ async def update_me(
     current_user: CurrentUserDep,
 ) -> UserProfileBase:
     return await update_user_profile(session, current_user, payload)
+
+
+@router.get("/me/notification-preferences", response_model=NotificationPreferences)
+async def get_my_notification_preferences(
+    current_user: CurrentUserDep,
+) -> NotificationPreferences:
+    return get_notification_preferences(current_user)
+
+
+@router.patch("/me/notification-preferences", response_model=NotificationPreferences)
+async def update_my_notification_preferences(
+    payload: NotificationPreferencesUpdate,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> NotificationPreferences:
+    return await update_notification_preferences(session, current_user, payload)
 
 
 @router.post("/me/avatar/regenerate", response_model=UserProfileBase)

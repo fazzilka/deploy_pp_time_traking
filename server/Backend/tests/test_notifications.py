@@ -426,7 +426,7 @@ async def test_deadline_scan_uses_separate_utc_windows(
 
     async def fake_load_upcoming(_session, window_start, window_end):
         assert window_start == now
-        assert window_end == now + timedelta(minutes=60)
+        assert window_end == now + timedelta(minutes=1440)
         return [upcoming]
 
     async def fake_load_overdue(_session, window_start, window_end):

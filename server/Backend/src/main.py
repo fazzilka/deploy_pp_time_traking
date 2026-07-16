@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.v1 import api_v1_router
+from src.api.webhooks import router as webhooks_router
 from src.core.config import settings
 from src.core.logging import configure_logging
 from src.db.session import AsyncSessionFactory
@@ -57,6 +58,7 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(api_v1_router)
+app.include_router(webhooks_router)
 Instrumentator().instrument(app, latency_lowr_buckets=HTTP_LATENCY_BUCKETS).expose(
     app,
     include_in_schema=False,

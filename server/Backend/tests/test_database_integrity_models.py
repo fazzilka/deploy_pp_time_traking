@@ -1,6 +1,6 @@
 from sqlalchemy import Table
 
-from src.models.notification import Notification, NotificationDelivery
+from src.models.notification import Notification, NotificationDelivery, NotificationWebhookEvent
 from src.models.project import Project
 from src.models.protected_space import ProtectedSpaceSession, ProtectedSpaceSettings
 from src.models.task import Task
@@ -71,6 +71,11 @@ def test_notification_models_have_type_read_and_delivery_constraints() -> None:
     assert "ck_notification_deliveries_channel_allowed" in delivery_constraints
     assert "ck_notification_deliveries_status_allowed" in delivery_constraints
     assert "ck_notification_deliveries_attempts_non_negative" in delivery_constraints
+    assert "uq_notification_deliveries_notification_channel" in delivery_constraints
+    assert "ix_notification_deliveries_provider_message_id" in _index_names(
+        NotificationDelivery.__table__
+    )
+    assert "uq_notification_webhook_event" in _constraint_names(NotificationWebhookEvent.__table__)
 
 
 def test_protected_space_models_have_integrity_constraints_and_indexes() -> None:

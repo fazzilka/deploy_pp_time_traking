@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -49,6 +49,27 @@ class UserUpdate(BaseModel):
 
     username: str | None = Field(default=None, min_length=1, max_length=64)
     full_name: str | None = Field(default=None, max_length=255)
+
+
+class NotificationPreferences(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    locale: Literal["ru", "en"]
+    email_enabled: bool
+    deadline_24h: bool
+    deadline_1h: bool
+    deadline_overdue: bool
+    email_suppressed: bool
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    locale: Literal["ru", "en"]
+    email_enabled: bool
+    deadline_24h: bool
+    deadline_1h: bool
+    deadline_overdue: bool
 
 
 class ChangePasswordRequest(BaseModel):

@@ -7,7 +7,7 @@ from src.models.enums import (
     WorkspaceRole,
     WorkspaceType,
 )
-from src.models.notification import Notification, NotificationDelivery
+from src.models.notification import Notification, NotificationDelivery, NotificationWebhookEvent
 from src.models.project import Project
 from src.models.protected_space import ProtectedSpaceSession, ProtectedSpaceSettings
 from src.models.task import Task
@@ -22,6 +22,7 @@ __all__ = [
     "ProtectedSpaceSettings",
     "Notification",
     "NotificationDelivery",
+    "NotificationWebhookEvent",
     "NotificationDeliveryChannel",
     "NotificationDeliveryStatus",
     "NotificationType",

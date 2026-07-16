@@ -9,14 +9,21 @@ import { StatCard } from "../../components/StatCard/StatCard";
 import {
   changePassword,
   getCurrentUser,
+  getNotificationPreferences,
   getProfileStats,
   getUserActivity,
   regenerateMyAvatar,
   updateCurrentUser,
+  updateNotificationPreferences,
 } from "../../shared/api/profile";
 import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
-import { EMPTY_USER_STATS, type UserProfile, type UserStats } from "../../shared/types/user";
+import {
+  EMPTY_USER_STATS,
+  type NotificationPreferences,
+  type UserProfile,
+  type UserStats,
+} from "../../shared/types/user";
 import { formatDate, formatHumanDuration } from "../../shared/utils/time";
 import { useLocale } from "../../i18n";
 import "./ProfilePage.css";
@@ -51,7 +58,7 @@ const initialPasswordForm: PasswordFormState = {
 };
 
 export function ProfilePage() {
-  const { locale, t } = useLocale();
+  const { locale, setLocale, t } = useLocale();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
@@ -67,6 +74,17 @@ export function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
   const [isRegeneratingAvatar, setIsRegeneratingAvatar] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>({
+    locale,
+    email_enabled: false,
+    deadline_24h: false,
+    deadline_1h: false,
+    deadline_overdue: false,
+    email_suppressed: false,
+  });
+  const [arePreferencesLoading, setArePreferencesLoading] = useState(true);
+  const [arePreferencesSaving, setArePreferencesSaving] = useState(false);
+  const [preferencesMessage, setPreferencesMessage] = useState<"success" | "error" | null>(null);
 
   async function loadProfile() {
     setIsLoading(true);
@@ -94,7 +112,36 @@ export function ProfilePage() {
 
   useEffect(() => {
     void loadProfile();
+    void getNotificationPreferences()
+      .then((preferences) => setNotificationPreferences(preferences))
+      .catch(() => setPreferencesMessage("error"))
+      .finally(() => setArePreferencesLoading(false));
   }, []);
+
+  function updatePreference<K extends keyof NotificationPreferences>(
+    key: K,
+    value: NotificationPreferences[K],
+  ) {
+    setNotificationPreferences((current) => ({ ...current, [key]: value }));
+    setPreferencesMessage(null);
+  }
+
+  async function handlePreferencesSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setArePreferencesSaving(true);
+    setPreferencesMessage(null);
+    try {
+      const { email_suppressed: _emailSuppressed, ...payload } = notificationPreferences;
+      const saved = await updateNotificationPreferences(payload);
+      setNotificationPreferences(saved);
+      setLocale(saved.locale);
+      setPreferencesMessage("success");
+    } catch {
+      setPreferencesMessage("error");
+    } finally {
+      setArePreferencesSaving(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -291,6 +338,74 @@ export function ProfilePage() {
           <h2 className="profile-main__title">{displayName}</h2>
 
           {error && <div className="status-message status-message--error profile-error">{error}</div>}
+
+          <section className="profile-notification-settings" aria-labelledby="email-settings-title">
+            <div className="profile-notification-settings__header">
+              <div>
+                <h2 id="email-settings-title">{t("profile.notifications.title")}</h2>
+                <p>{t("profile.notifications.description")}</p>
+              </div>
+            </div>
+            {arePreferencesLoading ? (
+              <div className="profile-notification-settings__loading">{t("common.loading")}</div>
+            ) : (
+              <form className="profile-notification-settings__form" onSubmit={handlePreferencesSubmit}>
+                <label className="profile-notification-settings__locale">
+                  <span>{t("profile.notifications.language")}</span>
+                  <select
+                    value={notificationPreferences.locale}
+                    onChange={(event) => updatePreference("locale", event.target.value as "ru" | "en")}
+                  >
+                    <option value="ru">Русский</option>
+                    <option value="en">English</option>
+                  </select>
+                </label>
+                <label className="profile-notification-toggle profile-notification-toggle--master">
+                  <input
+                    type="checkbox"
+                    checked={notificationPreferences.email_enabled}
+                    onChange={(event) => updatePreference("email_enabled", event.target.checked)}
+                  />
+                  <span>
+                    <strong>{t("profile.notifications.emailEnabled")}</strong>
+                    <small>{t("profile.notifications.emailEnabledHint")}</small>
+                  </span>
+                </label>
+                <div className="profile-notification-settings__channels">
+                  {([
+                    ["deadline_24h", "profile.notifications.deadline24h"],
+                    ["deadline_1h", "profile.notifications.deadline1h"],
+                    ["deadline_overdue", "profile.notifications.deadlineOverdue"],
+                  ] as const).map(([key, label]) => (
+                    <label className="profile-notification-toggle" key={key}>
+                      <input
+                        type="checkbox"
+                        checked={notificationPreferences[key]}
+                        disabled={!notificationPreferences.email_enabled}
+                        onChange={(event) => updatePreference(key, event.target.checked)}
+                      />
+                      <span>{t(label)}</span>
+                    </label>
+                  ))}
+                </div>
+                {notificationPreferences.email_suppressed && (
+                  <p className="profile-notification-settings__warning">
+                    {t("profile.notifications.suppressed")}
+                  </p>
+                )}
+                <div className="profile-notification-settings__footer">
+                  {preferencesMessage && (
+                    <span role="status">
+                      {t(`profile.notifications.${preferencesMessage}`)}
+                    </span>
+                  )}
+                  <button className="button button--green" type="submit" disabled={arePreferencesSaving}>
+                    {t(arePreferencesSaving ? "common.actions.saving" : "common.actions.save")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
 
           <ActivityGrid days={safeActivity.days} year={currentYear} />
 

@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Literal, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy import case, func, select
@@ -14,6 +15,8 @@ from src.schemas.user import (
     ActivityDay,
     ActivityResponse,
     ActivitySummary,
+    NotificationPreferences,
+    NotificationPreferencesUpdate,
     ProfileStats,
     UserProfile,
     UserProfileBase,
@@ -82,6 +85,35 @@ async def regenerate_user_avatar_seed(session: AsyncSession, user: User) -> User
     await session.commit()
     await session.refresh(user)
     return get_user_base_profile(user)
+
+
+def get_notification_preferences(user: User) -> NotificationPreferences:
+    locale = cast(Literal["ru", "en"], user.locale if user.locale in {"ru", "en"} else "ru")
+    return NotificationPreferences(
+        locale=locale,
+        email_enabled=user.email_notifications_enabled,
+        deadline_24h=user.email_deadline_24h,
+        deadline_1h=user.email_deadline_1h,
+        deadline_overdue=user.email_deadline_overdue,
+        email_suppressed=user.email_suppressed_at is not None,
+    )
+
+
+async def update_notification_preferences(
+    session: AsyncSession,
+    user: User,
+    payload: NotificationPreferencesUpdate,
+) -> NotificationPreferences:
+    user.locale = payload.locale
+    user.email_notifications_enabled = payload.email_enabled
+    user.email_deadline_24h = payload.deadline_24h
+    user.email_deadline_1h = payload.deadline_1h
+    user.email_deadline_overdue = payload.deadline_overdue
+    if payload.email_enabled:
+        user.email_suppressed_at = None
+    await session.commit()
+    await session.refresh(user)
+    return get_notification_preferences(user)
 
 
 async def change_password(

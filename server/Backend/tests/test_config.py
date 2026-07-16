@@ -59,6 +59,23 @@ def test_email_notifications_require_complete_smtp_settings() -> None:
     assert settings.email_notifications_enabled is True
 
 
+def test_resend_email_requires_key_and_sender_only_when_enabled() -> None:
+    disabled = make_settings(email_enabled=False, email_provider="resend")
+    assert disabled.outbound_email_enabled is False
+
+    with pytest.raises(ValidationError):
+        make_settings(email_enabled=True, email_provider="resend")
+
+    enabled = make_settings(
+        email_enabled=True,
+        email_provider="resend",
+        resend_api_key="test-key",
+        resend_from_email="notifications@example.com",
+        resend_webhook_secret="whsec_test",
+    )
+    assert enabled.configured_email_provider == "resend"
+
+
 def test_telegram_notifications_require_bot_token() -> None:
     with pytest.raises(ValidationError):
         make_settings(telegram_notifications_enabled=True)

@@ -4,7 +4,7 @@ import re
 from time import perf_counter
 from typing import Any
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -67,6 +67,30 @@ AUTH_REGISTER_DURATION = Histogram(
         2.5,
         5,
     ),
+)
+EMAIL_SEND_ATTEMPTS = Counter(
+    "email_send_attempts_total",
+    "Email send attempts by provider and result.",
+    labelnames=("provider", "status"),
+)
+EMAIL_DELIVERY_EVENTS = Counter(
+    "email_delivery_events_total",
+    "Email provider webhook events.",
+    labelnames=("provider", "event"),
+)
+EMAIL_SEND_DURATION = Histogram(
+    "email_send_duration_seconds",
+    "Email provider request duration.",
+    labelnames=("provider",),
+    buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20),
+)
+EMAIL_DELIVERY_PENDING = Gauge(
+    "email_delivery_pending",
+    "Email deliveries currently queued or sending in this worker process.",
+)
+EMAIL_DELIVERY_FAILED = Gauge(
+    "email_delivery_failed",
+    "Email deliveries marked failed by this worker process.",
 )
 
 _DATABASE_LABEL = "postgres"

@@ -17,7 +17,10 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (CheckConstraint("role IN ('user', 'admin')", name="ck_users_role_allowed"),)
+    __table_args__ = (
+        CheckConstraint("role IN ('user', 'admin')", name="ck_users_role_allowed"),
+        CheckConstraint("locale IN ('ru', 'en')", name="ck_users_locale_allowed"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(
@@ -59,6 +62,24 @@ class User(Base):
         Boolean(), nullable=False, default=False, server_default="false"
     )
     telegram_linked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    locale: Mapped[str] = mapped_column(
+        String(2), nullable=False, default="ru", server_default="ru"
+    )
+    email_notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="false"
+    )
+    email_deadline_24h: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="false"
+    )
+    email_deadline_1h: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="false"
+    )
+    email_deadline_overdue: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="false"
+    )
+    email_suppressed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(

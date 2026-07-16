@@ -154,17 +154,24 @@ async def mark_as_read_or_404(
 
 
 def enqueue_notification_delivery(notification_id: int) -> None:
-    if not settings.email_notifications_enabled and not settings.telegram_notifications_enabled:
-        return
-    try:
-        from src.tasks.notifications import deliver_notification
+    from src.tasks.notifications import send_email_notification, send_telegram_notification
 
-        deliver_notification.delay(notification_id)
-    except Exception:
-        logger.exception(
-            "failed to enqueue notification delivery",
-            extra={"notification_id": notification_id},
-        )
+    if settings.outbound_email_enabled:
+        try:
+            send_email_notification.delay(notification_id)
+        except Exception:
+            logger.exception(
+                "failed to enqueue notification email",
+                extra={"notification_id": notification_id},
+            )
+    if settings.telegram_notifications_enabled:
+        try:
+            send_telegram_notification.delay(notification_id)
+        except Exception:
+            logger.exception(
+                "failed to enqueue notification telegram",
+                extra={"notification_id": notification_id},
+            )
 
 
 async def _get_by_dedupe_key(session: AsyncSession, dedupe_key: str) -> Notification | None:

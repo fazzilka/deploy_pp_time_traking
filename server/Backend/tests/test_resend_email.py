@@ -188,6 +188,7 @@ async def test_same_notification_is_sent_once(
 
     def session_factory() -> SessionContext:
         return SessionContext()
+
     await deliver_email_notification_async(session_factory, notification.id, provider=provider)
     await deliver_email_notification_async(session_factory, notification.id, provider=provider)
 

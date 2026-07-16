@@ -122,9 +122,7 @@ async def scan_deadline_notifications_async(
             if task_deadline is None:
                 continue
             remaining_minutes = max(1, int((task_deadline - now).total_seconds() / 60))
-            reminder_boundary = (
-                reminder_minutes if remaining_minutes <= reminder_minutes else 1440
-            )
+            reminder_boundary = reminder_minutes if remaining_minutes <= reminder_minutes else 1440
             notification = await _create_deadline_notification(
                 session=session,
                 task=task,

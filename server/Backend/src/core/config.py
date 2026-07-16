@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Literal, Self
 from urllib.parse import unquote, urlsplit
 
 from pydantic import model_validator
@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     deadline_reminder_minutes: int = 60
     overdue_notification_lookback_hours: int = 24
     email_notifications_enabled: bool = False
+    email_enabled: bool = False
+    email_provider: Literal["disabled", "smtp", "resend"] = "disabled"
+    email_reply_to: str = ""
+    email_default_locale: Literal["ru", "en"] = "ru"
+    email_base_url: str = "https://time-tracking.online"
+    email_max_retries: int = 5
+    email_retry_base_seconds: int = 30
+    email_request_timeout_seconds: float = 10.0
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
@@ -47,6 +55,11 @@ class Settings(BaseSettings):
     smtp_from_name: str = "Time Tracking"
     smtp_use_tls: bool = True
     smtp_use_ssl: bool = False
+    resend_api_key: str = ""
+    resend_api_url: str = "https://api.resend.com"
+    resend_from_email: str = ""
+    resend_from_name: str = "Time Tracking"
+    resend_webhook_secret: str = ""
     telegram_notifications_enabled: bool = False
     telegram_bot_token: str = ""
 
@@ -54,13 +67,25 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_allow_origins.split(",") if origin.strip()]
 
+    @property
+    def configured_email_provider(self) -> Literal["disabled", "smtp", "resend"]:
+        if self.email_notifications_enabled and self.email_provider == "disabled":
+            return "smtp"
+        return self.email_provider
+
+    @property
+    def outbound_email_enabled(self) -> bool:
+        return self.email_enabled or self.email_notifications_enabled
+
     @model_validator(mode="after")
     def validate_production_configuration(self) -> Self:
         if self.environment.lower() == "production":
             self._require_non_placeholder("JWT_SECRET_KEY", self.jwt_secret_key)
             self._validate_database_url()
             self._validate_celery_broker_url()
-        if self.email_notifications_enabled:
+        if self.outbound_email_enabled and self.configured_email_provider == "disabled":
+            raise ValueError("EMAIL_PROVIDER must be configured when email delivery is enabled")
+        if self.outbound_email_enabled and self.configured_email_provider == "smtp":
             missing_email = [
                 name
                 for name, value in {
@@ -78,6 +103,24 @@ class Settings(BaseSettings):
                     "Email notifications require complete SMTP configuration: "
                     + ", ".join(missing_email)
                 )
+        if self.outbound_email_enabled and self.configured_email_provider == "resend":
+            missing_resend = [
+                name
+                for name, value in {
+                    "RESEND_API_KEY": self.resend_api_key,
+                    "RESEND_FROM_EMAIL": self.resend_from_email,
+                    "RESEND_WEBHOOK_SECRET": self.resend_webhook_secret,
+                }.items()
+                if not value.strip()
+            ]
+            if missing_resend:
+                raise ValueError("Resend email delivery requires: " + ", ".join(missing_resend))
+        if self.email_max_retries < 0:
+            raise ValueError("EMAIL_MAX_RETRIES must be non-negative")
+        if self.email_retry_base_seconds <= 0:
+            raise ValueError("EMAIL_RETRY_BASE_SECONDS must be positive")
+        if self.email_request_timeout_seconds <= 0:
+            raise ValueError("EMAIL_REQUEST_TIMEOUT_SECONDS must be positive")
         if self.telegram_notifications_enabled and not self.telegram_bot_token.strip():
             raise ValueError("Telegram notifications require TELEGRAM_BOT_TOKEN")
         return self

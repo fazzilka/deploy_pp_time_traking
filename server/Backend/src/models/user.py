@@ -71,16 +71,16 @@ class User(Base):
         String(2), nullable=False, default="ru", server_default="ru"
     )
     email_notifications_enabled: Mapped[bool] = mapped_column(
-        Boolean(), nullable=False, default=False, server_default="false"
+        Boolean(), nullable=False, default=True, server_default="true"
     )
     email_deadline_24h: Mapped[bool] = mapped_column(
-        Boolean(), nullable=False, default=False, server_default="false"
+        Boolean(), nullable=False, default=True, server_default="true"
     )
     email_deadline_1h: Mapped[bool] = mapped_column(
-        Boolean(), nullable=False, default=False, server_default="false"
+        Boolean(), nullable=False, default=True, server_default="true"
     )
     email_deadline_overdue: Mapped[bool] = mapped_column(
-        Boolean(), nullable=False, default=False, server_default="false"
+        Boolean(), nullable=False, default=True, server_default="true"
     )
     email_suppressed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

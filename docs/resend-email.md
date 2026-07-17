@@ -41,6 +41,14 @@ User delivery is opt-in. Protected-space task notifications are always internal-
 Bounce, complaint, and suppression events disable email for the affected user without
 changing in-app notifications.
 
+New accounts default to the optional deadline email channel and all three deadline categories
+enabled. Migration `0019_email_defaults` changes database defaults for future users only; it does
+not update existing rows because a stored `false` may be an explicit opt-out.
+
+The user's persisted `users.locale` is the single locale for both the authenticated interface and
+future notification/invitation email rendering. `EMAIL_DEFAULT_LOCALE` remains only a fallback for
+recipients without a user account. There is no separate user-facing email-language preference.
+
 Optional notification email supports deadline events and workspace membership/role changes.
 Workspace invitations use only the transactional path, so an in-app invitation cannot produce
 a second optional email.

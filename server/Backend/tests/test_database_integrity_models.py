@@ -22,6 +22,20 @@ def test_user_model_has_role_check_constraint() -> None:
     assert "ck_users_role_allowed" in _constraint_names(User.__table__)
 
 
+def test_new_user_email_preferences_default_to_enabled() -> None:
+    for column_name in (
+        "email_notifications_enabled",
+        "email_deadline_24h",
+        "email_deadline_1h",
+        "email_deadline_overdue",
+    ):
+        column = User.__table__.columns[column_name]
+        assert column.default is not None
+        assert column.default.arg is True
+        assert column.server_default is not None
+        assert str(column.server_default.arg) == "true"
+
+
 def test_workspace_models_have_integrity_constraints_and_indexes() -> None:
     assert "ck_workspaces_type_allowed" in _constraint_names(Workspace.__table__)
 

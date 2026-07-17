@@ -427,10 +427,10 @@ async def test_successful_verification_creates_user_only_after_code_is_valid(
     user = next(item for item in session.items if isinstance(item, User))
     membership = next(item for item in session.items if isinstance(item, WorkspaceMember))
     assert user.email_verified is True
-    assert user.email_notifications_enabled is False
-    assert user.email_deadline_24h is False
-    assert user.email_deadline_1h is False
-    assert user.email_deadline_overdue is False
+    assert user.email_notifications_enabled is True
+    assert user.email_deadline_24h is True
+    assert user.email_deadline_1h is True
+    assert user.email_deadline_overdue is True
     assert membership.user_id == user.id
     assert membership.workspace_id == 33
     assert challenge.consumed_at is not None

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { GeneratedAvatar } from "../GeneratedAvatar/GeneratedAvatar";
 import { ProjectBadge } from "../ProjectBadge/ProjectBadge";
 import { PriorityIcon } from "../PriorityIcon/PriorityIcon";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { useLocale } from "../../i18n";
 import { updateTask } from "../../shared/api/tasks";
 import {
@@ -81,6 +82,7 @@ export function TaskDetailsModal({
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
   const [busyCommentId, setBusyCommentId] = useState<number | null>(null);
+  const [commentToDelete, setCommentToDelete] = useState<TaskComment | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
   const deadlineStatus = getDeadlineStatus(task.deadline);
@@ -300,14 +302,19 @@ export function TaskDetailsModal({
     }
   }
 
-  async function handleDeleteComment(comment: TaskComment) {
-    if (busyCommentId !== null || !window.confirm(text("Удалить комментарий?\nКомментарий будет скрыт для участников задачи.", "Delete this comment?\nIt will be hidden from task participants."))) {
+  function handleDeleteComment(comment: TaskComment) {
+    if (busyCommentId !== null) {
       return;
     }
+    setCommentToDelete(comment);
+  }
+
+  async function confirmDeleteComment() {
+    if (busyCommentId !== null || !commentToDelete) return;
     try {
-      setBusyCommentId(comment.id);
+      setBusyCommentId(commentToDelete.id);
       setCommentsError(null);
-      const deleted = await deleteTaskComment(task.id, comment.id);
+      const deleted = await deleteTaskComment(task.id, commentToDelete.id);
       setCommentsPage((current) => {
         if (!current) {
           return current;
@@ -323,6 +330,7 @@ export function TaskDetailsModal({
       setCommentsError(caughtError instanceof Error ? caughtError.message : text("Не удалось удалить комментарий", "Could not delete comment"));
     } finally {
       setBusyCommentId(null);
+      setCommentToDelete(null);
     }
   }
 
@@ -613,6 +621,16 @@ export function TaskDetailsModal({
           </button>
         </footer>
       </section>
+      <ConfirmDialog
+        open={commentToDelete !== null}
+        title={text("Удалить комментарий?", "Delete comment?")}
+        description={text("Комментарий будет скрыт для участников задачи.", "It will be hidden from task participants.")}
+        confirmLabel={text(busyCommentId !== null ? "Удаляем..." : "Удалить", busyCommentId !== null ? "Deleting..." : "Delete")}
+        cancelLabel={t("common.actions.cancel")}
+        isLoading={busyCommentId !== null}
+        onConfirm={() => void confirmDeleteComment()}
+        onCancel={() => setCommentToDelete(null)}
+      />
     </div>
   );
 }

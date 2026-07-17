@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
 from src.api.deps import get_current_active_user
 from src.db.session import get_db_session
@@ -184,58 +184,16 @@ async def test_create_team_workspace_returns_created_workspace(
 
 
 @pytest.mark.asyncio
-async def test_add_workspace_member_by_email(test_client, monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_add_member(_session, user, workspace_id, payload):
-        assert user.id == 1
-        assert workspace_id == 2
-        assert payload.email == "member@example.com"
-        assert payload.role == WorkspaceRole.MEMBER
-        return _member(workspace_id=2, email="member@example.com")
+async def test_legacy_direct_add_workspace_member_is_disabled(test_client) -> None:
+    response = await test_client.post(
+        "/api/v1/workspaces/2/members",
+        json={"email": "member@example.com", "role": "member"},
+    )
 
-    monkeypatch.setattr("src.api.v1.workspaces.add_workspace_member_by_email", fake_add_member)
-    app.dependency_overrides[get_db_session] = _override_session
-    app.dependency_overrides[get_current_active_user] = _override_user
-    try:
-        response = await test_client.post(
-            "/api/v1/workspaces/2/members",
-            json={"email": "member@example.com", "role": "member"},
-        )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 201
-    data = response.json()
-    assert data["workspace_id"] == 2
-    assert data["user"]["email"] == "member@example.com"
-    assert data["user"]["avatar_seed"] == "seed-member-2"
+    assert response.status_code == 405
 
 
 @pytest.mark.asyncio
-async def test_add_workspace_member_returns_duplicate_error(
-    test_client,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def fake_add_member(*_args, **_kwargs):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Пользователь уже состоит в команде",
-        )
-
-    monkeypatch.setattr("src.api.v1.workspaces.add_workspace_member_by_email", fake_add_member)
-    app.dependency_overrides[get_db_session] = _override_session
-    app.dependency_overrides[get_current_active_user] = _override_user
-    try:
-        response = await test_client.post(
-            "/api/v1/workspaces/2/members",
-            json={"email": "member@example.com", "role": "member"},
-        )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 409
-    assert response.json()["detail"] == "Пользователь уже состоит в команде"
-
-
 @pytest.mark.asyncio
 async def test_add_workspace_member_service_persists_real_membership(
     monkeypatch: pytest.MonkeyPatch,

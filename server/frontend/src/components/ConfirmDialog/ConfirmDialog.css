@@ -1,0 +1,8 @@
+.confirm-dialog__backdrop { position: fixed; inset: 0; z-index: 2500; display: grid; place-items: center; padding: 20px; background: rgb(15 23 42 / 58%); }
+.confirm-dialog { width: min(100%, 440px); padding: 24px; border: 1px solid var(--border-color, #d8dee8); border-radius: 16px; background: var(--surface-color, #fff); color: var(--text-color, #172033); box-shadow: 0 24px 70px rgb(15 23 42 / 28%); }
+.confirm-dialog h2 { margin: 0 0 10px; font-size: 1.2rem; }
+.confirm-dialog p { margin: 0; color: var(--text-muted, #667085); line-height: 1.55; white-space: pre-line; }
+.confirm-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.confirm-dialog__actions button { min-height: 40px; padding: 0 15px; border: 1px solid var(--border-color, #d0d7e2); border-radius: 9px; background: var(--surface-color, #fff); color: inherit; cursor: pointer; font: inherit; font-weight: 650; }
+.confirm-dialog__actions .confirm-dialog__danger { border-color: #dc2626; background: #dc2626; color: #fff; }
+.confirm-dialog__actions button:disabled { cursor: not-allowed; opacity: 0.6; }

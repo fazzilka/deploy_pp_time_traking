@@ -163,7 +163,9 @@ async def _apply_delivery_event(
             delivery.status = NotificationDeliveryStatus.QUEUED
 
 
-async def _suppress_user_email(session: AsyncSession, user_id: int) -> None:
+async def _suppress_user_email(session: AsyncSession, user_id: int | None) -> None:
+    if user_id is None:
+        return
     user = await session.get(User, user_id)
     if user is None:
         return

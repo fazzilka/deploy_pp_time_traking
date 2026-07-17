@@ -169,6 +169,30 @@
   font-weight: 650;
 }
 
+.auth-code-input {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  padding-left: 0.5em !important;
+}
+
+.auth-link-button {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary, #2563eb);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.25rem;
+}
+
+.auth-link-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .auth-submit:hover:not(:disabled) { background: var(--color-accent-hover); }
 
 .auth-switch-card {

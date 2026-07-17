@@ -11,6 +11,7 @@ import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
 import { TaskDeleteDialog } from "../../components/TaskDeleteDialog/TaskDeleteDialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import {
@@ -201,6 +202,8 @@ export function ProjectDetailPage() {
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[1]);
   const [projectIcon, setProjectIcon] = useState<ProjectIconName>("folder");
   const [projectError, setProjectError] = useState<string | null>(null);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isArchivingProject, setIsArchivingProject] = useState(false);
   const canManageProject = canCreateProjects(currentUserRole);
   const canMutateTasks = canCreateTasks(currentUserRole);
   const canDeleteTask = canDeleteTasks(currentUserRole);
@@ -647,16 +650,20 @@ export function ProjectDetailPage() {
       return;
     }
 
-    const shouldArchive = window.confirm(text("Архивировать проект? Задачи и история времени сохранятся.", "Archive this project? Tasks and time history will be preserved."));
-    if (!shouldArchive) {
-      return;
-    }
+    setIsArchiveDialogOpen(true);
+  }
 
+  async function confirmArchiveProject() {
+    if (isArchivingProject) return;
     try {
+      setIsArchivingProject(true);
       await archiveProject(numericProjectId);
       navigate("/projects");
     } catch {
       setError(text("Не удалось архивировать проект", "Could not archive project"));
+      setIsArchiveDialogOpen(false);
+    } finally {
+      setIsArchivingProject(false);
     }
   }
 
@@ -1095,6 +1102,16 @@ export function ProjectDetailPage() {
         error={deleteError}
         onCancel={closeDeleteDialog}
         onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={isArchiveDialogOpen}
+        title={text("Архивировать проект?", "Archive project?")}
+        description={text("Задачи и история времени сохранятся.", "Tasks and time history will be preserved.")}
+        confirmLabel={text(isArchivingProject ? "Архивируем..." : "Архивировать", isArchivingProject ? "Archiving..." : "Archive")}
+        cancelLabel={t("common.actions.cancel")}
+        isLoading={isArchivingProject}
+        onConfirm={() => void confirmArchiveProject()}
+        onCancel={() => setIsArchiveDialogOpen(false)}
       />
     </main>
   );

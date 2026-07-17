@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,6 +17,7 @@ class NotificationRead(BaseModel):
     payload: dict[str, Any] | None = None
     workspace_id: int | None = None
     task_id: int | None = None
+    invitation_id: UUID | None = None
     is_read: bool
     created_at: datetime
     read_at: datetime | None = None

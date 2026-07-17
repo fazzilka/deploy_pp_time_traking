@@ -19,6 +19,122 @@ class RenderedEmail:
     text: str
 
 
+def render_registration_verification_email(
+    *,
+    code: str,
+    locale: str,
+    ttl_minutes: int,
+) -> RenderedEmail:
+    normalized_locale = "en" if locale == "en" else "ru"
+    if normalized_locale == "ru":
+        subject = "Код подтверждения Time Tracking"
+        heading = "Подтвердите email"
+        body = "Введите этот код, чтобы завершить регистрацию:"
+        footer = (
+            f"Код действует {ttl_minutes} минут. "
+            "Если вы не запрашивали регистрацию, проигнорируйте это письмо."
+        )
+    else:
+        subject = "Time Tracking verification code"
+        heading = "Verify your email"
+        body = "Enter this code to finish creating your account:"
+        footer = (
+            f"The code is valid for {ttl_minutes} minutes. "
+            "If you did not request this registration, ignore this email."
+        )
+    return _render_transactional_code(
+        locale=normalized_locale,
+        subject=subject,
+        heading=heading,
+        body=body,
+        code=code,
+        footer=footer,
+    )
+
+
+def render_workspace_invitation_email(
+    *,
+    locale: str,
+    inviter_name: str,
+    workspace_name: str,
+    expires_at: datetime,
+    invitation_url: str,
+    timezone_name: str,
+) -> RenderedEmail:
+    normalized_locale = "en" if locale == "en" else "ru"
+    formatted_expiry = _format_deadline(expires_at, normalized_locale, timezone_name)
+    if normalized_locale == "ru":
+        subject = "Вас пригласили в Time Tracking"
+        heading = "Приглашение в команду"
+        body = f"{inviter_name} приглашает вас присоединиться к пространству «{workspace_name}»."
+        cta = "Открыть приглашение"
+        footer = f"Приглашение действительно до {formatted_expiry}."
+    else:
+        subject = "You have been invited to Time Tracking"
+        heading = "Team invitation"
+        body = f"{inviter_name} invited you to join “{workspace_name}”."
+        cta = "Open invitation"
+        footer = f"This invitation is valid until {formatted_expiry}."
+    return _render_transactional_cta(
+        locale=normalized_locale,
+        subject=subject,
+        heading=heading,
+        body=body,
+        cta=cta,
+        url=invitation_url,
+        footer=footer,
+    )
+
+
+def _email_shell(locale: str, content: str) -> str:
+    return f"""<!doctype html>
+<html lang="{locale}">
+  <body style="margin:0;background:#f6f8fa;color:#24292f;font-family:Arial,sans-serif">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+      <tr><td align="center" style="padding:24px 12px">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+          style="max-width:600px;background:#fff;border:1px solid #d0d7de;border-radius:8px">
+          <tr><td style="padding:24px 28px">
+            <div style="font-size:14px;font-weight:700;color:#57606a">Time Tracking</div>
+            {content}
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>"""
+
+
+def _render_transactional_code(
+    *, locale: str, subject: str, heading: str, body: str, code: str, footer: str
+) -> RenderedEmail:
+    content = f"""
+      <h1 style="margin:18px 0 12px;font-size:24px">{escape(heading)}</h1>
+      <p style="font-size:16px;line-height:1.55">{escape(body)}</p>
+      <div style="margin:22px 0;padding:16px;text-align:center;border-radius:8px;background:#f0f6fc;
+        font:700 32px/1.2 monospace;letter-spacing:8px">{escape(code)}</div>
+      <p style="margin-top:24px;color:#57606a;font-size:13px;line-height:1.5">
+        {escape(footer)}</p>"""
+    text = f"Time Tracking\n\n{heading}\n\n{body}\n\n{code}\n\n{footer}"
+    return RenderedEmail(subject=subject, html=_email_shell(locale, content), text=text)
+
+
+def _render_transactional_cta(
+    *, locale: str, subject: str, heading: str, body: str, cta: str, url: str, footer: str
+) -> RenderedEmail:
+    safe_url = escape(url, quote=True)
+    content = f"""
+      <h1 style="margin:18px 0 12px;font-size:24px">{escape(heading)}</h1>
+      <p style="font-size:16px;line-height:1.55">{escape(body)}</p>
+      <a href="{safe_url}" style="display:inline-block;margin:8px 0;padding:11px 16px;
+        border-radius:6px;background:#1f883d;color:#fff;text-decoration:none;font-weight:700">
+        {escape(cta)}</a>
+      <p style="margin-top:24px;color:#57606a;font-size:13px;line-height:1.5">
+        {escape(footer)}</p>"""
+    text = f"Time Tracking\n\n{heading}\n\n{body}\n\n{cta}: {url}\n\n{footer}"
+    return RenderedEmail(subject=subject, html=_email_shell(locale, content), text=text)
+
+
 def render_notification_email(
     notification: Notification,
     *,

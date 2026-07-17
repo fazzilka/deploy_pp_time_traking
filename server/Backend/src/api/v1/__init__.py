@@ -5,6 +5,7 @@ from src.api.v1 import (
     admin,
     auth,
     events,
+    invitations,
     notifications,
     projects,
     protected_space,
@@ -16,6 +17,7 @@ from src.api.v1 import (
 
 api_v1_router = APIRouter(prefix="/api/v1", dependencies=[Depends(bind_vault_token)])
 api_v1_router.include_router(auth.router)
+api_v1_router.include_router(invitations.router)
 api_v1_router.include_router(users.router)
 api_v1_router.include_router(workspaces.router)
 api_v1_router.include_router(protected_space.router)

@@ -907,6 +907,37 @@
   line-height: 1.45;
 }
 
+.team-invite-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #dce2ea);
+  border-radius: 10px;
+}
+
+.team-invite-item > span {
+  color: var(--text-muted, #667085);
+  font-size: 0.82rem;
+}
+
+.team-invite-item > div {
+  display: flex;
+  gap: 8px;
+}
+
+.team-invite-item button {
+  border: 0;
+  background: transparent;
+  color: var(--primary-color, #2563eb);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  padding: 3px 0;
+}
+
+.team-invite-item button:disabled { cursor: not-allowed; opacity: 0.55; }
+
 .team-activity-empty {
   min-height: 54px;
   display: flex;

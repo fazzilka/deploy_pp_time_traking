@@ -41,6 +41,22 @@ User delivery is opt-in. Protected-space task notifications are always internal-
 Bounce, complaint, and suppression events disable email for the affected user without
 changing in-app notifications.
 
+## Transactional registration and invitation email
+
+`registration_verification` and `workspace_invitation` are mandatory transactional messages.
+They reuse the provider, retry policy, delivery persistence, idempotency keys, and Resend webhook
+lifecycle, but do not consult optional deadline-email preferences. Global `EMAIL_ENABLED` and
+provider configuration still control the channel.
+
+Verification codes and raw invitation tokens are never persisted in PostgreSQL or included in
+provider tags or webhook metadata. Only safe internal IDs and a generation number are stored. The
+plaintext secret is passed in a redacted Celery task message, with the result backend disabled,
+and is checked against the current database generation before delivery.
+
+Apply `0018_invites_verify` before enabling these flows. Existing users are marked verified by
+the migration; new public registrations create a `PendingRegistration` and do not create a
+`User` until the one-time code is accepted.
+
 ## Rollback
 
 Set `EMAIL_ENABLED=false` first. Internal notifications need no rollback. Keep delivery and

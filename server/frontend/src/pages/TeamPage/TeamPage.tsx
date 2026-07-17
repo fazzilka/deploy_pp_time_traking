@@ -250,9 +250,11 @@ export function TeamPage() {
   const [openMemberMenu, setOpenMemberMenu] = useState<OpenMemberMenu | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<WorkspaceMember | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
+  const [removeMemberError, setRemoveMemberError] = useState<string | null>(null);
 
   const canManage = canManageMembers(currentUserRole);
   const canEdit = canEditWorkspace(currentUserRole);
+  const canRemoveMembers = currentUserRole === "owner" && !currentWorkspace?.is_protected;
 
   const membersCount = workspaceSummary?.members_count ?? currentWorkspace?.members_count ?? members.length;
   const activeMembersCount =
@@ -266,6 +268,14 @@ export function TeamPage() {
   const tasksCount = workspaceSummary?.tasks_count ?? currentWorkspace?.tasks_count ?? 0;
   const completedTasksCount = workspaceSummary?.completed_tasks_count ?? 0;
   const totalTimeSeconds = workspaceSummary?.total_time_seconds ?? currentWorkspace?.total_time_seconds ?? 0;
+
+  function canRemoveMember(member: WorkspaceMember): boolean {
+    return (
+      canRemoveMembers
+      && member.role !== "owner"
+      && member.user.id !== currentWorkspace?.owner_id
+    );
+  }
 
   async function loadTeam() {
     if (!currentWorkspaceId) {
@@ -532,8 +542,20 @@ export function TeamPage() {
   }
 
   function handleRemoveMember(member: WorkspaceMember) {
+    if (!canRemoveMember(member) || isRemovingMember) {
+      return;
+    }
     setOpenMemberMenu(null);
+    setRemoveMemberError(null);
     setMemberToRemove(member);
+  }
+
+  function closeRemoveMemberDialog() {
+    if (isRemovingMember) {
+      return;
+    }
+    setRemoveMemberError(null);
+    setMemberToRemove(null);
   }
 
   async function confirmRemoveMember() {
@@ -541,19 +563,25 @@ export function TeamPage() {
       return;
     }
 
-    setError(null);
+    setRemoveMemberError(null);
     setSuccessMessage(null);
 
     try {
       setIsRemovingMember(true);
       await removeWorkspaceMember(currentWorkspaceId, memberToRemove.id);
-      setSuccessMessage(text(`Участник ${getMemberName(memberToRemove)} удалён из команды.`, `${getMemberName(memberToRemove)} was removed from the team.`));
+      setMembers((currentMembers) => currentMembers.filter((member) => member.id !== memberToRemove.id));
       await Promise.all([loadTeam(), refreshWorkspaces()]);
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : text("Не удалось удалить участника из команды", "Could not remove member from team"));
+      setSuccessMessage(
+        t("workspaceMembers.removeDialog.success", {
+          memberName: getMemberName(memberToRemove),
+          workspaceName: currentWorkspace?.name ?? "",
+        }),
+      );
+      setMemberToRemove(null);
+    } catch {
+      setRemoveMemberError(t("workspaceMembers.removeDialog.error"));
     } finally {
       setIsRemovingMember(false);
-      setMemberToRemove(null);
     }
   }
 
@@ -1065,22 +1093,29 @@ export function TeamPage() {
                 </select>
               </label>
 
-              <button type="button" onClick={() => void handleRemoveMember(openMemberMenu.member)}>
-                {text("Удалить из команды", "Remove from team")}
-              </button>
+              {canRemoveMember(openMemberMenu.member) ? (
+                <button type="button" onClick={() => handleRemoveMember(openMemberMenu.member)}>
+                  {t("workspaceMembers.removeAction")}
+                </button>
+              ) : null}
             </div>,
             document.body,
           )
         : null}
       <ConfirmDialog
         open={memberToRemove !== null}
-        title={text("Удалить участника?", "Remove member?")}
-        description={memberToRemove ? text(`Участник ${memberToRemove.user.email} потеряет доступ к пространству.`, `${memberToRemove.user.email} will lose access to the workspace.`) : ""}
-        confirmLabel={text(isRemovingMember ? "Удаляем..." : "Удалить", isRemovingMember ? "Removing..." : "Remove")}
-        cancelLabel={t("common.actions.cancel")}
+        title={t("workspaceMembers.removeDialog.title")}
+        description={memberToRemove ? t("workspaceMembers.removeDialog.description", {
+          memberName: getMemberName(memberToRemove),
+          workspaceName: currentWorkspace?.name ?? "",
+        }) : ""}
+        confirmLabel={t(isRemovingMember ? "workspaceMembers.removeDialog.removing" : "workspaceMembers.removeDialog.confirm")}
+        cancelLabel={t("workspaceMembers.removeDialog.cancel")}
         isLoading={isRemovingMember}
-        onConfirm={() => void confirmRemoveMember()}
-        onCancel={() => setMemberToRemove(null)}
+        destructive
+        error={removeMemberError}
+        onConfirm={confirmRemoveMember}
+        onCancel={closeRemoveMemberDialog}
       />
     </>
   );

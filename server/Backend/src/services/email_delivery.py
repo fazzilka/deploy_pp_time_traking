@@ -14,6 +14,7 @@ from src.core.config import settings
 from src.core.metrics import (
     EMAIL_DELIVERY_FAILED,
     EMAIL_DELIVERY_PENDING,
+    EMAIL_DELIVERY_SKIPPED,
     EMAIL_SEND_ATTEMPTS,
     EMAIL_SEND_DURATION,
 )
@@ -71,7 +72,7 @@ async def deliver_email_notification_async(
 
         skip_reason = _email_skip_reason(notification)
         if skip_reason is not None:
-            _mark_skipped(delivery, skip_reason)
+            _mark_skipped(delivery, skip_reason, notification)
             await session.commit()
             return
 
@@ -81,7 +82,7 @@ async def deliver_email_notification_async(
             config=settings,
         )
         if rendered is None:
-            _mark_skipped(delivery, "unsupported_notification_type")
+            _mark_skipped(delivery, "unsupported_notification_type", notification)
             await session.commit()
             return
 
@@ -115,6 +116,10 @@ async def deliver_email_notification_async(
         delivery.recipient_email = notification.user.email
         delivery.last_error = None
         delivery.last_error_code = None
+        logger.info(
+            "email_delivery_sending",
+            extra=_delivery_log_fields(delivery, notification, provider=selected_provider.name),
+        )
         EMAIL_DELIVERY_PENDING.inc()
         started_at = perf_counter()
         try:
@@ -136,35 +141,52 @@ async def deliver_email_notification_async(
             EMAIL_DELIVERY_PENDING.dec()
             if delivery.status == NotificationDeliveryStatus.FAILED:
                 EMAIL_DELIVERY_FAILED.inc()
+                logger.warning(
+                    "email_delivery_failed",
+                    extra=_delivery_log_fields(
+                        delivery, notification, provider=selected_provider.name, error_code=exc.code
+                    ),
+                )
                 return
+            logger.info(
+                "email_delivery_retry",
+                extra=_delivery_log_fields(
+                    delivery, notification, provider=selected_provider.name, error_code=exc.code
+                ),
+            )
             raise RetryableEmailDeliveryError(exc.code) from exc
 
         EMAIL_SEND_DURATION.labels(provider=selected_provider.name).observe(
             perf_counter() - started_at
         )
-        EMAIL_SEND_ATTEMPTS.labels(provider=selected_provider.name, status="accepted").inc()
+        EMAIL_SEND_ATTEMPTS.labels(
+            provider=selected_provider.name,
+            status="accepted" if result.accepted else "rejected",
+        ).inc()
         delivery.provider = result.provider
         delivery.provider_message_id = result.provider_message_id
         delivery.status = (
             NotificationDeliveryStatus.SENT
             if result.accepted
-            else NotificationDeliveryStatus.SKIPPED
+            else NotificationDeliveryStatus.FAILED
         )
         delivery.sent_at = now if result.accepted else None
+        delivery.failed_at = None if result.accepted else now
         delivery.last_error = None
-        delivery.last_error_code = None
+        delivery.last_error_code = None if result.accepted else "provider_rejected"
         await session.commit()
         EMAIL_DELIVERY_PENDING.dec()
-        logger.info(
-            "email_delivery_finished",
-            extra={
-                "notification_id": notification.id,
-                "delivery_id": delivery.id,
-                "provider": result.provider,
-                "provider_message_id": result.provider_message_id,
-                "attempt": delivery.attempts,
-                "status": delivery.status.value,
-            },
+        if not result.accepted:
+            EMAIL_DELIVERY_FAILED.inc()
+        log_method = logger.info if result.accepted else logger.warning
+        log_method(
+            "email_delivery_sent" if result.accepted else "email_delivery_failed",
+            extra=_delivery_log_fields(
+                delivery,
+                notification,
+                provider=result.provider,
+                error_code=delivery.last_error_code,
+            ),
         )
 
 
@@ -189,7 +211,7 @@ async def _lock_delivery(
     notification: Notification,
 ) -> NotificationDelivery:
     idempotency_key = _idempotency_key(notification.id)
-    await session.execute(
+    insert_result = await session.execute(
         insert(NotificationDelivery)
         .values(
             notification_id=notification.id,
@@ -203,7 +225,9 @@ async def _lock_delivery(
         .on_conflict_do_nothing(
             index_elements=["notification_id", "channel"],
         )
+        .returning(NotificationDelivery.id)
     )
+    created_id = insert_result.scalar_one_or_none()
     result = await session.execute(
         select(NotificationDelivery)
         .where(
@@ -215,6 +239,15 @@ async def _lock_delivery(
     delivery = result.scalar_one()
     delivery.idempotency_key = delivery.idempotency_key or idempotency_key
     delivery.queued_at = delivery.queued_at or datetime.now(UTC)
+    if created_id is not None:
+        logger.info(
+            "email_delivery_created",
+            extra=_delivery_log_fields(
+                delivery,
+                notification,
+                provider=settings.configured_email_provider,
+            ),
+        )
     return delivery
 
 
@@ -241,13 +274,57 @@ def _email_skip_reason(notification: Notification) -> str | None:
         if reminder_minutes >= 1440:
             return None if user.email_deadline_24h else "deadline_24h_opt_out"
         return None if user.email_deadline_1h else "deadline_1h_opt_out"
+    if notification.type == NotificationType.WORKSPACE_INVITATION:
+        return "transactional_only"
+    if notification.type in {
+        NotificationType.WORKSPACE_MEMBER_ADDED,
+        NotificationType.WORKSPACE_MEMBER_REMOVED,
+        NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED,
+        NotificationType.WORKSPACE_ROLE_CHANGED,
+    }:
+        return None
     return "unsupported_notification_type"
 
 
-def _mark_skipped(delivery: NotificationDelivery, reason: str) -> None:
+def _mark_skipped(delivery: NotificationDelivery, reason: str, notification: Notification) -> None:
     delivery.status = NotificationDeliveryStatus.SKIPPED
     delivery.last_error_code = reason
     delivery.last_error = None
+    EMAIL_DELIVERY_SKIPPED.labels(
+        provider=settings.configured_email_provider,
+        purpose="notification",
+        reason=reason,
+    ).inc()
+    logger.info(
+        "email_delivery_skipped",
+        extra=_delivery_log_fields(
+            delivery,
+            notification,
+            provider=settings.configured_email_provider,
+            skip_code=reason,
+        ),
+    )
+
+
+def _delivery_log_fields(
+    delivery: NotificationDelivery,
+    notification: Notification,
+    *,
+    provider: str,
+    skip_code: str | None = None,
+    error_code: str | None = None,
+) -> dict[str, object]:
+    return {
+        "delivery_id": delivery.id,
+        "notification_id": notification.id,
+        "purpose": "notification",
+        "notification_type": notification.type.value,
+        "provider": provider,
+        "user_id": notification.user_id,
+        "attempt": delivery.attempts,
+        "skip_code": skip_code,
+        "error_code": error_code,
+    }
 
 
 def _idempotency_key(notification_id: int) -> str:

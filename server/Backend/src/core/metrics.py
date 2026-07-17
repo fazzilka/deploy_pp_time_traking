@@ -92,6 +92,11 @@ EMAIL_DELIVERY_FAILED = Gauge(
     "email_delivery_failed",
     "Email deliveries marked failed by this worker process.",
 )
+EMAIL_DELIVERY_SKIPPED = Counter(
+    "email_delivery_skipped_total",
+    "Email deliveries skipped by policy.",
+    labelnames=("provider", "purpose", "reason"),
+)
 
 _DATABASE_LABEL = "postgres"
 _CONFIGURED_ENGINE_IDS: set[int] = set()

@@ -141,10 +141,14 @@ def render_notification_email(
     locale: str,
     config: Settings,
 ) -> RenderedEmail | None:
-    if notification.type not in {
-        NotificationType.DEADLINE_SOON,
-        NotificationType.DEADLINE_OVERDUE,
+    if notification.type in {
+        NotificationType.WORKSPACE_MEMBER_ADDED,
+        NotificationType.WORKSPACE_MEMBER_REMOVED,
+        NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED,
+        NotificationType.WORKSPACE_ROLE_CHANGED,
     }:
+        return _render_workspace_notification_email(notification, locale=locale, config=config)
+    if notification.type not in {NotificationType.DEADLINE_SOON, NotificationType.DEADLINE_OVERDUE}:
         return None
 
     normalized_locale = locale if locale in {"ru", "en"} else config.email_default_locale
@@ -211,6 +215,52 @@ def render_notification_email(
 </html>"""
     text = f"Time Tracking\n\n{heading}\n\n{body}\n\n{open_task}: {task_url}\n\n{reason}"
     return RenderedEmail(subject=subject, html=html, text=text)
+
+
+def _render_workspace_notification_email(
+    notification: Notification,
+    *,
+    locale: str,
+    config: Settings,
+) -> RenderedEmail:
+    """Render optional workspace membership changes.
+
+    Invitations deliberately remain transactional-only: their email is rendered by
+    ``render_workspace_invitation_email`` and must not be duplicated through the
+    notification preference channel.
+    """
+    normalized_locale = locale if locale in {"ru", "en"} else config.email_default_locale
+    payload = notification.payload or {}
+    workspace_name = str(payload.get("workspace_name") or "")
+    subject = f"Time Tracking — {notification.title}"
+    app_url = f"{config.email_base_url.rstrip('/')}/dashboard"
+    action = "Открыть приложение" if normalized_locale == "ru" else "Open application"
+    reason = (
+        "Вы получили это письмо, потому что включили email-уведомления."
+        if normalized_locale == "ru"
+        else "You received this email because email notifications are enabled."
+    )
+    workspace_line = (
+        f'<p style="margin:0 0 16px;font-size:14px;color:#57606a">{escape(workspace_name)}</p>'
+        if workspace_name
+        else ""
+    )
+    content = f"""
+      <h1 style="margin:18px 0 12px;font-size:24px">{escape(notification.title)}</h1>
+      <p style="font-size:16px;line-height:1.55">{escape(notification.message)}</p>
+      {workspace_line}
+      <a href="{escape(app_url, quote=True)}" style="display:inline-block;margin:8px 0;
+        padding:11px 16px;border-radius:6px;background:#1f883d;color:#fff;text-decoration:none;
+        font-weight:700">{escape(action)}</a>
+      <p style="margin-top:24px;color:#57606a;font-size:13px;line-height:1.5">
+        {escape(reason)}</p>"""
+    text_parts = ["Time Tracking", "", notification.title, "", notification.message]
+    if workspace_name:
+        text_parts.extend(["", f"Workspace: {workspace_name}"])
+    text_parts.extend(["", f"{action}: {app_url}", "", reason])
+    return RenderedEmail(
+        subject=subject, html=_email_shell(normalized_locale, content), text="\n".join(text_parts)
+    )
 
 
 def _render_ru(

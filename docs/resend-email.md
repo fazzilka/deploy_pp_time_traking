@@ -41,6 +41,34 @@ User delivery is opt-in. Protected-space task notifications are always internal-
 Bounce, complaint, and suppression events disable email for the affected user without
 changing in-app notifications.
 
+Optional notification email supports deadline events and workspace membership/role changes.
+Workspace invitations use only the transactional path, so an in-app invitation cannot produce
+a second optional email.
+
+### Notification skip policy
+
+| Code | Condition |
+| --- | --- |
+| `email_disabled` | Global outbound email is disabled. |
+| `inactive_user` | The notification owner is inactive. |
+| `missing_email` | The notification owner has no recipient address. |
+| `user_opt_out` | The user explicitly disabled optional email. |
+| `recipient_suppressed` | A bounce/complaint suppressed the recipient. |
+| `protected_space` | The notification contains protected-space content. |
+| `deadline_24h_opt_out` | The user disabled the 24-hour deadline category. |
+| `deadline_1h_opt_out` | The user disabled the 1-hour deadline category. |
+| `deadline_overdue_opt_out` | The user disabled the overdue category. |
+| `transactional_only` | The type must use its mandatory transactional sender. |
+| `unsupported_notification_type` | No optional email policy/template exists for the type. |
+
+Transactional precondition logs additionally use `source_missing`, `verification_consumed`,
+`verification_expired`, `invitation_not_pending`, `invitation_expired`, and `stale_generation`.
+These conditions are checked before creating/sending a delivery and never include the code or token
+in logs.
+
+Provider, API, and network failures are never `skipped`: retryable failures remain `queued` and
+permanent failures become `failed`.
+
 ## Transactional registration and invitation email
 
 `registration_verification` and `workspace_invitation` are mandatory transactional messages.
@@ -56,6 +84,15 @@ and is checked against the current database generation before delivery.
 Apply `0018_invites_verify` before enabling these flows. Existing users are marked verified by
 the migration; new public registrations create a `PendingRegistration` and do not create a
 `User` until the one-time code is accepted.
+
+## Read-only delivery diagnostic
+
+Run this in a backend container. It masks the recipient and never sends an email or changes the
+delivery row:
+
+```bash
+python -m src.cli.diagnose_email_notification --notification-id 123 --dry-run
+```
 
 ## Rollback
 

@@ -104,12 +104,18 @@ async def update_notification_preferences(
     user: User,
     payload: NotificationPreferencesUpdate,
 ) -> NotificationPreferences:
-    user.locale = payload.locale
-    user.email_notifications_enabled = payload.email_enabled
-    user.email_deadline_24h = payload.deadline_24h
-    user.email_deadline_1h = payload.deadline_1h
-    user.email_deadline_overdue = payload.deadline_overdue
-    if payload.email_enabled:
+    values = payload.model_dump(exclude_unset=True)
+    if values.get("locale") is not None:
+        user.locale = values["locale"]
+    if values.get("email_enabled") is not None:
+        user.email_notifications_enabled = values["email_enabled"]
+    if values.get("deadline_24h") is not None:
+        user.email_deadline_24h = values["deadline_24h"]
+    if values.get("deadline_1h") is not None:
+        user.email_deadline_1h = values["deadline_1h"]
+    if values.get("deadline_overdue") is not None:
+        user.email_deadline_overdue = values["deadline_overdue"]
+    if values.get("email_enabled") is True:
         user.email_suppressed_at = None
     await session.commit()
     await session.refresh(user)

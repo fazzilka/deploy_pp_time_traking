@@ -427,6 +427,10 @@ async def test_successful_verification_creates_user_only_after_code_is_valid(
     user = next(item for item in session.items if isinstance(item, User))
     membership = next(item for item in session.items if isinstance(item, WorkspaceMember))
     assert user.email_verified is True
+    assert user.email_notifications_enabled is False
+    assert user.email_deadline_24h is False
+    assert user.email_deadline_1h is False
+    assert user.email_deadline_overdue is False
     assert membership.user_id == user.id
     assert membership.workspace_id == 33
     assert challenge.consumed_at is not None
@@ -482,6 +486,10 @@ async def test_accept_invitation_creates_exactly_one_membership(
 ) -> None:
     invitation = _invitation()
     user = _user()
+    user.email_notifications_enabled = True
+    user.email_deadline_24h = True
+    user.email_deadline_1h = False
+    user.email_deadline_overdue = True
     session = DummySession()
     session.execute_results = [
         DummyResult(scalar_one_or_none=invitation),
@@ -503,6 +511,10 @@ async def test_accept_invitation_creates_exactly_one_membership(
     assert memberships[0].user_id == user.id
     assert accepted.status == WorkspaceInvitationStatus.ACCEPTED
     assert accepted.accepted_at is not None
+    assert user.email_notifications_enabled is True
+    assert user.email_deadline_24h is True
+    assert user.email_deadline_1h is False
+    assert user.email_deadline_overdue is True
 
 
 @pytest.mark.asyncio

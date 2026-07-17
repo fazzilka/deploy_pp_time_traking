@@ -65,11 +65,11 @@ class NotificationPreferences(BaseModel):
 class NotificationPreferencesUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    locale: Literal["ru", "en"]
-    email_enabled: bool
-    deadline_24h: bool
-    deadline_1h: bool
-    deadline_overdue: bool
+    locale: Literal["ru", "en"] | None = None
+    email_enabled: bool | None = None
+    deadline_24h: bool | None = None
+    deadline_1h: bool | None = None
+    deadline_overdue: bool | None = None
 
 
 class ChangePasswordRequest(BaseModel):

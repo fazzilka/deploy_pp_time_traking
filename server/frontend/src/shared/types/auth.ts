@@ -18,4 +18,16 @@ export type AuthResponse = {
   user?: User;
 };
 
+export type RegistrationStartResponse = {
+  verification_id: string;
+  email_masked: string;
+  expires_in_seconds: number;
+  resend_available_in_seconds: number;
+};
+
+export type RegistrationResendResponse = {
+  expires_in_seconds: number;
+  resend_available_in_seconds: number;
+};
+
 export type RegisterResponse = UserPublic;

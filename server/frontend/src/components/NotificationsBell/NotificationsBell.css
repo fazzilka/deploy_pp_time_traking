@@ -384,6 +384,34 @@
   -webkit-box-orient: vertical;
 }
 
+.notifications-bell__invitation-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.notifications-bell__invitation-actions button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--border-color, #d0d7e2);
+  border-radius: 8px;
+  background: var(--surface-color, #fff);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.notifications-bell__invitation-actions button:first-child {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.notifications-bell__invitation-actions button:disabled { cursor: not-allowed; opacity: 0.6; }
+.notifications-bell__action-message { padding: 10px 16px; color: var(--text-muted, #667085); font-size: 0.82rem; }
+
 .notifications-bell__item-meta {
   min-width: 0;
 

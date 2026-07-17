@@ -1,19 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import {
-  addWorkspaceMember,
   getWorkspaceMembers,
   getWorkspaceMemberSummary,
   getWorkspaceSummary,
   removeWorkspaceMember,
   updateWorkspaceMember,
 } from "../../shared/api/workspaces";
+import {
+  createInvitation,
+  getWorkspaceInvitations,
+  resendInvitation,
+  revokeInvitation,
+} from "../../shared/api/invitations";
 import type {
   WorkspaceMember,
   WorkspaceMemberStatus,
+  WorkspaceInvitation,
   WorkspaceRole,
   WorkspaceSummary,
 } from "../../shared/types/workspace";
@@ -23,6 +30,7 @@ import {
   useWorkspace,
 } from "../../shared/workspace/WorkspaceContext";
 import { formatHumanDuration } from "../../shared/utils/time";
+import { invitationErrorKey } from "../../shared/utils/securityErrors";
 import { useLocale } from "../../i18n";
 import "./TeamPage.css";
 
@@ -215,6 +223,7 @@ export function TeamPage() {
   } = useWorkspace();
 
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [invitations, setInvitations] = useState<WorkspaceInvitation[]>([]);
   const [workspaceSummary, setWorkspaceSummary] = useState<WorkspaceSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -226,6 +235,8 @@ export function TeamPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<WorkspaceRole>("member");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [invitationActionId, setInvitationActionId] = useState<string | null>(null);
 
   const [settingsName, setSettingsName] = useState("");
   const [settingsDescription, setSettingsDescription] = useState("");
@@ -237,6 +248,8 @@ export function TeamPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | WorkspaceMemberStatus>("all");
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const [openMemberMenu, setOpenMemberMenu] = useState<OpenMemberMenu | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<WorkspaceMember | null>(null);
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
 
   const canManage = canManageMembers(currentUserRole);
   const canEdit = canEditWorkspace(currentUserRole);
@@ -266,10 +279,11 @@ export function TeamPage() {
     setError(null);
 
     try {
-      const [nextMembers, memberSummary, nextWorkspaceSummary] = await Promise.all([
+      const [nextMembers, memberSummary, nextWorkspaceSummary, nextInvitations] = await Promise.all([
         getWorkspaceMembers(currentWorkspaceId),
         getWorkspaceMemberSummary(currentWorkspaceId),
         getWorkspaceSummary(currentWorkspaceId),
+        canManage ? getWorkspaceInvitations(currentWorkspaceId) : Promise.resolve([]),
       ]);
 
       const summaryByUser = new Map(memberSummary.items.map((item) => [item.user.id, item]));
@@ -282,6 +296,7 @@ export function TeamPage() {
       );
 
       setWorkspaceSummary(nextWorkspaceSummary);
+      setInvitations(nextInvitations.filter((item) => item.status === "pending"));
     } catch {
       setError(text("Не удалось загрузить команду", "Could not load team"));
     } finally {
@@ -376,7 +391,8 @@ export function TeamPage() {
     }
 
     try {
-      await addWorkspaceMember(currentWorkspaceId, {
+      setIsSendingInvite(true);
+      await createInvitation(currentWorkspaceId, {
         email: email.trim(),
         role,
       });
@@ -384,11 +400,33 @@ export function TeamPage() {
       setEmail("");
       setRole("member");
       setIsInviteOpen(false);
-      setSuccessMessage(text("Участник добавлен. Организация появится у него после обновления страницы или следующего входа.", "Member added. The organization will appear after refresh or the next sign-in."));
+      setSuccessMessage(t("invitations.sent"));
 
-      await Promise.all([loadTeam(), refreshWorkspaces()]);
+      await loadTeam();
     } catch (caughtError) {
-      setInviteError(caughtError instanceof Error ? caughtError.message : text("Не удалось добавить участника", "Could not add member"));
+      setInviteError(t(invitationErrorKey(caughtError)));
+    } finally {
+      setIsSendingInvite(false);
+    }
+  }
+
+  async function handleInvitationAction(invitation: WorkspaceInvitation, action: "resend" | "revoke") {
+    if (!currentWorkspaceId || invitationActionId) return;
+    setInvitationActionId(invitation.id);
+    setSuccessMessage(null);
+    try {
+      if (action === "resend") {
+        await resendInvitation(currentWorkspaceId, invitation.id);
+        setSuccessMessage(t("invitations.resent"));
+      } else {
+        await revokeInvitation(currentWorkspaceId, invitation.id);
+        setSuccessMessage(t("invitations.revoked"));
+      }
+      await loadTeam();
+    } catch (caughtError) {
+      setError(t(invitationErrorKey(caughtError)));
+    } finally {
+      setInvitationActionId(null);
     }
   }
 
@@ -493,16 +531,13 @@ export function TeamPage() {
     }
   }
 
-  async function handleRemoveMember(member: WorkspaceMember) {
-    if (!currentWorkspaceId) {
-      return;
-    }
-
+  function handleRemoveMember(member: WorkspaceMember) {
     setOpenMemberMenu(null);
+    setMemberToRemove(member);
+  }
 
-    const confirmed = window.confirm(text(`Удалить ${member.user.email} из команды?`, `Remove ${member.user.email} from the team?`));
-
-    if (!confirmed) {
+  async function confirmRemoveMember() {
+    if (!currentWorkspaceId || !memberToRemove || isRemovingMember) {
       return;
     }
 
@@ -510,11 +545,15 @@ export function TeamPage() {
     setSuccessMessage(null);
 
     try {
-      await removeWorkspaceMember(currentWorkspaceId, member.id);
-      setSuccessMessage(text(`Участник ${getMemberName(member)} удалён из команды.`, `${getMemberName(member)} was removed from the team.`));
+      setIsRemovingMember(true);
+      await removeWorkspaceMember(currentWorkspaceId, memberToRemove.id);
+      setSuccessMessage(text(`Участник ${getMemberName(memberToRemove)} удалён из команды.`, `${getMemberName(memberToRemove)} was removed from the team.`));
       await Promise.all([loadTeam(), refreshWorkspaces()]);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : text("Не удалось удалить участника из команды", "Could not remove member from team"));
+    } finally {
+      setIsRemovingMember(false);
+      setMemberToRemove(null);
     }
   }
 
@@ -827,15 +866,21 @@ export function TeamPage() {
             <div className="team-side-card__title">
               <TeamIcon name="mail" />
               <h2>
-                {t("team.sections.invitations")} <small>0</small>
+                {t("team.sections.invitations")} <small>{invitations.length}</small>
               </h2>
             </div>
 
             <div className="team-invites-list">
-              <div className="team-invite-empty">
-                <strong>{text("Активных приглашений нет", "No active invitations")}</strong>
-                <p>{text("Добавляйте участников по email. Пользователь должен быть уже зарегистрирован.", "Add members by email. The user must already be registered.")}</p>
-              </div>
+              {invitations.length === 0 ? <div className="team-invite-empty">
+                <strong>{t("invitations.emptyTitle")}</strong>
+                <p>{t("invitations.emptyDescription")}</p>
+              </div> : invitations.map((invitation) => (
+                <article className="team-invite-item" key={invitation.id}>
+                  <strong>{invitation.invited_email}</strong>
+                  <span>{roleLabels[invitation.role]} · {new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", { dateStyle: "medium" }).format(new Date(invitation.expires_at))}</span>
+                  <div><button type="button" disabled={Boolean(invitationActionId)} onClick={() => void handleInvitationAction(invitation, "resend")}>{t("invitations.resend")}</button><button type="button" disabled={Boolean(invitationActionId)} onClick={() => void handleInvitationAction(invitation, "revoke")}>{t("invitations.revoke")}</button></div>
+                </article>
+              ))}
             </div>
 
             <button
@@ -845,7 +890,7 @@ export function TeamPage() {
               disabled={!canManage}
             >
               <TeamIcon name="user-plus" />
-              {text("Добавить участника", "Add member")}
+              {t("invitations.send")}
             </button>
           </section>
 
@@ -872,9 +917,9 @@ export function TeamPage() {
               </span>
 
               <div>
-                <h2>{text("Добавить участника", "Add member")}</h2>
+                <h2>{t("invitations.title")}</h2>
                 <p>
-                  {text("Пользователь должен быть уже зарегистрирован. После добавления организация появится у него в переключателе workspace.", "The user must already be registered. After being added, the organization will appear in their workspace switcher.")}
+                  {t("invitations.emailDescription")}
                 </p>
               </div>
             </div>
@@ -901,8 +946,8 @@ export function TeamPage() {
             {inviteError && <p className="team-modal__error">{inviteError}</p>}
 
             <div className="team-modal__actions">
-              <button className="team-action team-action--primary" type="submit">
-                {text("Добавить", "Add")}
+              <button className="team-action team-action--primary" type="submit" disabled={isSendingInvite}>
+                {t(isSendingInvite ? "invitations.sending" : "invitations.send")}
               </button>
 
               <button className="team-action team-action--secondary" type="button" onClick={() => setIsInviteOpen(false)}>
@@ -1027,6 +1072,16 @@ export function TeamPage() {
             document.body,
           )
         : null}
+      <ConfirmDialog
+        open={memberToRemove !== null}
+        title={text("Удалить участника?", "Remove member?")}
+        description={memberToRemove ? text(`Участник ${memberToRemove.user.email} потеряет доступ к пространству.`, `${memberToRemove.user.email} will lose access to the workspace.`) : ""}
+        confirmLabel={text(isRemovingMember ? "Удаляем..." : "Удалить", isRemovingMember ? "Removing..." : "Remove")}
+        cancelLabel={t("common.actions.cancel")}
+        isLoading={isRemovingMember}
+        onConfirm={() => void confirmRemoveMember()}
+        onCancel={() => setMemberToRemove(null)}
+      />
     </>
   );
 }

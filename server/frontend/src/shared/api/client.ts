@@ -22,6 +22,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   if (options.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
+  if (!headers.has("Accept-Language")) {
+    headers.set("Accept-Language", localStorage.getItem("time-tracking.locale") ?? navigator.language);
+  }
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);

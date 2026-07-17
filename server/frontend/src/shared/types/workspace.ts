@@ -59,6 +59,35 @@ export type WorkspaceMemberAddRequest = {
   role: WorkspaceRole;
 };
 
+export type WorkspaceInvitationStatus = "pending" | "accepted" | "declined" | "revoked" | "expired";
+
+export type WorkspaceInvitation = {
+  id: string;
+  workspace_id: number;
+  invited_email: string;
+  invited_user_id: number | null;
+  invited_by_user_id: number;
+  role: WorkspaceRole;
+  status: WorkspaceInvitationStatus;
+  expires_at: string;
+  accepted_at: string | null;
+  declined_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvitationResolve = {
+  id: string;
+  workspace_id: number;
+  workspace_name: string;
+  invited_email_masked: string;
+  invited_by_display_name: string;
+  role: WorkspaceRole;
+  status: WorkspaceInvitationStatus;
+  expires_at: string;
+};
+
 export type WorkspaceMemberUpdateRequest = {
   role?: WorkspaceRole;
   status?: WorkspaceMemberStatus;

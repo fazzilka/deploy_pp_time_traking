@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../../shared/api/client";
 import { useLocale } from "../../i18n";
 import type { TranslationKey } from "../../i18n/locales/ru";
 import type { TranslationParams } from "../../i18n/types";
 import { formatDeadline } from "../../shared/utils/date";
+import { acceptInvitation, declineInvitation } from "../../shared/api/invitations";
+import { NOTIFICATIONS_CHANGED_EVENT } from "../../shared/events/userEvents";
+import { invitationErrorKey } from "../../shared/utils/securityErrors";
 import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
 import "./NotificationsBell.css";
 
@@ -14,6 +17,7 @@ type NotificationType =
   | "workspace_member_removed"
   | "workspace_role_changed"
   | "workspace_member_role_changed"
+  | "workspace_invitation"
   | string;
 
 type NotificationPayload = Record<string, unknown> | null;
@@ -212,6 +216,10 @@ function getNotificationIcon(type: NotificationType) {
     return <UserPlusIcon />;
   }
 
+  if (type === "workspace_invitation") {
+    return <UserPlusIcon />;
+  }
+
   if (type === "workspace_member_removed") {
     return <UserMinusIcon />;
   }
@@ -232,7 +240,7 @@ function getNotificationTone(type: NotificationType) {
     return "overdue";
   }
 
-  if (type === "workspace_member_added") {
+  if (type === "workspace_member_added" || type === "workspace_invitation") {
     return "success";
   }
 
@@ -317,6 +325,14 @@ function getNotificationCopy(
     };
   }
 
+  if (notification.type === "workspace_invitation") {
+    const inviterName = getPayloadString(notification.payload, "invited_by_display_name") ?? t("notifications.fallback.user");
+    return {
+      title: t("invitations.title"),
+      message: t("invitations.description", { inviterName, workspaceName }),
+    };
+  }
+
   if (notification.type === "workspace_member_removed") {
     return {
       title: t("notifications.types.workspaceRemoved.title"),
@@ -396,6 +412,8 @@ export function NotificationsBell() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [invitationAction, setInvitationAction] = useState<{ id: number; action: "accept" | "decline" } | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const badgeLabel = useMemo(() => {
     if (unreadCount <= 0) {
@@ -448,6 +466,15 @@ export function NotificationsBell() {
       window.clearInterval(intervalId);
     };
   }, [loadUnreadCount]);
+
+  useEffect(() => {
+    const reload = () => {
+      void loadUnreadCount();
+      if (isOpen) void loadNotifications();
+    };
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, reload);
+  }, [isOpen, loadNotifications, loadUnreadCount]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -546,6 +573,34 @@ export function NotificationsBell() {
     }
   }
 
+  async function handleInvitationAction(
+    event: ReactMouseEvent<HTMLButtonElement>,
+    notification: NotificationItem,
+    action: "accept" | "decline",
+  ) {
+    event.stopPropagation();
+    const invitationId = getPayloadString(notification.payload, "invitation_id");
+    if (!invitationId || invitationAction) return;
+    setInvitationAction({ id: notification.id, action });
+    setActionMessage(null);
+    try {
+      if (action === "accept") await acceptInvitation(invitationId);
+      else await declineInvitation(invitationId);
+      setItems((current) => current.map((item) => item.id === notification.id ? {
+        ...item,
+        is_read: true,
+        read_at: new Date().toISOString(),
+        payload: { ...(item.payload ?? {}), status: action === "accept" ? "accepted" : "declined" },
+      } : item));
+      setActionMessage(t(action === "accept" ? "invitations.accepted" : "invitations.declined"));
+      void loadUnreadCount();
+    } catch (caughtError) {
+      setActionMessage(t(invitationErrorKey(caughtError)));
+    } finally {
+      setInvitationAction(null);
+    }
+  }
+
   return (
     <div className="notifications-bell" ref={rootRef}>
       <button
@@ -578,6 +633,7 @@ export function NotificationsBell() {
           </div>
 
           <div className="notifications-bell__list">
+            {actionMessage ? <div className="notifications-bell__action-message" role="status">{actionMessage}</div> : null}
             {isLoading ? <div className="notifications-bell__state" role="status">{t("notifications.loading")}</div> : null}
 
             {!isLoading && hasError ? (
@@ -597,15 +653,17 @@ export function NotificationsBell() {
                   const copy = getNotificationCopy(notification, locale, t);
 
                   return (
-                    <button
+                    <div
                       key={notification.id}
                       className={
                         notification.is_read
                           ? `notifications-bell__item notifications-bell__item--${tone}`
                           : `notifications-bell__item notifications-bell__item--${tone} notifications-bell__item--unread`
                       }
-                      type="button"
                       onClick={() => void handleMarkAsRead(notification)}
+                      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") void handleMarkAsRead(notification); }}
+                      role="button"
+                      tabIndex={0}
                       aria-label={!notification.is_read ? t("notifications.unreadAria", { title: copy.title }) : undefined}
                     >
                       <span className={`notifications-bell__item-icon notifications-bell__item-icon--${tone}`}>
@@ -615,6 +673,12 @@ export function NotificationsBell() {
                       <span className="notifications-bell__item-content">
                         <span className="notifications-bell__item-title">{copy.title}</span>
                         <span className="notifications-bell__item-message">{copy.message}</span>
+                        {notification.type === "workspace_invitation" && getPayloadString(notification.payload, "status") === "pending" ? (
+                          <span className="notifications-bell__invitation-actions">
+                            <button type="button" disabled={Boolean(invitationAction)} onClick={(event) => void handleInvitationAction(event, notification, "accept")}>{t(invitationAction?.id === notification.id && invitationAction.action === "accept" ? "invitations.accepting" : "invitations.accept")}</button>
+                            <button type="button" disabled={Boolean(invitationAction)} onClick={(event) => void handleInvitationAction(event, notification, "decline")}>{t(invitationAction?.id === notification.id && invitationAction.action === "decline" ? "invitations.declining" : "invitations.decline")}</button>
+                          </span>
+                        ) : null}
                       </span>
 
                       <span className="notifications-bell__item-meta">
@@ -623,7 +687,7 @@ export function NotificationsBell() {
                         </span>
                         {!notification.is_read ? <span className="notifications-bell__item-dot" /> : null}
                       </span>
-                    </button>
+                    </div>
                   );
                 })
               : null}

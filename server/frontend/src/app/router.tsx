@@ -8,6 +8,7 @@ import { ProjectsPage } from "../pages/ProjectsPage/ProjectsPage";
 import { ProfilePage } from "../pages/ProfilePage/ProfilePage";
 import { ReportsPage } from "../pages/ReportsPage/ReportsPage";
 import { TeamPage } from "../pages/TeamPage";
+import { InvitationPage } from "../pages/InvitationPage/InvitationPage";
 import { isAuthenticated } from "../shared/api/auth";
 import { RouteErrorPage } from "./RouteErrorPage";
 
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
       {
         path: "/auth",
         element: <AuthPage />,
+      },
+      {
+        path: "/invitations/accept",
+        element: <InvitationPage />,
       },
       {
         element: <ProtectedRoute />,

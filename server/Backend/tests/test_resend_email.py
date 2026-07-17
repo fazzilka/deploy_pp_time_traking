@@ -611,6 +611,27 @@ def test_ineligible_recipient_is_skipped(
     assert _email_skip_reason(notification) == reason
 
 
+def test_disabled_deadline_category_has_specific_skip_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notification = _notification(reminder_minutes=60)
+    notification.user.email_deadline_1h = False
+    monkeypatch.setattr("src.services.email_delivery.settings.email_enabled", True)
+
+    assert _email_skip_reason(notification) == "deadline_1h_opt_out"
+
+
+def test_enabled_deadline_defaults_do_not_produce_user_opt_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notification = _notification(reminder_minutes=60)
+    monkeypatch.setattr("src.services.email_delivery.settings.email_enabled", True)
+
+    assert notification.user.email_notifications_enabled is True
+    assert notification.user.email_deadline_1h is True
+    assert _email_skip_reason(notification) is None
+
+
 @pytest.mark.asyncio
 async def test_preferences_are_opt_in_and_can_be_saved(dummy_session) -> None:
     user = _notification().user

@@ -187,10 +187,10 @@ async def verify_registration(
         role=UserRole.USER,
         is_active=True,
         email_verified=True,
-        email_notifications_enabled=False,
-        email_deadline_24h=False,
-        email_deadline_1h=False,
-        email_deadline_overdue=False,
+        email_notifications_enabled=True,
+        email_deadline_24h=True,
+        email_deadline_1h=True,
+        email_deadline_overdue=True,
     )
     session.add(user)
     await session.flush()

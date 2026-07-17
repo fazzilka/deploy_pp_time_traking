@@ -1,26 +1,22 @@
-import type { FormEvent} from "react";
+import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
-import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { StatCard } from "../../components/StatCard/StatCard";
 import {
-  changePassword,
   getCurrentUser,
-  getNotificationPreferences,
   getProfileStats,
   getUserActivity,
   regenerateMyAvatar,
   updateCurrentUser,
-  updateNotificationPreferences,
 } from "../../shared/api/profile";
 import { getSummary } from "../../shared/api/reports";
 import type { ActivityResponse, SummaryResponse } from "../../shared/types/reports";
 import {
   EMPTY_USER_STATS,
-  type NotificationPreferences,
   type UserProfile,
   type UserStats,
 } from "../../shared/types/user";
@@ -45,20 +41,8 @@ const EMPTY_SUMMARY: SummaryResponse = {
   top_tasks: [],
 };
 
-type PasswordFormState = {
-  oldPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-};
-
-const initialPasswordForm: PasswordFormState = {
-  oldPassword: "",
-  newPassword: "",
-  confirmPassword: "",
-};
-
 export function ProfilePage() {
-  const { locale, setLocale, t } = useLocale();
+  const { locale, t } = useLocale();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
@@ -68,23 +52,7 @@ export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-  const [passwordForm, setPasswordForm] = useState<PasswordFormState>(initialPasswordForm);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
-  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
   const [isRegeneratingAvatar, setIsRegeneratingAvatar] = useState(false);
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>({
-    locale,
-    email_enabled: false,
-    deadline_24h: false,
-    deadline_1h: false,
-    deadline_overdue: false,
-    email_suppressed: false,
-  });
-  const [arePreferencesLoading, setArePreferencesLoading] = useState(true);
-  const [arePreferencesSaving, setArePreferencesSaving] = useState(false);
-  const [preferencesMessage, setPreferencesMessage] = useState<"success" | "error" | null>(null);
 
   async function loadProfile() {
     setIsLoading(true);
@@ -112,36 +80,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     void loadProfile();
-    void getNotificationPreferences()
-      .then((preferences) => setNotificationPreferences(preferences))
-      .catch(() => setPreferencesMessage("error"))
-      .finally(() => setArePreferencesLoading(false));
   }, []);
-
-  function updatePreference<K extends keyof NotificationPreferences>(
-    key: K,
-    value: NotificationPreferences[K],
-  ) {
-    setNotificationPreferences((current) => ({ ...current, [key]: value }));
-    setPreferencesMessage(null);
-  }
-
-  async function handlePreferencesSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setArePreferencesSaving(true);
-    setPreferencesMessage(null);
-    try {
-      const { email_suppressed: _emailSuppressed, ...payload } = notificationPreferences;
-      const saved = await updateNotificationPreferences(payload);
-      setNotificationPreferences(saved);
-      setLocale(saved.locale);
-      setPreferencesMessage("success");
-    } catch {
-      setPreferencesMessage("error");
-    } finally {
-      setArePreferencesSaving(false);
-    }
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,69 +98,6 @@ export function ProfilePage() {
     }
   }
 
-  function updatePasswordField(field: keyof PasswordFormState, value: string) {
-    setPasswordForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
-  }
-
-  function openPasswordModal() {
-    setPasswordForm(initialPasswordForm);
-    setPasswordError(null);
-    setPasswordSuccess(null);
-    setIsPasswordModalOpen(true);
-  }
-
-  function closePasswordModal() {
-    setPasswordForm(initialPasswordForm);
-    setPasswordError(null);
-    setIsPasswordModalOpen(false);
-  }
-
-  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPasswordError(null);
-    setPasswordSuccess(null);
-
-    if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setPasswordError(t("profile.password.fillAll"));
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 6) {
-      setPasswordError(t("profile.password.minLength"));
-      return;
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError(t("profile.password.mismatch"));
-      return;
-    }
-
-    if (passwordForm.oldPassword === passwordForm.newPassword) {
-      setPasswordError(t("profile.password.same"));
-      return;
-    }
-
-    setIsPasswordSubmitting(true);
-
-    try {
-      await changePassword({
-        old_password: passwordForm.oldPassword,
-        new_password: passwordForm.newPassword,
-        confirm_password: passwordForm.confirmPassword,
-      });
-      setPasswordForm(initialPasswordForm);
-      setIsPasswordModalOpen(false);
-      setPasswordSuccess(t("profile.password.success"));
-    } catch (caughtError) {
-      const nextError = caughtError instanceof Error ? caughtError.message : t("profile.password.error");
-      setPasswordError(nextError);
-    } finally {
-      setIsPasswordSubmitting(false);
-    }
-  }
 
   async function handleRegenerateAvatar() {
     setError(null);
@@ -281,9 +157,9 @@ export function ProfilePage() {
             <button className="profile-edit" type="button" onClick={() => setIsEditing((value) => !value)}>
               {t("profile.actions.edit")}
             </button>
-            <button className="profile-edit" type="button" onClick={openPasswordModal}>
-              {t("profile.actions.changePassword")}
-            </button>
+            <Link className="profile-edit profile-edit--link" to="/settings/general">
+              {t("profile.openSettings")}
+            </Link>
             <button
               className="profile-edit"
               type="button"
@@ -293,8 +169,6 @@ export function ProfilePage() {
               {t(isRegeneratingAvatar ? "profile.avatar.generating" : "profile.avatar.regenerate")}
             </button>
           </div>
-
-          {passwordSuccess && <p className="profile-password-success">{passwordSuccess}</p>}
 
           {isEditing && (
             <form className="profile-form" onSubmit={handleSubmit}>
@@ -338,74 +212,6 @@ export function ProfilePage() {
           <h2 className="profile-main__title">{displayName}</h2>
 
           {error && <div className="status-message status-message--error profile-error">{error}</div>}
-
-          <section className="profile-notification-settings" aria-labelledby="email-settings-title">
-            <div className="profile-notification-settings__header">
-              <div>
-                <h2 id="email-settings-title">{t("profile.notifications.title")}</h2>
-                <p>{t("profile.notifications.description")}</p>
-              </div>
-            </div>
-            {arePreferencesLoading ? (
-              <div className="profile-notification-settings__loading">{t("common.loading")}</div>
-            ) : (
-              <form className="profile-notification-settings__form" onSubmit={handlePreferencesSubmit}>
-                <label className="profile-notification-settings__locale">
-                  <span>{t("profile.notifications.language")}</span>
-                  <select
-                    value={notificationPreferences.locale}
-                    onChange={(event) => updatePreference("locale", event.target.value as "ru" | "en")}
-                  >
-                    <option value="ru">Русский</option>
-                    <option value="en">English</option>
-                  </select>
-                </label>
-                <label className="profile-notification-toggle profile-notification-toggle--master">
-                  <input
-                    type="checkbox"
-                    checked={notificationPreferences.email_enabled}
-                    onChange={(event) => updatePreference("email_enabled", event.target.checked)}
-                  />
-                  <span>
-                    <strong>{t("profile.notifications.emailEnabled")}</strong>
-                    <small>{t("profile.notifications.emailEnabledHint")}</small>
-                  </span>
-                </label>
-                <div className="profile-notification-settings__channels">
-                  {([
-                    ["deadline_24h", "profile.notifications.deadline24h"],
-                    ["deadline_1h", "profile.notifications.deadline1h"],
-                    ["deadline_overdue", "profile.notifications.deadlineOverdue"],
-                  ] as const).map(([key, label]) => (
-                    <label className="profile-notification-toggle" key={key}>
-                      <input
-                        type="checkbox"
-                        checked={notificationPreferences[key]}
-                        disabled={!notificationPreferences.email_enabled}
-                        onChange={(event) => updatePreference(key, event.target.checked)}
-                      />
-                      <span>{t(label)}</span>
-                    </label>
-                  ))}
-                </div>
-                {notificationPreferences.email_suppressed && (
-                  <p className="profile-notification-settings__warning">
-                    {t("profile.notifications.suppressed")}
-                  </p>
-                )}
-                <div className="profile-notification-settings__footer">
-                  {preferencesMessage && (
-                    <span role="status">
-                      {t(`profile.notifications.${preferencesMessage}`)}
-                    </span>
-                  )}
-                  <button className="button button--green" type="submit" disabled={arePreferencesSaving}>
-                    {t(arePreferencesSaving ? "common.actions.saving" : "common.actions.save")}
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
 
           <ActivityGrid days={safeActivity.days} year={currentYear} />
 
@@ -454,64 +260,6 @@ export function ProfilePage() {
         </section>
       </div>
 
-      {isPasswordModalOpen && (
-        <div className="change-password-backdrop" role="presentation" onClick={closePasswordModal}>
-          <section
-            className="change-password-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="change-password-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 className="change-password-modal__title" id="change-password-title">
-              {t("profile.password.title")}
-            </h2>
-            <form className="change-password-modal__form" onSubmit={handlePasswordSubmit}>
-              <PasswordInput
-                id="oldPassword"
-                name="oldPassword"
-                label={t("profile.password.old")}
-                value={passwordForm.oldPassword}
-                autoComplete="current-password"
-                required
-                minLength={6}
-                onChange={(value) => updatePasswordField("oldPassword", value)}
-              />
-              <PasswordInput
-                id="newPassword"
-                name="newPassword"
-                label={t("profile.password.new")}
-                value={passwordForm.newPassword}
-                autoComplete="new-password"
-                required
-                minLength={6}
-                onChange={(value) => updatePasswordField("newPassword", value)}
-              />
-              <PasswordInput
-                id="confirmNewPassword"
-                name="confirmNewPassword"
-                label={t("profile.password.confirm")}
-                value={passwordForm.confirmPassword}
-                autoComplete="new-password"
-                required
-                minLength={6}
-                onChange={(value) => updatePasswordField("confirmPassword", value)}
-              />
-
-              {passwordError && <p className="change-password-modal__error">{passwordError}</p>}
-
-              <div className="change-password-modal__actions">
-                <button className="button" type="button" onClick={closePasswordModal}>
-                  {t("common.actions.cancel")}
-                </button>
-                <button className="button button--green" type="submit" disabled={isPasswordSubmitting}>
-                  {t(isPasswordSubmitting ? "common.actions.saving" : "common.actions.save")}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
     </main>
   );
 }

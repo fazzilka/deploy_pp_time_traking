@@ -16,10 +16,10 @@ import { EMPTY_USER_STATS } from "../types/user";
 let userStore: User = { ...mockUser, stats: { ...(mockUser.stats ?? EMPTY_USER_STATS) } };
 let notificationPreferencesStore: NotificationPreferences = {
   locale: "ru",
-  email_enabled: false,
-  deadline_24h: false,
-  deadline_1h: false,
-  deadline_overdue: false,
+  email_enabled: true,
+  deadline_24h: true,
+  deadline_1h: true,
+  deadline_overdue: true,
   email_suppressed: false,
 };
 export const userProfileUpdatedEvent = "time-tracking:user-profile-updated";
@@ -198,8 +198,10 @@ export async function updateNotificationPreferences(
 ): Promise<NotificationPreferences> {
   if (USE_MOCKS) {
     notificationPreferencesStore = {
+      ...notificationPreferencesStore,
       ...payload,
-      email_suppressed: false,
+      email_suppressed:
+        payload.email_enabled === true ? false : notificationPreferencesStore.email_suppressed,
     };
     return { ...notificationPreferencesStore };
   }

@@ -700,6 +700,7 @@ async def test_diagnostic_is_read_only_and_masks_recipient(
 
     result = await diagnose(notification.id)
 
+    assert result["policy_decision"] == "send"
     assert result["decision"] == "send"
     assert result["recipient_masked"] == "o***@example.com"
     assert "owner@example.com" not in json.dumps(result)

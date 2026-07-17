@@ -1,6 +1,10 @@
 from celery import Celery
+from celery.signals import after_setup_logger, after_setup_task_logger
 
 from src.core.config import settings
+from src.core.logging import JsonFormatter, configure_logging
+
+configure_logging(settings.log_level)
 
 celery_app = Celery(
     "time_tracking",
@@ -23,4 +27,15 @@ celery_app.conf.update(
     task_always_eager=settings.celery_task_always_eager,
     task_ignore_result=True,
     timezone=settings.celery_timezone,
+    worker_hijack_root_logger=False,
 )
+
+
+def _configure_celery_logger(logger: object, **_kwargs: object) -> None:
+    handlers = getattr(logger, "handlers", ())
+    for handler in handlers:
+        handler.setFormatter(JsonFormatter())
+
+
+after_setup_logger.connect(_configure_celery_logger)
+after_setup_task_logger.connect(_configure_celery_logger)

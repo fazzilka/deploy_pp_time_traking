@@ -481,6 +481,7 @@ export function Navigation() {
           <NavLink to="/reports">{t("navigation.reports")}</NavLink>
           <NavLink to="/team">{t("navigation.team")}</NavLink>
           <NavLink to="/profile">{t("navigation.profile")}</NavLink>
+          <NavLink to="/settings/general">{t("navigation.settings")}</NavLink>
         </nav>
 
         <div className="navigation__user">

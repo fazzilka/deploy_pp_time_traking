@@ -1,6 +1,8 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { en } from "./locales/en";
 import { ru, type TranslationKey } from "./locales/ru";
+import { authChangedEvent, isAuthenticated } from "../shared/api/auth";
+import { getNotificationPreferences } from "../shared/api/profile";
 import {
   DEFAULT_LOCALE,
   isSupportedLocale,
@@ -60,6 +62,28 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    function synchronizeAuthenticatedLocale() {
+      if (!isAuthenticated()) return;
+      void getNotificationPreferences()
+        .then((preferences) => {
+          if (!active) return;
+          setLocaleState(preferences.locale);
+          localStorage.setItem(LOCALE_STORAGE_KEY, preferences.locale);
+        })
+        .catch(() => undefined);
+    }
+
+    synchronizeAuthenticatedLocale();
+    window.addEventListener(authChangedEvent, synchronizeAuthenticatedLocale);
+    return () => {
+      active = false;
+      window.removeEventListener(authChangedEvent, synchronizeAuthenticatedLocale);
+    };
   }, []);
 
   const t = useCallback(

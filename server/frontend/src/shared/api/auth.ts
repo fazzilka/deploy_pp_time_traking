@@ -12,6 +12,7 @@ import type {
 } from "../types/auth";
 
 const tokenKey = "access_token";
+export const authChangedEvent = "time-tracking:auth-changed";
 
 function createMockToken(email: string): string {
   return `mock-token-${btoa(email).replace(/=+$/g, "")}`;
@@ -27,6 +28,7 @@ export function isAuthenticated(): boolean {
 
 export function saveAccessToken(token: string): void {
   localStorage.setItem(tokenKey, token);
+  window.dispatchEvent(new Event(authChangedEvent));
 }
 
 export function logout(): void {
@@ -34,6 +36,7 @@ export function logout(): void {
   clearProtectedVaultToken();
   clearUserCaches();
   clearReportsCache();
+  window.dispatchEvent(new Event(authChangedEvent));
 }
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {

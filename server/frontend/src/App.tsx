@@ -15,6 +15,8 @@ export function App() {
           ? t("team.title")
           : location.pathname.startsWith("/profile")
             ? t("profile.title")
+            : location.pathname.startsWith("/settings")
+              ? t("settings.title")
             : location.pathname.startsWith("/auth")
               ? text("Вход", "Sign in")
               : t("tasks.queue.title");

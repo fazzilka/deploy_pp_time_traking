@@ -7,6 +7,7 @@ import { ProjectDetailPage } from "../pages/ProjectDetailPage/ProjectDetailPage"
 import { ProjectsPage } from "../pages/ProjectsPage/ProjectsPage";
 import { ProfilePage } from "../pages/ProfilePage/ProfilePage";
 import { ReportsPage } from "../pages/ReportsPage/ReportsPage";
+import { SettingsPage } from "../pages/SettingsPage/SettingsPage";
 import { TeamPage } from "../pages/TeamPage";
 import { InvitationPage } from "../pages/InvitationPage/InvitationPage";
 import { isAuthenticated } from "../shared/api/auth";
@@ -51,6 +52,22 @@ export const router = createBrowserRouter([
           {
             path: "/profile",
             element: <ProfilePage />,
+          },
+          {
+            path: "/settings",
+            element: <Navigate to="/settings/general" replace />,
+          },
+          {
+            path: "/settings/general",
+            element: <SettingsPage section="general" />,
+          },
+          {
+            path: "/settings/notifications",
+            element: <SettingsPage section="notifications" />,
+          },
+          {
+            path: "/settings/security",
+            element: <SettingsPage section="security" />,
           },
           {
             path: "/reports",

@@ -58,4 +58,6 @@ export type NotificationPreferences = {
   email_suppressed: boolean;
 };
 
-export type NotificationPreferencesUpdate = Omit<NotificationPreferences, "email_suppressed">;
+export type NotificationPreferencesUpdate = Partial<
+  Omit<NotificationPreferences, "email_suppressed">
+>;

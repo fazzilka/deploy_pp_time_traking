@@ -10,6 +10,7 @@ import pytest
 from svix.webhooks import Webhook
 
 from src.api.webhooks import _apply_delivery_event, _persist_resend_event
+from src.cli.diagnose_email_notification import diagnose
 from src.core.config import Settings
 from src.models.enums import (
     NotificationDeliveryChannel,
@@ -30,10 +31,12 @@ from src.services.email_delivery import (
 from src.services.email_provider import (
     EmailMessage,
     EmailProviderError,
+    EmailSendResult,
     FakeEmailProvider,
     ResendEmailProvider,
 )
 from src.services.email_templates import render_notification_email
+from src.services.transactional_email import _deliver_transactional
 from src.services.user import get_notification_preferences, update_notification_preferences
 
 
@@ -327,6 +330,212 @@ def test_deadline_template_is_localized_and_escapes_task_title(
     assert '<script>alert("x")</script>' in rendered.text
 
 
+def test_workspace_member_notification_is_rendered_for_optional_email(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notification = _notification()
+    notification.type = NotificationType.WORKSPACE_MEMBER_ADDED
+    notification.title = "Вас добавили в пространство"
+    notification.message = "Вы стали участником команды."
+    notification.payload = {"workspace_name": "Engineering"}
+    monkeypatch.setattr("src.services.email_delivery.settings.email_enabled", True)
+
+    rendered = render_notification_email(notification, locale="ru", config=_settings())
+
+    assert rendered is not None
+    assert "Вас добавили в пространство" in rendered.subject
+    assert "Engineering" in rendered.text
+    assert _email_skip_reason(notification) is None
+
+
+@pytest.mark.asyncio
+async def test_provider_non_acceptance_is_failed_not_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notification = _notification()
+    delivery = NotificationDelivery(
+        id=5,
+        notification_id=notification.id,
+        user_id=notification.user_id,
+        channel=NotificationDeliveryChannel.EMAIL,
+        status=NotificationDeliveryStatus.QUEUED,
+        idempotency_key=_idempotency_key(notification.id),
+        attempts=0,
+    )
+
+    class NonAcceptingProvider:
+        name = "resend"
+
+        def send(self, _message: EmailMessage) -> EmailSendResult:
+            return EmailSendResult(provider=self.name, provider_message_id=None, accepted=False)
+
+    class Session:
+        async def commit(self) -> None:
+            return None
+
+    class SessionContext:
+        async def __aenter__(self) -> Session:
+            return Session()
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    async def load_notification(_session: object, _notification_id: int) -> Notification:
+        return notification
+
+    async def lock_delivery(_session: object, _notification: Notification) -> NotificationDelivery:
+        return delivery
+
+    monkeypatch.setattr("src.services.email_delivery._load_notification", load_notification)
+    monkeypatch.setattr("src.services.email_delivery._lock_delivery", lock_delivery)
+    monkeypatch.setattr("src.services.email_delivery.settings.email_enabled", True)
+
+    await deliver_email_notification_async(
+        lambda: SessionContext(), notification.id, provider=NonAcceptingProvider()
+    )
+
+    assert delivery.status == NotificationDeliveryStatus.FAILED
+    assert delivery.last_error_code == "provider_rejected"
+
+
+@pytest.mark.asyncio
+async def test_workspace_member_notification_reaches_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notification = _notification()
+    notification.type = NotificationType.WORKSPACE_MEMBER_ROLE_CHANGED
+    notification.title = "Роль изменена"
+    notification.message = "Теперь у вас новая роль."
+    notification.payload = {"workspace_name": "Engineering"}
+    delivery = NotificationDelivery(
+        id=6,
+        notification_id=notification.id,
+        user_id=notification.user_id,
+        channel=NotificationDeliveryChannel.EMAIL,
+        status=NotificationDeliveryStatus.QUEUED,
+        idempotency_key=_idempotency_key(notification.id),
+        attempts=0,
+    )
+    provider = FakeEmailProvider()
+
+    class Session:
+        async def commit(self) -> None:
+            return None
+
+    class SessionContext:
+        async def __aenter__(self) -> Session:
+            return Session()
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    async def load_notification(_session: object, _notification_id: int) -> Notification:
+        return notification
+
+    async def lock_delivery(_session: object, _notification: Notification) -> NotificationDelivery:
+        return delivery
+
+    monkeypatch.setattr("src.services.email_delivery._load_notification", load_notification)
+    monkeypatch.setattr("src.services.email_delivery._lock_delivery", lock_delivery)
+    monkeypatch.setattr("src.services.email_delivery.settings.email_enabled", True)
+
+    await deliver_email_notification_async(
+        lambda: SessionContext(), notification.id, provider=provider
+    )
+
+    assert len(provider.messages) == 1
+    assert delivery.status == NotificationDeliveryStatus.SENT
+    assert delivery.last_error_code is None
+
+
+@pytest.mark.asyncio
+async def test_transactional_delivery_ignores_notification_opt_out(
+    dummy_session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delivery = NotificationDelivery(
+        id=8,
+        notification_id=None,
+        user_id=7,
+        channel=NotificationDeliveryChannel.EMAIL,
+        status=NotificationDeliveryStatus.QUEUED,
+        purpose="workspace_invitation",
+        source_id="invitation-id",
+        attempts=0,
+    )
+    provider = FakeEmailProvider()
+
+    async def lock_delivery(*_args: object, **_kwargs: object) -> NotificationDelivery:
+        return delivery
+
+    monkeypatch.setattr("src.services.transactional_email._lock_delivery", lock_delivery)
+    monkeypatch.setattr("src.services.transactional_email.settings.email_enabled", True)
+
+    rendered = render_notification_email(_notification(), locale="en", config=_settings())
+    assert rendered is not None
+    await _deliver_transactional(
+        dummy_session,
+        purpose="workspace_invitation",
+        source_id="invitation-id",
+        generation=1,
+        recipient="member@example.com",
+        user_id=7,
+        rendered=rendered,
+        final_attempt=False,
+        provider=provider,
+    )
+
+    assert len(provider.messages) == 1
+    assert provider.messages[0].idempotency_key == ("workspace-invitation:invitation-id:1:email:v1")
+    assert delivery.status == NotificationDeliveryStatus.SENT
+
+
+@pytest.mark.asyncio
+async def test_transactional_provider_non_acceptance_is_failed(
+    dummy_session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delivery = NotificationDelivery(
+        id=9,
+        notification_id=None,
+        user_id=None,
+        channel=NotificationDeliveryChannel.EMAIL,
+        status=NotificationDeliveryStatus.QUEUED,
+        purpose="registration_verification",
+        source_id="verification-id",
+        attempts=0,
+    )
+
+    class NonAcceptingProvider:
+        name = "resend"
+
+        def send(self, _message: EmailMessage) -> EmailSendResult:
+            return EmailSendResult(provider=self.name, provider_message_id=None, accepted=False)
+
+    async def lock_delivery(*_args: object, **_kwargs: object) -> NotificationDelivery:
+        return delivery
+
+    monkeypatch.setattr("src.services.transactional_email._lock_delivery", lock_delivery)
+    monkeypatch.setattr("src.services.transactional_email.settings.email_enabled", True)
+    rendered = render_notification_email(_notification(), locale="en", config=_settings())
+    assert rendered is not None
+
+    await _deliver_transactional(
+        dummy_session,
+        purpose="registration_verification",
+        source_id="verification-id",
+        generation=1,
+        recipient="new@example.com",
+        user_id=None,
+        rendered=rendered,
+        final_attempt=False,
+        provider=NonAcceptingProvider(),
+    )
+
+    assert delivery.status == NotificationDeliveryStatus.FAILED
+    assert delivery.last_error_code == "provider_rejected"
+
+
 def test_delivery_idempotency_key_is_stable_and_contains_no_recipient() -> None:
     assert _idempotency_key(42) == "notification:42:email:v1"
     assert "@" not in _idempotency_key(42)
@@ -400,6 +609,72 @@ async def test_preferences_are_opt_in_and_can_be_saved(dummy_session) -> None:
     assert updated.email_enabled is True
     assert updated.email_suppressed is False
     assert dummy_session.committed is True
+
+
+@pytest.mark.asyncio
+async def test_partial_preferences_patch_preserves_unset_fields(dummy_session) -> None:
+    user = _notification().user
+    user.locale = "ru"
+    user.email_notifications_enabled = True
+    user.email_deadline_24h = True
+    user.email_deadline_1h = False
+    user.email_deadline_overdue = True
+
+    updated = await update_notification_preferences(
+        dummy_session,
+        user,
+        NotificationPreferencesUpdate(deadline_1h=True),
+    )
+
+    assert updated.locale == "ru"
+    assert updated.email_enabled is True
+    assert updated.deadline_24h is True
+    assert updated.deadline_1h is True
+    assert updated.deadline_overdue is True
+
+
+@pytest.mark.asyncio
+async def test_diagnostic_is_read_only_and_masks_recipient(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    notification = _notification()
+
+    class DiagnosticResult:
+        def __init__(self, value: object) -> None:
+            self.value = value
+
+        def scalar_one_or_none(self) -> object:
+            return self.value
+
+    class Session:
+        committed = False
+
+        def __init__(self) -> None:
+            self.results = [DiagnosticResult(notification), DiagnosticResult(None)]
+
+        async def execute(self, _stmt: object) -> DiagnosticResult:
+            return self.results.pop(0)
+
+    session = Session()
+
+    class SessionContext:
+        async def __aenter__(self) -> Session:
+            return session
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "src.cli.diagnose_email_notification.AsyncSessionFactory", lambda: SessionContext()
+    )
+    monkeypatch.setattr("src.services.email_delivery.settings.email_enabled", True)
+
+    result = await diagnose(notification.id)
+
+    assert result["decision"] == "send"
+    assert result["recipient_masked"] == "o***@example.com"
+    assert "owner@example.com" not in json.dumps(result)
+    assert session.committed is False
 
 
 @pytest.mark.asyncio

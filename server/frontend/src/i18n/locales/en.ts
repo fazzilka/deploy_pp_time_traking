@@ -125,6 +125,7 @@ export const en = {
   "workspaceMembers.removeAction": "Remove from team",
   "workspaceMembers.removeDialog.title": "Remove member?",
   "workspaceMembers.removeDialog.description": "{{memberName}} will be removed from “{{workspaceName}}”. They will lose access to this workspace and its data.",
+  "workspaceMembers.removeDialog.member": "Member: “{{memberName}}”",
   "workspaceMembers.removeDialog.cancel": "Cancel",
   "workspaceMembers.removeDialog.confirm": "Remove",
   "workspaceMembers.removeDialog.removing": "Removing...",

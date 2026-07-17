@@ -52,13 +52,19 @@ describe("workspace member removal dialog contracts", () => {
     expect(en).toContain("{{memberName}} will be removed from “{{workspaceName}}”.");
   });
 
-  it("provides focus handling, accessible labels, loading state, and responsive long-text layout", () => {
+  it("provides focus handling, task-delete visual tokens, loading state, and responsive long-text layout", () => {
     expect(dialogSource).toContain("aria-labelledby={titleId}");
     expect(dialogSource).toContain("aria-describedby={error ? `${descriptionId} ${errorId}` : descriptionId}");
     expect(dialogSource).toContain("event.key !== \"Tab\"");
     expect(dialogSource).toContain("previousFocusRef.current?.focus()");
     expect(dialogSource).toContain("disabled={isBusy}");
+    expect(dialogSource).toContain('className={destructive ? "button button--red" : "button button--green"}');
+    expect(dialogSource).toContain("confirm-dialog__detail");
+    expect(dialogStyles).toContain("background: var(--color-surface-1)");
+    expect(dialogStyles).toContain("border-radius: var(--radius-lg)");
+    expect(dialogStyles).toContain("box-shadow: var(--shadow-overlay)");
+    expect(dialogStyles).toContain("border-top: 1px solid var(--color-border-subtle)");
     expect(dialogStyles).toContain("overflow-wrap: anywhere");
-    expect(dialogStyles).toContain("@media (max-width: 480px)");
+    expect(dialogStyles).toContain("@media (max-width: 520px)");
   });
 });

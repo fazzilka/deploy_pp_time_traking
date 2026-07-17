@@ -15,6 +15,7 @@ type ConfirmDialogProps = {
   open: boolean;
   title: string;
   description: string;
+  detail?: string;
   confirmLabel: string;
   cancelLabel: string;
   isLoading?: boolean;
@@ -28,6 +29,7 @@ export function ConfirmDialog({
   open,
   title,
   description,
+  detail,
   confirmLabel,
   cancelLabel,
   isLoading = false,
@@ -124,13 +126,16 @@ export function ConfirmDialog({
         aria-describedby={error ? `${descriptionId} ${errorId}` : descriptionId}
         tabIndex={-1}
       >
-        <h2 id={titleId}>{title}</h2>
-        <p id={descriptionId}>{description}</p>
-        {error ? <p className="confirm-dialog__error" id={errorId} role="alert">{error}</p> : null}
-        <div className="confirm-dialog__actions">
-          <button ref={cancelButtonRef} type="button" className="confirm-dialog__secondary" disabled={isBusy} onClick={onCancel}>{cancelLabel}</button>
-          <button type="button" className={destructive ? "confirm-dialog__danger" : "confirm-dialog__primary"} disabled={isBusy} onClick={() => void handleConfirm()}>{confirmLabel}</button>
+        <div className="confirm-dialog__content">
+          <h2 id={titleId}>{title}</h2>
+          <p id={descriptionId}>{description}</p>
+          {detail ? <p className="confirm-dialog__detail">{detail}</p> : null}
+          {error ? <p className="confirm-dialog__error" id={errorId} role="alert">{error}</p> : null}
         </div>
+        <footer className="confirm-dialog__actions">
+          <button ref={cancelButtonRef} type="button" className="button" disabled={isBusy} onClick={onCancel}>{cancelLabel}</button>
+          <button type="button" className={destructive ? "button button--red" : "button button--green"} disabled={isBusy} onClick={() => void handleConfirm()}>{confirmLabel}</button>
+        </footer>
       </section>
     </div>,
     document.body,

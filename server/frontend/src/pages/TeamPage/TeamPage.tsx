@@ -1109,6 +1109,9 @@ export function TeamPage() {
           memberName: getMemberName(memberToRemove),
           workspaceName: currentWorkspace?.name ?? "",
         }) : ""}
+        detail={memberToRemove ? t("workspaceMembers.removeDialog.member", {
+          memberName: memberToRemove.user.email,
+        }) : undefined}
         confirmLabel={t(isRemovingMember ? "workspaceMembers.removeDialog.removing" : "workspaceMembers.removeDialog.confirm")}
         cancelLabel={t("workspaceMembers.removeDialog.cancel")}
         isLoading={isRemovingMember}

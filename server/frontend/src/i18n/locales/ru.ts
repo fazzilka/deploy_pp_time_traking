@@ -123,6 +123,7 @@ export const ru = {
   "workspaceMembers.removeAction": "Удалить из команды",
   "workspaceMembers.removeDialog.title": "Удалить участника?",
   "workspaceMembers.removeDialog.description": "Пользователь {{memberName}} будет удалён из команды „{{workspaceName}}“. Он потеряет доступ к задачам и данным этого пространства.",
+  "workspaceMembers.removeDialog.member": "Участник: «{{memberName}}»",
   "workspaceMembers.removeDialog.cancel": "Отмена",
   "workspaceMembers.removeDialog.confirm": "Удалить",
   "workspaceMembers.removeDialog.removing": "Удаляем...",

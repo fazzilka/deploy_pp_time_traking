@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
+import { TaskDeleteDialog } from "../../components/TaskDeleteDialog/TaskDeleteDialog";
 import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
@@ -53,6 +54,9 @@ export function DashboardPage() {
   const [tick, setTick] = useState(Date.now());
   const [activeTimers, setActiveTimers] = useState<Record<number, ActiveTimerState>>({});
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskPendingDeletion, setTaskPendingDeletion] = useState<Task | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -352,20 +356,37 @@ export function DashboardPage() {
     }
   }
 
-  async function handleDelete(taskId: number) {
+  function handleDelete(taskId: number) {
     if (!canDeleteTask) {
       setError(t("tasks.errors.deletePermission"));
       return;
     }
 
-    const shouldDelete = window.confirm(t("tasks.confirm.delete"));
-
-    if (!shouldDelete) {
+    const taskToDelete = tasks.find((task) => task.id === taskId);
+    if (!taskToDelete) {
       return;
     }
 
+    setDeleteError(null);
+    setTaskPendingDeletion(taskToDelete);
+  }
+
+  function closeDeleteDialog() {
+    if (isDeletingTask) return;
+    setTaskPendingDeletion(null);
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    const taskId = taskPendingDeletion?.id;
+    if (!taskId || isDeletingTask) {
+      return;
+    }
+
+    setIsDeletingTask(true);
     setBusyTaskId(taskId);
     setError(null);
+    setDeleteError(null);
 
     try {
       const previousTask = tasks.find((task) => task.id === taskId) ?? null;
@@ -383,10 +404,14 @@ export function DashboardPage() {
         delete nextTimers[taskId];
         return nextTimers;
       });
+      setTaskPendingDeletion(null);
     } catch {
-      setError(t("tasks.errors.delete"));
+      const message = t("tasks.errors.delete");
+      setError(message);
+      setDeleteError(message);
     } finally {
       setBusyTaskId(null);
+      setIsDeletingTask(false);
     }
   }
 
@@ -625,6 +650,14 @@ export function DashboardPage() {
         canEditTask={canMutateTasks}
       />
       )}
+      <TaskDeleteDialog
+        open={taskPendingDeletion !== null}
+        taskName={taskPendingDeletion?.title ?? ""}
+        isDeleting={isDeletingTask}
+        error={deleteError}
+        onCancel={closeDeleteDialog}
+        onConfirm={confirmDelete}
+      />
     </main>
   );
 }

@@ -10,6 +10,7 @@ import {
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
+import { TaskDeleteDialog } from "../../components/TaskDeleteDialog/TaskDeleteDialog";
 import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import {
@@ -184,6 +185,9 @@ export function ProjectDetailPage() {
   const [activeTimers, setActiveTimers] = useState<Record<number, ActiveTimerState>>({});
   const [tick, setTick] = useState(Date.now());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskPendingDeletion, setTaskPendingDeletion] = useState<Task | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ProjectTab>("tasks");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -484,19 +488,37 @@ export function ProjectDetailPage() {
     }
   }
 
-  async function handleDelete(taskId: number) {
+  function handleDelete(taskId: number) {
     if (!canDeleteTask) {
       setError(t("tasks.errors.deletePermission"));
       return;
     }
 
-    const shouldDelete = window.confirm(t("tasks.confirm.delete"));
-    if (!shouldDelete) {
+    const taskToDelete = tasks.find((task) => task.id === taskId);
+    if (!taskToDelete) {
       return;
     }
 
+    setDeleteError(null);
+    setTaskPendingDeletion(taskToDelete);
+  }
+
+  function closeDeleteDialog() {
+    if (isDeletingTask) return;
+    setTaskPendingDeletion(null);
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    const taskId = taskPendingDeletion?.id;
+    if (!taskId || isDeletingTask) {
+      return;
+    }
+
+    setIsDeletingTask(true);
     setBusyTaskId(taskId);
     setError(null);
+    setDeleteError(null);
 
     try {
       const taskToDelete = tasks.find((task) => task.id === taskId) ?? null;
@@ -517,10 +539,14 @@ export function ProjectDetailPage() {
         delete nextTimers[taskId];
         return nextTimers;
       });
+      setTaskPendingDeletion(null);
     } catch {
-      setError(t("tasks.errors.delete"));
+      const message = t("tasks.errors.delete");
+      setError(message);
+      setDeleteError(message);
     } finally {
       setBusyTaskId(null);
+      setIsDeletingTask(false);
     }
   }
 
@@ -1062,6 +1088,14 @@ export function ProjectDetailPage() {
           canEditTask={canMutateTasks}
         />
       )}
+      <TaskDeleteDialog
+        open={taskPendingDeletion !== null}
+        taskName={taskPendingDeletion?.title ?? ""}
+        isDeleting={isDeletingTask}
+        error={deleteError}
+        onCancel={closeDeleteDialog}
+        onConfirm={confirmDelete}
+      />
     </main>
   );
 }

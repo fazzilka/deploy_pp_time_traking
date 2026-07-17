@@ -30,7 +30,17 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    email_verification_code_ttl_minutes: int = 10
+    email_verification_resend_cooldown_seconds: int = 60
+    email_verification_max_attempts: int = 5
+    email_verification_max_resends: int = 5
+    workspace_invitation_ttl_days: int = 7
+    registration_start_rate_limit_per_hour: int = 10
+    registration_verify_rate_limit_per_10_minutes: int = 20
+    invitation_create_rate_limit_per_hour: int = 30
+    invitation_resolve_rate_limit_per_hour: int = 60
     cors_allow_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    trusted_proxy_headers: bool = False
     app_timezone: str = "Europe/Moscow"
     app_public_url: str = "https://time-tracking.online"
     celery_broker_url: str = "amqp://time_tracking:time_tracking@rabbitmq:5672//"
@@ -121,6 +131,18 @@ class Settings(BaseSettings):
             raise ValueError("EMAIL_RETRY_BASE_SECONDS must be positive")
         if self.email_request_timeout_seconds <= 0:
             raise ValueError("EMAIL_REQUEST_TIMEOUT_SECONDS must be positive")
+        positive_security_settings = {
+            "EMAIL_VERIFICATION_CODE_TTL_MINUTES": self.email_verification_code_ttl_minutes,
+            "EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS": (
+                self.email_verification_resend_cooldown_seconds
+            ),
+            "EMAIL_VERIFICATION_MAX_ATTEMPTS": self.email_verification_max_attempts,
+            "EMAIL_VERIFICATION_MAX_RESENDS": self.email_verification_max_resends,
+            "WORKSPACE_INVITATION_TTL_DAYS": self.workspace_invitation_ttl_days,
+        }
+        invalid = [name for name, value in positive_security_settings.items() if value <= 0]
+        if invalid:
+            raise ValueError("Security settings must be positive: " + ", ".join(invalid))
         if self.telegram_notifications_enabled and not self.telegram_bot_token.strip():
             raise ValueError("Telegram notifications require TELEGRAM_BOT_TOKEN")
         return self

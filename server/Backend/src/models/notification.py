@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID as PyUUID
 
 from sqlalchemy import (
     Boolean,
@@ -16,7 +17,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.session import Base
@@ -43,6 +44,7 @@ class Notification(Base):
             "'workspace_member_removed', "
             "'workspace_member_role_changed', "
             "'workspace_role_changed'"
+            ", 'workspace_invitation'"
             ")",
             name="ck_notifications_type_allowed",
         ),
@@ -71,6 +73,12 @@ class Notification(Base):
     )
     task_id: Mapped[int | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    invitation_id: Mapped[PyUUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspace_invitations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     type: Mapped[NotificationType] = mapped_column(
         Enum(
@@ -117,6 +125,10 @@ class NotificationDelivery(Base):
             name="ck_notification_deliveries_status_allowed",
         ),
         CheckConstraint("attempts >= 0", name="ck_notification_deliveries_attempts_non_negative"),
+        CheckConstraint(
+            "purpose IN ('notification', 'workspace_invitation', 'registration_verification')",
+            name="ck_notification_deliveries_purpose_allowed",
+        ),
         UniqueConstraint(
             "notification_id",
             "channel",
@@ -130,11 +142,11 @@ class NotificationDelivery(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    notification_id: Mapped[int] = mapped_column(
-        ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False, index=True
+    notification_id: Mapped[int | None] = mapped_column(
+        ForeignKey("notifications.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     channel: Mapped[NotificationDeliveryChannel] = mapped_column(
         Enum(
@@ -157,6 +169,14 @@ class NotificationDelivery(Base):
         server_default=NotificationDeliveryStatus.PENDING.value,
     )
     attempts: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    purpose: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="notification",
+        server_default="notification",
+        index=True,
+    )
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     recipient_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
     provider_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -177,7 +197,7 @@ class NotificationDelivery(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    notification: Mapped[Notification] = relationship(back_populates="deliveries")
+    notification: Mapped[Notification | None] = relationship(back_populates="deliveries")
 
 
 class NotificationWebhookEvent(Base):

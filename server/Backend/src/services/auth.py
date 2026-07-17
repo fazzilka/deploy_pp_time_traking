@@ -24,7 +24,7 @@ async def register_user(session: AsyncSession, payload: RegisterRequest) -> User
     total_started_at = perf_counter()
     stage_durations: AuthStageDurations = []
     result = "failure"
-    email = payload.email.lower()
+    email = str(payload.email).strip().lower()
 
     try:
         stage_started_at = perf_counter()
@@ -83,7 +83,7 @@ async def login_user(session: AsyncSession, payload: LoginRequest) -> TokenRespo
 
     try:
         stage_started_at = perf_counter()
-        user = await get_user_by_email(session, payload.email.lower())
+        user = await get_user_by_email(session, str(payload.email).strip().lower())
         stage_durations.append(("db_lookup", perf_counter() - stage_started_at))
 
         if user is None:
@@ -106,6 +106,11 @@ async def login_user(session: AsyncSession, payload: LoginRequest) -> TokenRespo
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Пользователь неактивен"
+            )
+        if user.email_verified is False:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Email не подтверждён",
             )
 
         stage_started_at = perf_counter()

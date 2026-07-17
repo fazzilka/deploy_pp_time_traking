@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, func, select, update
@@ -29,6 +30,7 @@ async def create_notification(
     message: str,
     workspace_id: int | None = None,
     task_id: int | None = None,
+    invitation_id: UUID | None = None,
     payload: dict[str, Any] | None = None,
     dedupe_key: str | None = None,
 ) -> Notification | None:
@@ -41,6 +43,7 @@ async def create_notification(
         user_id=user_id,
         workspace_id=workspace_id,
         task_id=task_id,
+        invitation_id=invitation_id,
         type=type,
         title=title,
         message=message,

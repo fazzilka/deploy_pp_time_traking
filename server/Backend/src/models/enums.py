@@ -31,6 +31,14 @@ class WorkspaceMemberStatus(StrEnum):
     INACTIVE = "inactive"
 
 
+class WorkspaceInvitationStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+
 class NotificationType(StrEnum):
     DEADLINE_SOON = "deadline_soon"
     DEADLINE_OVERDUE = "deadline_overdue"
@@ -38,6 +46,7 @@ class NotificationType(StrEnum):
     WORKSPACE_MEMBER_REMOVED = "workspace_member_removed"
     WORKSPACE_MEMBER_ROLE_CHANGED = "workspace_member_role_changed"
     WORKSPACE_ROLE_CHANGED = "workspace_role_changed"
+    WORKSPACE_INVITATION = "workspace_invitation"
 
 
 class NotificationDeliveryChannel(StrEnum):

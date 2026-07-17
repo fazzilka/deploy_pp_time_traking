@@ -6,7 +6,7 @@ celery_app = Celery(
     "time_tracking",
     broker=settings.celery_broker_url,
     backend=None,
-    include=["src.tasks.notifications"],
+    include=["src.tasks.notifications", "src.tasks.transactional_email"],
 )
 
 celery_app.conf.update(

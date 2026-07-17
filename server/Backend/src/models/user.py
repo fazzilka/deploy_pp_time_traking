@@ -56,6 +56,9 @@ class User(Base):
         server_default="true",
         index=True,
     )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=True, server_default="true", index=True
+    )
     telegram_chat_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     telegram_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
     telegram_notifications_enabled: Mapped[bool] = mapped_column(

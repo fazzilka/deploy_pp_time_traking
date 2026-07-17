@@ -94,6 +94,10 @@ delivery row:
 python -m src.cli.diagnose_email_notification --notification-id 123 --dry-run
 ```
 
+The output separates the current `policy_decision` from the delivery action. Historical terminal
+rows (`sent`, `delivered`, `failed`, or `skipped`) report `decision=no_action` and are never rewritten
+or resent by the diagnostic command.
+
 ## Rollback
 
 Set `EMAIL_ENABLED=false` first. Internal notifications need no rollback. Keep delivery and

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -12,6 +13,7 @@ from svix.webhooks import Webhook
 from src.api.webhooks import _apply_delivery_event, _persist_resend_event
 from src.cli.diagnose_email_notification import diagnose
 from src.core.config import Settings
+from src.core.logging import JsonFormatter
 from src.models.enums import (
     NotificationDeliveryChannel,
     NotificationDeliveryStatus,
@@ -150,6 +152,33 @@ def test_fake_provider_never_sends_external_email() -> None:
 
     assert provider.messages == [_message()]
     assert result.provider_message_id == "fake-1"
+
+
+def test_json_formatter_preserves_safe_email_delivery_fields() -> None:
+    record = logging.LogRecord(
+        name="src.services.email_delivery",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="email_delivery_skipped",
+        args=(),
+        exc_info=None,
+    )
+    record.delivery_id = 17
+    record.notification_id = 42
+    record.purpose = "notification"
+    record.notification_type = "deadline_soon"
+    record.provider = "resend"
+    record.skip_code = "user_opt_out"
+    record.user_id = 7
+
+    payload = json.loads(JsonFormatter().format(record))
+
+    assert payload["message"] == "email_delivery_skipped"
+    assert payload["delivery_id"] == 17
+    assert payload["notification_id"] == 42
+    assert payload["skip_code"] == "user_opt_out"
+    assert "recipient_email" not in payload
 
 
 @pytest.mark.asyncio
@@ -671,6 +700,7 @@ async def test_diagnostic_is_read_only_and_masks_recipient(
 
     result = await diagnose(notification.id)
 
+    assert result["policy_decision"] == "send"
     assert result["decision"] == "send"
     assert result["recipient_masked"] == "o***@example.com"
     assert "owner@example.com" not in json.dumps(result)

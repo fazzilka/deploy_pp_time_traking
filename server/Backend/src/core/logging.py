@@ -5,6 +5,19 @@ from datetime import UTC, datetime
 
 from src.middleware.request_id import request_id_context
 
+STRUCTURED_LOG_FIELDS = (
+    "delivery_id",
+    "notification_id",
+    "purpose",
+    "notification_type",
+    "provider",
+    "source_id",
+    "skip_code",
+    "error_code",
+    "user_id",
+    "attempt",
+)
+
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -17,6 +30,9 @@ class JsonFormatter(logging.Formatter):
         }
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
+        for field in STRUCTURED_LOG_FIELDS:
+            if hasattr(record, field):
+                payload[field] = getattr(record, field)
         return json.dumps(payload, ensure_ascii=False)
 
 

@@ -58,17 +58,20 @@ async def diagnose(notification_id: int) -> dict[str, Any]:
             )
         )
         delivery = delivery_result.scalar_one_or_none()
-        skip_reason = _email_skip_reason(notification)
+        policy_reason = _email_skip_reason(notification)
         template_supported = (
             render_notification_email(
                 notification, locale=notification.user.locale, config=settings
             )
             is not None
         )
-        if skip_reason is None and not template_supported:
-            skip_reason = "unsupported_notification_type"
+        if policy_reason is None and not template_supported:
+            policy_reason = "unsupported_notification_type"
+        decision = "skip" if policy_reason else "send"
+        reason = policy_reason
         if delivery is not None and delivery.status in TERMINAL_EMAIL_STATUSES:
-            skip_reason = "already_terminal"
+            decision = "no_action"
+            reason = "already_terminal"
         return {
             "notification_id": notification.id,
             "exists": True,
@@ -97,8 +100,10 @@ async def diagnose(notification_id: int) -> dict[str, Any]:
                 else None
             ),
             "idempotency_key": _idempotency_key(notification.id),
-            "decision": "skip" if skip_reason else "send",
-            "reason": skip_reason,
+            "policy_decision": "skip" if policy_reason else "send",
+            "policy_reason": policy_reason,
+            "decision": decision,
+            "reason": reason,
         }
 
 

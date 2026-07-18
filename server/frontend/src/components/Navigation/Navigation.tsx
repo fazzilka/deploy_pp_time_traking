@@ -15,7 +15,7 @@ import type { Workspace } from "../../shared/types/workspace";
 import { useWorkspace } from "../../shared/workspace/WorkspaceContext";
 import "./Navigation.css";
 
-type NavigationIconName = "home" | "building" | "plus" | "chevron" | "check" | "users" | "lock";
+type NavigationIconName = "home" | "building" | "plus" | "chevron" | "check" | "users" | "lock" | "shield";
 
 function NavigationIcon({ name }: { name: NavigationIconName }) {
   const props = {
@@ -84,6 +84,13 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
         <svg {...props}>
           <rect x="4" y="10" width="16" height="10" rx="2" />
           <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...props}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+          <path d="M9 12l2 2 4-4" />
         </svg>
       );
     default:
@@ -482,6 +489,12 @@ export function Navigation() {
           <NavLink to="/team">{t("navigation.team")}</NavLink>
           <NavLink to="/profile">{t("navigation.profile")}</NavLink>
           <NavLink to="/settings/general">{t("navigation.settings")}</NavLink>
+          {user?.role === "admin" && (
+            <NavLink className="navigation__admin-link" to="/admin/overview">
+              <NavigationIcon name="shield" />
+              <span>{t("navigation.administration")}</span>
+            </NavLink>
+          )}
         </nav>
 
         <div className="navigation__user">

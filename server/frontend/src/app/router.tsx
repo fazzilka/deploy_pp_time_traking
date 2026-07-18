@@ -1,6 +1,11 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { App } from "../App";
+import { AdminLayout } from "../components/AdminLayout/AdminLayout";
+import { AdminRoute } from "../components/AdminRoute/AdminRoute";
 import { ProtectedRoute } from "../components/ProtectedRoute/ProtectedRoute";
+import { AdminOverviewPage } from "../pages/AdminOverviewPage/AdminOverviewPage";
+import { AdminUserDetailsPage } from "../pages/AdminUserDetailsPage/AdminUserDetailsPage";
+import { AdminUsersPage } from "../pages/AdminUsersPage/AdminUsersPage";
 import { AuthPage } from "../pages/AuthPage/AuthPage";
 import { DashboardPage } from "../pages/DashboardPage/DashboardPage";
 import { ProjectDetailPage } from "../pages/ProjectDetailPage/ProjectDetailPage";
@@ -76,6 +81,32 @@ export const router = createBrowserRouter([
           {
             path: "/team",
             element: <TeamPage />,
+          },
+        ],
+      },
+      {
+        element: <AdminRoute />,
+        children: [
+          {
+            element: <AdminLayout />,
+            children: [
+              {
+                path: "/admin",
+                element: <Navigate to="/admin/overview" replace />,
+              },
+              {
+                path: "/admin/overview",
+                element: <AdminOverviewPage />,
+              },
+              {
+                path: "/admin/users",
+                element: <AdminUsersPage />,
+              },
+              {
+                path: "/admin/users/:userId",
+                element: <AdminUserDetailsPage />,
+              },
+            ],
           },
         ],
       },

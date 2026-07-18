@@ -1,0 +1,26 @@
+.admin-route-status {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: var(--color-canvas);
+  color: var(--color-text-secondary);
+}
+
+.admin-route-status p {
+  margin: 0;
+}
+
+.admin-route-status__spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--color-border-default);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: admin-route-spin 700ms linear infinite;
+}
+
+@keyframes admin-route-spin {
+  to { transform: rotate(360deg); }
+}

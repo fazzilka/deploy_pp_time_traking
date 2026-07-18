@@ -7,9 +7,9 @@ from src.models.enums import UserRole
 from src.schemas.user import (
     ActivityResponse,
     AdminSystemStats,
+    AdminUserDetails,
     AdminUserListResponse,
     AdminUserUpdate,
-    UserProfile,
 )
 from src.services.admin import (
     get_admin_user_profile,
@@ -42,23 +42,23 @@ async def get_users(
     )
 
 
-@router.get("/users/{user_id}", response_model=UserProfile)
+@router.get("/users/{user_id}", response_model=AdminUserDetails)
 async def get_user(
     user_id: int,
     session: SessionDep,
     _admin: CurrentAdminDep,
-) -> UserProfile:
+) -> AdminUserDetails:
     return await get_admin_user_profile(session, user_id)
 
 
-@router.patch("/users/{user_id}", response_model=UserProfile)
+@router.patch("/users/{user_id}", response_model=AdminUserDetails)
 async def update_user(
     user_id: int,
     payload: AdminUserUpdate,
     session: SessionDep,
-    _admin: CurrentAdminDep,
-) -> UserProfile:
-    return await update_user_by_admin(session, user_id, payload)
+    admin: CurrentAdminDep,
+) -> AdminUserDetails:
+    return await update_user_by_admin(session, user_id, payload, actor=admin)
 
 
 @router.get("/users/{user_id}/activity", response_model=ActivityResponse)

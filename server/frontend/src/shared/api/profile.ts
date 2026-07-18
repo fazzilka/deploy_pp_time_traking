@@ -354,3 +354,8 @@ export function hydrateUserCachesFromAuth(user: User): void {
     profileStatsCache.loaded = true;
   }
 }
+
+export function synchronizeCurrentUserProfile(user: User): void {
+  hydrateUserCachesFromAuth(user);
+  notifyProfileUpdated(toUserProfile(user));
+}

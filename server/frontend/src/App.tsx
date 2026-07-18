@@ -7,7 +7,9 @@ export function App() {
   const { t, text } = useLocale();
 
   useEffect(() => {
-    const section = location.pathname.startsWith("/projects")
+    const section = location.pathname.startsWith("/admin")
+      ? t("admin.overview.title")
+      : location.pathname.startsWith("/projects")
       ? t("projects.title")
       : location.pathname.startsWith("/reports")
         ? t("reports.title")

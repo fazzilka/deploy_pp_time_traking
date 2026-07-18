@@ -4,6 +4,18 @@ export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
+export class ApiError extends Error {
+  status: number;
+  code: string | null;
+
+  constructor(message: string, status: number, code: string | null = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export function getAccessToken(): string | null {
   return localStorage.getItem("access_token");
 }
@@ -45,12 +57,23 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (!response.ok) {
     let message = `Ошибка запроса: ${response.status}`;
+    let code: string | null = null;
 
     try {
       const data = (await response.json()) as { detail?: unknown; error?: unknown; message?: unknown };
       const detail = data.detail ?? data.error ?? data.message;
       if (typeof detail === "string") {
         message = detail;
+      } else if (typeof detail === "object" && detail !== null) {
+        const businessError = detail as { code?: unknown; message?: unknown };
+        if (typeof businessError.message === "string") {
+          message = businessError.message;
+        } else {
+          message = JSON.stringify(detail);
+        }
+        if (typeof businessError.code === "string") {
+          code = businessError.code;
+        }
       } else if (detail) {
         message = JSON.stringify(detail);
       }
@@ -58,7 +81,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       // Response body is empty or not JSON.
     }
 
-    throw new Error(message);
+    throw new ApiError(message, response.status, code);
   }
 
   if (response.status === 204) {

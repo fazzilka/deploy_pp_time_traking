@@ -422,6 +422,18 @@
   background: var(--color-green-bright);
 }
 
+.navigation__links .navigation__admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navigation__admin-link svg {
+  width: 15px;
+  height: 15px;
+  color: var(--color-blue);
+}
+
 .navigation__user {
   justify-self: end;
 

@@ -10,12 +10,12 @@ from src.models.user import User
 from src.schemas.user import (
     ActivityResponse,
     AdminSystemStats,
+    AdminUserDetails,
     AdminUserListResponse,
     AdminUserRead,
     AdminUserStats,
     AdminUserUpdate,
     TopUserStats,
-    UserProfile,
 )
 from src.services.auth import get_user_by_username
 from src.services.user import get_activity, get_avatar_letter, get_user_profile
@@ -100,30 +100,54 @@ async def list_users(
 async def get_user_or_404(session: AsyncSession, user_id: int) -> User:
     user = await session.get(User, user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "user_not_found", "message": "Пользователь не найден"},
+        )
     return user
 
 
-async def get_admin_user_profile(session: AsyncSession, user_id: int) -> UserProfile:
+async def get_admin_user_profile(session: AsyncSession, user_id: int) -> AdminUserDetails:
     user = await get_user_or_404(session, user_id)
-    return await get_user_profile(session, user)
+    return await _get_admin_user_details(session, user)
 
 
 async def update_user_by_admin(
     session: AsyncSession,
     user_id: int,
     payload: AdminUserUpdate,
-) -> UserProfile:
+    *,
+    actor: User,
+) -> AdminUserDetails:
     user = await get_user_or_404(session, user_id)
     values = payload.model_dump(exclude_unset=True)
+    if user.id == actor.id and values.get("is_active") is False:
+        raise _admin_conflict(
+            "self_block",
+            "Администратор не может заблокировать собственный аккаунт",
+        )
+
+    removes_active_admin = (
+        user.role == UserRole.ADMIN
+        and user.is_active
+        and (
+            values.get("is_active") is False
+            or ("role" in values and values["role"] != UserRole.ADMIN)
+        )
+    )
+    if removes_active_admin:
+        active_admin_ids = await _lock_active_admin_ids(session)
+        if user.id in active_admin_ids and len(active_admin_ids) <= 1:
+            raise _admin_conflict(
+                "last_active_admin",
+                "Нельзя заблокировать или понизить роль последнего активного администратора",
+            )
+
     username = values.get("username")
     if username is not None and username != user.username:
         existing = await get_user_by_username(session, username)
         if existing is not None and existing.id != user.id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Username уже занят",
-            )
+            raise _admin_conflict("duplicate_username", "Username уже занят")
         user.username = username
     if "full_name" in values:
         user.full_name = values["full_name"]
@@ -133,7 +157,7 @@ async def update_user_by_admin(
         user.is_active = values["is_active"]
     await session.commit()
     await session.refresh(user)
-    return await get_user_profile(session, user)
+    return await _get_admin_user_details(session, user)
 
 
 async def get_system_stats(session: AsyncSession) -> AdminSystemStats:
@@ -186,6 +210,29 @@ async def get_user_activity_for_admin(
 ) -> ActivityResponse:
     await get_user_or_404(session, user_id)
     return await get_activity(session, user_id, year=year)
+
+
+async def _get_admin_user_details(session: AsyncSession, user: User) -> AdminUserDetails:
+    profile = await get_user_profile(session, user)
+    return AdminUserDetails.model_validate(
+        {**profile.model_dump(), "email_verified": user.email_verified}
+    )
+
+
+async def _lock_active_admin_ids(session: AsyncSession) -> set[int]:
+    result = await session.execute(
+        select(User.id)
+        .where(User.role == UserRole.ADMIN, User.is_active.is_(True))
+        .with_for_update()
+    )
+    return {int(user_id) for user_id in result.scalars().all()}
+
+
+def _admin_conflict(code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"code": code, "message": message},
+    )
 
 
 async def _build_admin_user(session: AsyncSession, user: User) -> AdminUserRead:

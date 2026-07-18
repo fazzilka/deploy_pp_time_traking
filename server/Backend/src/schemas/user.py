@@ -126,6 +126,10 @@ class AdminUserListResponse(BaseModel):
     total: int
 
 
+class AdminUserDetails(UserProfile):
+    email_verified: bool
+
+
 class AdminUserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

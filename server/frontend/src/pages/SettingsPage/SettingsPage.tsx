@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { PasswordInput } from "../../components/PasswordInput/PasswordInput";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { useLocale, type SupportedLocale } from "../../i18n";
 import {
   changePassword,
@@ -172,13 +173,13 @@ export function SettingsPage({ section }: { section: SettingsSection }) {
 
         <section className="settings-content" aria-labelledby={`settings-${section}-title`}>
           {section !== "security" && isLoading ? (
-            <div className="settings-status">{t("common.loading")}</div>
+            <LoadingSkeleton label={t("common.loading")} variant="list" />
           ) : section !== "security" && (loadError || !preferences) ? (
             <div className="settings-status settings-status--error" role="alert">
               {t("settings.loadError")}
             </div>
           ) : section === "general" && preferences ? (
-            <section className="settings-card">
+            <section className="settings-card content-reveal">
               <div className="settings-card__heading">
                 <h2>{t("settings.general.interfaceLanguage")}</h2>
                 <p>{t("settings.general.languageHint")}</p>
@@ -200,7 +201,7 @@ export function SettingsPage({ section }: { section: SettingsSection }) {
               <SaveMessage state={generalState} scope="general" />
             </section>
           ) : section === "notifications" && preferences ? (
-            <section className="settings-card">
+            <section className="settings-card content-reveal">
               <div className="settings-card__heading">
                 <h2>{t("settings.notifications.email.title")}</h2>
                 <p id="email-notifications-description">

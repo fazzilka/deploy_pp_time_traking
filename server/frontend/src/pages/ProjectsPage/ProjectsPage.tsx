@@ -7,6 +7,7 @@ import {
   getProjectFallbackIcon,
   type ProjectIconName,
 } from "../../components/ProjectIcon/ProjectIcon";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import {
   createProject,
@@ -186,9 +187,9 @@ export function ProjectsPage() {
       {error && <div className="status-message status-message--error projects-status">{error}</div>}
 
       {isLoading ? (
-        <div className="status-message projects-status">{t("projects.loading")}</div>
+        <LoadingSkeleton label={t("projects.loading")} variant="cards" />
       ) : projects.length > 0 || unassignedProject ? (
-        <section className="projects-grid" aria-label={t("projects.listLabel")}>
+        <section className="projects-grid content-reveal" aria-label={t("projects.listLabel")}>
           {projects.map((project) => {
             const progressWidth = getProgressWidth(project.total_time_seconds, maxProjectSeconds);
             const icon = getProjectFallbackIcon(project);

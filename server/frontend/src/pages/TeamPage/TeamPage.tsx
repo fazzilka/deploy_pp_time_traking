@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import {
   getWorkspaceMembers,
@@ -709,9 +710,9 @@ export function TeamPage() {
           </div>
 
           {isLoading ? (
-            <div className="team-empty-state">{text("Загружаем участников...", "Loading members...")}</div>
+            <LoadingSkeleton label={text("Загружаем участников...", "Loading members...")} variant="list" />
           ) : (
-            <div className="team-table" role="table" aria-label={text("Участники workspace", "Workspace members")}>
+            <div className="team-table content-reveal" role="table" aria-label={text("Участники workspace", "Workspace members")}>
               <div className="team-table__head" role="row">
                 <span>{text("Участник", "Member")}</span><span>{text("Роль", "Role")}</span><span>{text("Статус", "Status")}</span>
                 <span>{t("projects.title")}</span><span>{t("tasks.queue.title")}</span><span>{text("Время", "Time")}</span><span>{text("Действия", "Actions")}</span>

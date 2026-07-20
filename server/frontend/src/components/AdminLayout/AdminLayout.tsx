@@ -129,7 +129,9 @@ export function AdminLayout() {
           </div>
           <LanguageSwitcher />
         </header>
-        <Outlet />
+        <div className="route-transition" key={location.pathname}>
+          <Outlet />
+        </div>
       </div>
     </div>
   );

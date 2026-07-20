@@ -8,6 +8,7 @@ import { TaskDeleteDialog } from "../../components/TaskDeleteDialog/TaskDeleteDi
 import { datetimeLocalToUtcIso } from "../../shared/utils/deadline";
 import { TaskRow } from "../../components/TaskRow/TaskRow";
 import { TimerCard } from "../../components/TimerCard/TimerCard";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { applyProjectsTaskChange, getProjects } from "../../shared/api/projects";
 import { createTask, deleteTask, getTasks, startTaskTimer, stopTaskTimer, updateTask } from "../../shared/api/tasks";
 import type { ProjectListItem } from "../../shared/types/project";
@@ -597,7 +598,7 @@ export function DashboardPage() {
 
           <div className="tasks-queue__list">
             {isLoading ? (
-              <div className="status-message">{t("tasks.loading")}</div>
+              <LoadingSkeleton label={t("tasks.loading")} variant="list" />
             ) : tasks.length > 0 ? (
               tasks.map((task) => {
                 const isActive = Boolean(activeTimers[task.id]);

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ActivityGrid } from "../../components/ActivityGrid/ActivityGrid";
 import { GeneratedAvatar } from "../../components/GeneratedAvatar";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { StatCard } from "../../components/StatCard/StatCard";
@@ -116,7 +117,7 @@ export function ProfilePage() {
   if (isLoading && !user) {
     return (
       <main className="profile-page app-container">
-        <div className="status-message">{t("profile.loading")}</div>
+        <LoadingSkeleton label={t("profile.loading")} variant="profile" />
       </main>
     );
   }
@@ -138,7 +139,7 @@ export function ProfilePage() {
 
   return (
     <main className="profile-page app-container">
-      <div className="profile-layout">
+      <div className="profile-layout content-reveal">
         <aside className="profile-sidebar">
           <div className="profile-avatar-wrapper">
             <GeneratedAvatar

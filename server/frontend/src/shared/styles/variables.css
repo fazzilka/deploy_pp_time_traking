@@ -79,4 +79,5 @@
   --shadow-overlay: 0 18px 48px rgba(0, 0, 0, 0.42);
   --focus-ring: 0 0 0 3px rgba(63, 185, 80, 0.2);
   --transition-fast: 150ms ease;
+  --transition-page: 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -7,6 +7,7 @@ import {
   getProjectFallbackIcon,
   type ProjectIconName,
 } from "../../components/ProjectIcon/ProjectIcon";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { PrioritySelect } from "../../components/PrioritySelect/PrioritySelect";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { TaskDetailsModal } from "../../components/TaskDetailsModal/TaskDetailsModal";
@@ -670,7 +671,7 @@ export function ProjectDetailPage() {
   if (isLoading) {
     return (
       <main className="project-detail-page app-container">
-        <div className="status-message">{text("Загружаем проект...", "Loading project...")}</div>
+        <LoadingSkeleton label={text("Загружаем проект...", "Loading project...")} />
       </main>
     );
   }
@@ -698,7 +699,7 @@ export function ProjectDetailPage() {
   const heroProjectIcon = getProjectFallbackIcon(project);
 
   return (
-    <main className="project-detail-page app-container">
+    <main className="project-detail-page app-container content-reveal">
       <Link className="project-detail-page__back" to="/projects">
         ← {t("projects.navigation.back")}
       </Link>

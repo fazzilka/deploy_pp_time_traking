@@ -1,5 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { PriorityIcon } from "../../components/PriorityIcon/PriorityIcon";
+import { LoadingSkeleton } from "../../components/LoadingSkeleton/LoadingSkeleton";
 import { ProtectedSpaceStatus } from "../../components/ProtectedSpaceStatus";
 import { StatCard } from "../../components/StatCard/StatCard";
 import {
@@ -150,7 +151,7 @@ export function ReportsPage() {
   if (isLoading) {
     return (
       <main className="reports-page app-container">
-        <div className="status-message">{t("reports.loading")}</div>
+        <LoadingSkeleton label={t("reports.loading")} />
       </main>
     );
   }
@@ -173,7 +174,7 @@ export function ReportsPage() {
   const hasProjectTime = reports.projectsSummary.total_time_seconds > 0;
 
   return (
-    <main className="reports-page app-container">
+    <main className="reports-page app-container content-reveal">
       <section className="reports-header">
         <div>
           <p className="eyebrow">{t("reports.page.eyebrow")}</p>

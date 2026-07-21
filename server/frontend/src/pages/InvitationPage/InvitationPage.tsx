@@ -68,13 +68,19 @@ export function InvitationPage() {
     <main className="invitation-page">
       <LanguageSwitcher className="invitation-page__language" />
       <section className="invitation-card" aria-labelledby="invitation-title">
-        <div className="invitation-card__brand"><span>TT</span> Time Tracking</div>
+        <div className="invitation-card__brand">
+          <span className="invitation-card__logo" aria-hidden="true">TT</span>
+          <span>Time Tracking</span>
+        </div>
         <h1 id="invitation-title">{t("invitations.title")}</h1>
-        {isLoading && <p role="status">{t("common.loading")}</p>}
+        {isLoading && <p className="invitation-card__loading" role="status">{t("common.loading")}</p>}
         {!isLoading && invitation && (
           <>
-            <p>{t("invitations.description", { inviterName: invitation.invited_by_display_name, workspaceName: invitation.workspace_name })}</p>
-            <dl><div><dt>{t("invitations.roleLabel")}</dt><dd>{t(`roles.${invitation.role}`)}</dd></div><div><dt>{t("invitations.emailLabel")}</dt><dd>{invitation.invited_email_masked}</dd></div></dl>
+            <p className="invitation-card__description">{t("invitations.description", { inviterName: invitation.invited_by_display_name, workspaceName: invitation.workspace_name })}</p>
+            <dl>
+              <div><dt>{t("invitations.roleLabel")}</dt><dd>{t(`roles.${invitation.role}`)}</dd></div>
+              <div><dt>{t("invitations.emailLabel")}</dt><dd>{invitation.invited_email_masked}</dd></div>
+            </dl>
             {!isPending && <p className="invitation-card__status">{t(`invitations.${invitation.status}`)}</p>}
             {isPending && !isAuthenticated() && (
               <button className="invitation-card__primary" type="button" onClick={() => navigate("/auth?mode=register")}>{t("invitations.registerToContinue")}</button>
